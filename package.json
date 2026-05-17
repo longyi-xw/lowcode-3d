@@ -15,9 +15,22 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "lint": "echo \"lint: not configured yet\" && exit 0",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"test: not configured yet\" && exit 0"
+    "test": "echo \"test: not configured yet\" && exit 0",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{js,cjs,mjs,json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
@@ -41,16 +54,32 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
+    "@eslint/js": "^9.39.4",
     "@tauri-apps/cli": "^2",
     "@types/node": "^20",
     "@types/react": "^18.3",
     "@types/react-dom": "^18.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.5.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-i18next": "^6.1.4",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "eslint-plugin-tailwindcss": "^3.18.3",
+    "globals": "^17.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
     "postcss": "^8.5.14",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^3",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.59.3",
     "vite": "^5.4.10"
   }
 }

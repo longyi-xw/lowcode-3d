@@ -14,11 +14,7 @@ export const ACCENT_COLORS: readonly AccentColor[] = [
   "purple",
   "yellow",
 ];
-export const UI_DENSITIES: readonly UIDensity[] = [
-  "compact",
-  "cozy",
-  "comfortable",
-];
+export const UI_DENSITIES: readonly UIDensity[] = ["compact", "cozy", "comfortable"];
 
 interface SettingsState {
   /** null means "follow detected language from i18n detector / OS locale". */

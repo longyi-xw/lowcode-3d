@@ -8,7 +8,7 @@
 
 - Architecture · [`design/framework/architecture.md`](./design/framework/architecture.md)
 - UI prototype · [`design/prototype/`](./design/prototype/)
-- Contributing · [`CONTRIBUTING.md`](./CONTRIBUTING.md) *(TBD)*
+- Contributing · [`CONTRIBUTING.md`](./CONTRIBUTING.md) _(TBD)_
 - Changelog · [`CHANGELOG.md`](./CHANGELOG.md)
 
 ## Stack

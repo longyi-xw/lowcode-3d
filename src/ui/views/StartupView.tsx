@@ -10,15 +10,8 @@ import { cn } from "@/lib/utils";
 
 export function StartupView() {
   const { t, i18n } = useTranslation(["common", "settings"]);
-  const {
-    setLanguage,
-    theme,
-    setTheme,
-    accent,
-    setAccent,
-    density,
-    setDensity,
-  } = useSettingsStore();
+  const { setLanguage, theme, setTheme, accent, setAccent, density, setDensity } =
+    useSettingsStore();
 
   const changeLanguage = (lng: SupportedLanguage) => {
     setLanguage(lng);
@@ -60,11 +53,7 @@ export function StartupView() {
 
           <Row label="accent">
             {ACCENT_COLORS.map((ac) => (
-              <Pill
-                key={ac}
-                active={accent === ac}
-                onClick={() => setAccent(ac)}
-              >
+              <Pill key={ac} active={accent === ac} onClick={() => setAccent(ac)}>
                 {ac}
               </Pill>
             ))}
@@ -86,9 +75,7 @@ export function StartupView() {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-center gap-3">
-      <span className="w-20 text-right text-sm text-muted-foreground">
-        {label}:
-      </span>
+      <span className="w-20 text-right text-sm text-muted-foreground">{label}:</span>
       <div className="flex flex-wrap items-center gap-2">{children}</div>
     </div>
   );

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial repository scaffolding (pnpm workspace, Tauri 2.x, Tailwind, shadcn/ui, react-i18next).
 - Project design documents (`design/framework/architecture.md`, prototype walkthrough).
 
