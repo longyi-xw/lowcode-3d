@@ -1,0 +1,11 @@
+{
+  "title": "设置",
+  "language": {
+    "label": "语言",
+    "description": "整个应用的显示语言",
+    "options": {
+      "en-US": "English",
+      "zh-CN": "中文（简体）"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "app": {
+    "name": "lowcode-3d",
+    "tagline": "AI-assisted low-code platform for the Web 3D stack",
+    "scaffold_status": "scaffold · v0.0.1-scaffold"
+  },
+  "actions": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "confirm": "Confirm",
+    "close": "Close"
+  }
+}

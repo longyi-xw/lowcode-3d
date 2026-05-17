@@ -1,0 +1,14 @@
+{
+  "app": {
+    "name": "lowcode-3d",
+    "tagline": "面向 Web 3D 技术栈的 AI 辅助低代码平台",
+    "scaffold_status": "脚手架阶段 · v0.0.1-scaffold"
+  },
+  "actions": {
+    "ok": "确定",
+    "cancel": "取消",
+    "save": "保存",
+    "confirm": "确认",
+    "close": "关闭"
+  }
+}

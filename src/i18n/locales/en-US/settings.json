@@ -1,0 +1,11 @@
+{
+  "title": "Settings",
+  "language": {
+    "label": "Language",
+    "description": "Display language for the entire application",
+    "options": {
+      "en-US": "English",
+      "zh-CN": "中文（简体）"
+    }
+  }
+}
