@@ -1,0 +1,24 @@
+{
+  "spec_version": "0.1.0",
+  "metadata": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "name": "empty-project",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z",
+    "target_runtime": {
+      "kind": "three.js",
+      "version": "0.164.0",
+      "module_format": "esm"
+    }
+  },
+  "scene": {
+    "nodes": {},
+    "root_node_ids": []
+  },
+  "assets": [],
+  "settings": {
+    "units": "meters",
+    "up_axis": "y",
+    "background": { "kind": "color", "color": "#0a0a0a" }
+  }
+}
