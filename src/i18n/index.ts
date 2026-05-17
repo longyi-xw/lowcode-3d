@@ -54,10 +54,10 @@ void i18n
     interpolation: {
       escapeValue: false,
     },
+    // Persistence lives in useSettingsStore; here we only auto-detect.
     detection: {
-      order: ["localStorage", "navigator"],
-      lookupLocalStorage: "lowcode3d.language",
-      caches: ["localStorage"],
+      order: ["navigator"],
+      caches: [],
     },
     returnNull: false,
   });
