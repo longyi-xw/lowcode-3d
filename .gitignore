@@ -11,3 +11,53 @@ Thumbs.db
 
 # --- Claude Code workspace ---
 .claude/
+
+# --- Node / pnpm ---
+node_modules/
+.pnpm-store/
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Build output ---
+dist/
+build/
+out/
+.vite/
+.turbo/
+.next/
+.nuxt/
+.svelte-kit/
+
+# --- TypeScript incremental build info ---
+*.tsbuildinfo
+
+# --- Test / coverage ---
+coverage/
+*.lcov
+.nyc_output/
+
+# --- Rust / Cargo ---
+target/
+**/*.rs.bk
+
+# --- Tauri ---
+src-tauri/target/
+src-tauri/gen/
+src-tauri/WixTools/
+
+# --- Env (keep .env.example) ---
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- Misc ---
+*.log
