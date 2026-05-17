@@ -1,0 +1,17 @@
+{
+  "name": "lowcode-3d",
+  "version": "0.0.1-scaffold",
+  "private": true,
+  "description": "AI-assisted low-code platform for the Web 3D stack.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "lint": "echo \"lint: not configured yet\" && exit 0",
+    "typecheck": "echo \"typecheck: not configured yet\" && exit 0",
+    "test": "echo \"test: not configured yet\" && exit 0"
+  }
+}
