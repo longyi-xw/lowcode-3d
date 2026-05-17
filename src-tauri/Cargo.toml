@@ -1,0 +1,26 @@
+[package]
+name = "lowcode-3d"
+version = "0.0.1"
+description = "AI-assisted low-code platform for the Web 3D stack."
+authors = ["lowcode-3d contributors"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "lowcode_3d_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = 3

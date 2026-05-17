@@ -36,6 +36,9 @@ out/
 .nuxt/
 .svelte-kit/
 
+# --- TypeScript incremental build info ---
+*.tsbuildinfo
+
 # --- Test / coverage ---
 coverage/
 *.lcov

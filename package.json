@@ -4,14 +4,33 @@
   "private": true,
   "description": "AI-assisted low-code platform for the Web 3D stack.",
   "license": "MIT",
+  "type": "module",
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
   },
   "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
     "lint": "echo \"lint: not configured yet\" && exit 0",
-    "typecheck": "echo \"typecheck: not configured yet\" && exit 0",
+    "typecheck": "tsc --noEmit",
     "test": "echo \"test: not configured yet\" && exit 0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/node": "^20",
+    "@types/react": "^18.3",
+    "@types/react-dom": "^18.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
   }
 }
