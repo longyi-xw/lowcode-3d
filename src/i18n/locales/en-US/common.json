@@ -10,5 +10,11 @@
     "save": "Save",
     "confirm": "Confirm",
     "close": "Close"
+  },
+  "views": {
+    "startup": "Startup",
+    "loading": "Loading",
+    "editor": "Editor",
+    "error": "Error"
   }
 }

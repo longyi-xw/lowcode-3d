@@ -10,5 +10,11 @@
     "save": "保存",
     "confirm": "确认",
     "close": "关闭"
+  },
+  "views": {
+    "startup": "启动页",
+    "loading": "加载页",
+    "editor": "编辑器",
+    "error": "错误页"
   }
 }
