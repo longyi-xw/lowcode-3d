@@ -1,0 +1,104 @@
+{
+  "spec_version": "0.1.0",
+  "metadata": {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "name": "single-cube",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z",
+    "target_runtime": {
+      "kind": "three.js",
+      "version": "0.164.0",
+      "module_format": "esm"
+    }
+  },
+  "scene": {
+    "nodes": {
+      "cube-1": {
+        "id": "cube-1",
+        "name": "Cube",
+        "type": "mesh",
+        "transform": {
+          "position": [0, 0, 0],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "parent_id": null,
+        "children_ids": [],
+        "visible": true,
+        "locked": false,
+        "data": {
+          "type": "mesh",
+          "asset_id": "asset-cube"
+        },
+        "behaviors": [],
+        "user_data": {}
+      },
+      "key-light": {
+        "id": "key-light",
+        "name": "Key Light",
+        "type": "light",
+        "transform": {
+          "position": [3, 5, 3],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "parent_id": null,
+        "children_ids": [],
+        "visible": true,
+        "locked": false,
+        "data": {
+          "type": "light",
+          "light_kind": "directional",
+          "color": "#ffffff",
+          "intensity": 1.2,
+          "cast_shadow": true
+        },
+        "behaviors": [],
+        "user_data": {}
+      },
+      "main-camera": {
+        "id": "main-camera",
+        "name": "Main Camera",
+        "type": "camera",
+        "transform": {
+          "position": [4, 3, 4],
+          "rotation": [0, 0, 0, 1],
+          "scale": [1, 1, 1]
+        },
+        "parent_id": null,
+        "children_ids": [],
+        "visible": true,
+        "locked": false,
+        "data": {
+          "type": "camera",
+          "camera_kind": "perspective",
+          "fov": 50,
+          "near": 0.1,
+          "far": 1000
+        },
+        "behaviors": [],
+        "user_data": {}
+      }
+    },
+    "root_node_ids": ["cube-1", "key-light", "main-camera"]
+  },
+  "assets": [
+    {
+      "id": "asset-cube",
+      "content_hash": "sha256-cube-placeholder",
+      "kind": "geometry",
+      "relative_path": "assets/cube.glb",
+      "tags": ["primitive", "cube"],
+      "description": "1m unit cube used as scaffolding primitive",
+      "source": {
+        "kind": "builtin",
+        "library_id": "primitives"
+      }
+    }
+  ],
+  "settings": {
+    "units": "meters",
+    "up_axis": "y",
+    "background": { "kind": "color", "color": "#101418" }
+  }
+}
