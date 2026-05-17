@@ -1,1 +1,11 @@
-{}
+{
+  "back_to_startup": "Back to startup",
+  "project_load": {
+    "title": "Failed to load project",
+    "schema_mismatch": "schema_version_mismatch · expected {{expected}}, found {{found}}",
+    "run_migration": "Run migration script…",
+    "migration_not_implemented": "Migration tooling lands in v0.2",
+    "try_again": "Try again",
+    "report_issue": "report issue → github.com/longyi-xw/lowcode-3d/issues"
+  }
+}

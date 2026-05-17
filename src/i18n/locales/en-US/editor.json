@@ -1,8 +1,15 @@
 {
   "hierarchy": {
-    "title": "Hierarchy"
+    "title": "Hierarchy",
+    "empty": "No nodes yet"
   },
   "properties": {
-    "title": "Properties"
-  }
+    "title": "Properties",
+    "empty": "Select a node to inspect"
+  },
+  "viewport": {
+    "empty": "Empty scene",
+    "empty_hint": "Drop a .glb file here or pick a template from the menu."
+  },
+  "close_project": "Close project"
 }

@@ -1,1 +1,11 @@
-{}
+{
+  "title": "正在加载项目 {{name}}",
+  "steps": {
+    "parsing": "解析 project.json",
+    "resolving": "解析节点",
+    "verifying": "校验资源哈希",
+    "loading_asset": "加载几何资源",
+    "booting_adapter": "启动 Three.js 适配器",
+    "warming_webgl": "预热 WebGL2 上下文"
+  }
+}

@@ -1,8 +1,15 @@
 {
   "hierarchy": {
-    "title": "层级"
+    "title": "层级",
+    "empty": "暂无节点"
   },
   "properties": {
-    "title": "属性"
-  }
+    "title": "属性",
+    "empty": "选中节点以查看属性"
+  },
+  "viewport": {
+    "empty": "空场景",
+    "empty_hint": "拖入 .glb 文件，或从菜单选一个模板。"
+  },
+  "close_project": "关闭项目"
 }
