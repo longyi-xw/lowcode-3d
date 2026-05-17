@@ -1,1 +1,38 @@
-{}
+{
+  "start": {
+    "heading": "开始",
+    "new_project": "新建项目",
+    "open_project": "打开项目…",
+    "clone_from_url": "从 URL 克隆",
+    "import_glb": "导入 .glb 场景"
+  },
+  "templates": {
+    "heading": "模板",
+    "three_vite": "Three.js + Vite 起步模板",
+    "r3f_next": "R3F + Next.js",
+    "soon_badge": "即将"
+  },
+  "recent": {
+    "heading": "最近项目",
+    "empty": "尚无最近项目",
+    "empty_hint": "新建项目，或从磁盘打开已有项目。"
+  },
+  "tips": {
+    "heading": "小贴士",
+    "keyboard": {
+      "title": "键盘优先",
+      "body": "G / R / S 切换变换模式 · F 取景到选中 · ⌘K 打开命令面板 · ⌘E 导出。"
+    },
+    "git": {
+      "title": "为 git 而设计",
+      "body": "每个 Node 是独立的 JSON 文件，把项目文件夹丢进任何 git 仓库 — diff 干净可读。"
+    },
+    "ai_key": {
+      "title": "自带 AI 密钥",
+      "body": "本地 Ollama、Anthropic、OpenAI。桌面进程统一代理所有调用 — 密钥永不到达前端。"
+    }
+  },
+  "footer": {
+    "links": "文档 · github"
+  }
+}

@@ -1,107 +1,227 @@
 import { useTranslation } from "react-i18next";
-import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "@/i18n/config";
 import {
-  ACCENT_COLORS,
-  THEMES,
-  UI_DENSITIES,
-  useSettingsStore,
-} from "@/services/settings/store";
+  Box,
+  FileBox,
+  FilePlus,
+  FolderOpen,
+  GitBranch,
+  LayoutTemplate,
+  Link2,
+  Moon,
+  Sun,
+  SunMoon,
+} from "lucide-react";
+import { useAppViewStore, type LoadingTarget } from "@/services/app-view/store";
+import { SUPPORTED_LANGUAGES } from "@/i18n/config";
+import { useSettingsStore } from "@/services/settings/store";
 import { cn } from "@/lib/utils";
 
 export function StartupView() {
-  const { t, i18n } = useTranslation(["common", "settings"]);
-  const { setLanguage, theme, setTheme, accent, setAccent, density, setDensity } =
-    useSettingsStore();
+  const { t, i18n } = useTranslation(["common", "startup", "settings"]);
+  const startLoading = useAppViewStore((s) => s.startLoading);
+  const { setLanguage, theme, setTheme } = useSettingsStore();
 
-  const changeLanguage = (lng: SupportedLanguage) => {
-    setLanguage(lng);
+  // All project actions route through loading. Clone-from-URL is intentionally
+  // wired to the "error" target so the error view is reachable through normal
+  // UI flow (it simulates a fetch / schema-mismatch failure).
+  const open =
+    (target: LoadingTarget = "editor") =>
+    () =>
+      startLoading(target);
+
+  const cycleTheme = () => {
+    const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+    setTheme(next);
   };
 
+  const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : SunMoon;
+
   return (
-    <section className="flex min-h-screen flex-col items-center justify-center bg-background text-foreground">
-      <div className="w-full max-w-2xl px-6 text-center">
-        <h1 className="font-sans text-5xl font-semibold tracking-tight">
-          {t("common:app.name")}
-        </h1>
-        <p className="mt-3 font-mono text-sm text-muted-foreground">
-          {t("common:app.scaffold_status")}
-        </p>
-        <p className="mt-8 text-sm leading-relaxed text-foreground/80">
-          {t("common:app.tagline")}
-        </p>
-
-        <div className="mt-12 space-y-4">
-          <Row label={t("settings:language.label")}>
-            {SUPPORTED_LANGUAGES.map((lng) => (
-              <Pill
-                key={lng}
-                active={i18n.resolvedLanguage === lng}
-                onClick={() => changeLanguage(lng)}
-              >
-                {t(`settings:language.options.${lng}` as const)}
-              </Pill>
-            ))}
-          </Row>
-
-          <Row label="theme">
-            {THEMES.map((th) => (
-              <Pill key={th} active={theme === th} onClick={() => setTheme(th)}>
-                {th}
-              </Pill>
-            ))}
-          </Row>
-
-          <Row label="accent">
-            {ACCENT_COLORS.map((ac) => (
-              <Pill key={ac} active={accent === ac} onClick={() => setAccent(ac)}>
-                {ac}
-              </Pill>
-            ))}
-          </Row>
-
-          <Row label="density">
-            {UI_DENSITIES.map((d) => (
-              <Pill key={d} active={density === d} onClick={() => setDensity(d)}>
-                {d}
-              </Pill>
-            ))}
-          </Row>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="flex items-center justify-between border-b border-border px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Box className="h-4 w-4" />
+          </div>
+          <div className="leading-tight">
+            <h1 className="text-sm font-semibold">{t("common:app.name")}</h1>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              {t("common:app.scaffold_status")}
+            </p>
+          </div>
         </div>
-      </div>
-    </section>
-  );
-}
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-center gap-3">
-      <span className="w-20 text-right text-sm text-muted-foreground">{label}:</span>
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+        <div className="flex items-center gap-1">
+          {SUPPORTED_LANGUAGES.map((lng) => (
+            <button
+              key={lng}
+              type="button"
+              onClick={() => setLanguage(lng)}
+              className={cn(
+                "rounded px-2 py-1 text-xs",
+                i18n.resolvedLanguage === lng
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+              title={t(`settings:language.options.${lng}` as const)}
+            >
+              {lng === "zh-CN" ? "中" : "EN"}
+            </button>
+          ))}
+          <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={cycleTheme}
+            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            title={`theme: ${theme}`}
+            aria-label={`theme: ${theme}`}
+          >
+            <ThemeIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </header>
+
+      <main className="flex flex-1 gap-10 px-10 py-10">
+        <aside className="w-60 shrink-0 space-y-8">
+          <section>
+            <SectionHeading>{t("startup:start.heading")}</SectionHeading>
+            <RailAction
+              icon={<FilePlus className="h-4 w-4" />}
+              label={t("startup:start.new_project")}
+              shortcut="⌘N"
+              onClick={open("editor")}
+            />
+            <RailAction
+              icon={<FolderOpen className="h-4 w-4" />}
+              label={t("startup:start.open_project")}
+              shortcut="⌘O"
+              onClick={open("editor")}
+            />
+            <RailAction
+              icon={<Link2 className="h-4 w-4" />}
+              label={t("startup:start.clone_from_url")}
+              onClick={open("error")}
+            />
+            <RailAction
+              icon={<FileBox className="h-4 w-4" />}
+              label={t("startup:start.import_glb")}
+              onClick={open("editor")}
+            />
+          </section>
+
+          <section>
+            <SectionHeading>{t("startup:templates.heading")}</SectionHeading>
+            <RailAction
+              icon={<LayoutTemplate className="h-4 w-4" />}
+              label={t("startup:templates.three_vite")}
+              onClick={open("editor")}
+            />
+            <RailAction
+              icon={<GitBranch className="h-4 w-4" />}
+              label={t("startup:templates.r3f_next")}
+              badge={t("startup:templates.soon_badge")}
+              disabled
+            />
+          </section>
+        </aside>
+
+        <div className="flex-1 space-y-10">
+          <section>
+            <SectionHeading>{t("startup:recent.heading")}</SectionHeading>
+            <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
+              <p className="text-sm text-foreground/80">{t("startup:recent.empty")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("startup:recent.empty_hint")}
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <SectionHeading>{t("startup:tips.heading")}</SectionHeading>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <TipCard
+                title={t("startup:tips.keyboard.title")}
+                body={t("startup:tips.keyboard.body")}
+              />
+              <TipCard
+                title={t("startup:tips.git.title")}
+                body={t("startup:tips.git.body")}
+              />
+              <TipCard
+                title={t("startup:tips.ai_key.title")}
+                body={t("startup:tips.ai_key.body")}
+              />
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer className="flex items-center justify-between border-t border-border px-6 py-3 font-mono text-[11px] text-muted-foreground">
+        <span>{t("startup:footer.links")}</span>
+        <span>{t("common:app.scaffold_status")}</span>
+      </footer>
     </div>
   );
 }
 
-function Pill({
-  active,
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+      {children}
+    </h2>
+  );
+}
+
+function RailAction({
+  icon,
+  label,
+  shortcut,
+  badge,
+  disabled,
   onClick,
-  children,
 }: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  icon: React.ReactNode;
+  label: string;
+  shortcut?: string;
+  badge?: string;
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "rounded-md border px-3 py-1.5 text-sm capitalize transition",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-background hover:bg-muted",
+        "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition",
+        disabled
+          ? "cursor-not-allowed text-muted-foreground/50"
+          : "text-foreground hover:bg-muted",
       )}
     >
-      {children}
+      <span
+        className={cn(disabled ? "text-muted-foreground/40" : "text-muted-foreground")}
+      >
+        {icon}
+      </span>
+      <span className="flex-1 text-left">{label}</span>
+      {badge && (
+        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+          {badge}
+        </span>
+      )}
+      {shortcut && !disabled && (
+        <span className="font-mono text-[11px] text-muted-foreground">{shortcut}</span>
+      )}
     </button>
+  );
+}
+
+function TipCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <h3 className="mb-2 text-xs font-medium text-foreground">{title}</h3>
+      <p className="text-xs leading-relaxed text-muted-foreground">{body}</p>
+    </div>
   );
 }

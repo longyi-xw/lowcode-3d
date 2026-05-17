@@ -1,1 +1,11 @@
-{}
+{
+  "back_to_startup": "返回启动页",
+  "project_load": {
+    "title": "项目加载失败",
+    "schema_mismatch": "schema_version_mismatch · 期望 {{expected}}，实际 {{found}}",
+    "run_migration": "运行迁移脚本…",
+    "migration_not_implemented": "迁移工具将在 v0.2 提供",
+    "try_again": "重试",
+    "report_issue": "反馈问题 → github.com/longyi-xw/lowcode-3d/issues"
+  }
+}

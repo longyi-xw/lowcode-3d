@@ -1,1 +1,11 @@
-{}
+{
+  "title": "Loading project {{name}}",
+  "steps": {
+    "parsing": "parsing project.json",
+    "resolving": "resolving nodes",
+    "verifying": "verifying asset hashes",
+    "loading_asset": "loading geometry assets",
+    "booting_adapter": "booting Three.js adapter",
+    "warming_webgl": "warming WebGL2 context"
+  }
+}

@@ -1,1 +1,38 @@
-{}
+{
+  "start": {
+    "heading": "START",
+    "new_project": "New project",
+    "open_project": "Open project…",
+    "clone_from_url": "Clone from URL",
+    "import_glb": "Import .glb scene"
+  },
+  "templates": {
+    "heading": "TEMPLATES",
+    "three_vite": "Three.js + Vite starter",
+    "r3f_next": "R3F + Next.js",
+    "soon_badge": "SOON"
+  },
+  "recent": {
+    "heading": "RECENT PROJECTS",
+    "empty": "No recent projects yet",
+    "empty_hint": "Start with a New project or open one from disk."
+  },
+  "tips": {
+    "heading": "TIPS",
+    "keyboard": {
+      "title": "Stay keyboard-first",
+      "body": "G / R / S switch transform · F frames selection · ⌘K opens the command palette · ⌘E exports."
+    },
+    "git": {
+      "title": "Designed for git",
+      "body": "Each Node is its own JSON file. Drop the project folder into any repo — diffs are clean and reviewable."
+    },
+    "ai_key": {
+      "title": "Bring your own AI key",
+      "body": "Local Ollama, Anthropic, OpenAI. The desktop process proxies all calls — your key never reaches the renderer."
+    }
+  },
+  "footer": {
+    "links": "docs · github"
+  }
+}
