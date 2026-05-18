@@ -16,6 +16,14 @@ import type {
   SyncOp,
 } from "../adapter";
 
+import {
+  applyMeta,
+  applyTransform,
+  buildObject,
+  disposeSubtree,
+  updateObject,
+} from "./node-builders";
+
 export interface ThreeAdapterOptions {
   /** Defaults applied when no camera node is present in the SceneProject. */
   defaultCamera?: {
@@ -43,27 +51,20 @@ class NotImplementedYet extends Error {
 /**
  * Three.js adapter — implements `IRuntimeAdapter` for the MVP renderer.
  *
- * **This commit lands the shell only.** The constructor wires up a `THREE.Scene`
- * and a default camera so a viewport React component can attach to them today;
- * the sync/export/picking surface throws `NotImplementedYet` until the next
- * commits in the Phase 1 sequence flesh them out:
+ * Status:
+ *   - `syncNode` (add / update / remove) — implemented for group / mesh /
+ *     light / camera / helper. Mesh nodes render a placeholder cube until
+ *     `syncAsset` wires real .glb loading; everything else is faithful.
+ *   - `getRuntimeObject` / `dispose` — implemented.
+ *   - `syncAsset` / `pickAt` / `exportProject` / `generateBehaviorCode` — still
+ *     throw `NotImplementedYet`. `pickAt` lands with the viewport mount;
+ *     `syncAsset` and `exportProject` land in their own commits.
  *
- *   - syncNode / syncAsset → "feat(runtime): wire syncNode for ThreeAdapter"
- *   - pickAt → "feat(runtime): three viewport with picking" (after viewport)
- *   - exportProject → Phase 2 (codegen lives in `./exporter/`)
- *
- * The constructor side-effects (allocating a Scene + camera) are intentional:
- * an adapter without those is useless to the viewport. Callers should `dispose()`
- * before discarding to release Three.js handles.
+ * Callers should `dispose()` before discarding to release Three.js handles.
  */
 export class ThreeAdapter implements IRuntimeAdapter {
   readonly target: RuntimeTarget;
-
-  /** The live THREE.Scene mirroring the SceneProject. Read by the viewport
-   *  component each frame. */
   readonly scene: THREE.Scene;
-
-  /** Active camera. Replaced once a SceneNode of kind "camera" is marked main. */
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
 
   /** SceneNode.id → Three.js Object3D mirror. Populated by syncNode. */
@@ -90,8 +91,67 @@ export class ThreeAdapter implements IRuntimeAdapter {
 
   // ───── Editor sync ─────────────────────────────────────────────
 
-  syncNode(_node: SceneNode, _op: SyncOp): void {
-    throw new NotImplementedYet("syncNode", "next commit");
+  /**
+   * Reflect a SceneNode change into the Three.js scene tree.
+   *
+   * Contract: callers add parents before children. The adapter throws if a
+   * node references a parent it doesn't yet know about — silent fallbacks
+   * hide bugs in the layer above.
+   */
+  syncNode(node: SceneNode, op: SyncOp): void {
+    switch (op) {
+      case "add":
+        this.addNode(node);
+        return;
+      case "update":
+        this.updateNode(node);
+        return;
+      case "remove":
+        this.removeNode(node);
+        return;
+    }
+  }
+
+  private addNode(node: SceneNode): void {
+    if (this.objects.has(node.id)) {
+      throw new Error(`ThreeAdapter.syncNode("add"): node ${node.id} already exists`);
+    }
+
+    const obj = buildObject(node);
+    applyTransform(obj, node.transform);
+    applyMeta(obj, node);
+
+    const parent = node.parent_id ? this.objects.get(node.parent_id) : this.scene;
+    if (!parent) {
+      throw new Error(
+        `ThreeAdapter.syncNode("add"): parent ${node.parent_id} not found for node ${node.id}; ` +
+          "callers must add parents before children",
+      );
+    }
+    parent.add(obj);
+    this.objects.set(node.id, obj);
+  }
+
+  private updateNode(node: SceneNode): void {
+    const obj = this.objects.get(node.id);
+    if (!obj) {
+      throw new Error(`ThreeAdapter.syncNode("update"): node ${node.id} not found`);
+    }
+    applyTransform(obj, node.transform);
+    applyMeta(obj, node);
+    updateObject(obj, node);
+  }
+
+  private removeNode(node: SceneNode): void {
+    const obj = this.objects.get(node.id);
+    // Idempotent: removing an already-gone node is a no-op. Editor flows may
+    // emit "remove" defensively (e.g., on project close) so failing here would
+    // be noisier than helpful.
+    if (!obj) return;
+
+    obj.parent?.remove(obj);
+    disposeSubtree(obj);
+    this.objects.delete(node.id);
   }
 
   async syncAsset(_asset: AssetReference): Promise<void> {
@@ -118,8 +178,6 @@ export class ThreeAdapter implements IRuntimeAdapter {
   // ───── Behaviors ───────────────────────────────────────────────
 
   getSupportedBehaviors(): BehaviorDefinition[] {
-    // Real behaviors land in v0.5. Returning [] lets editor code index without
-    // optional-chaining noise.
     return [];
   }
 
@@ -132,7 +190,8 @@ export class ThreeAdapter implements IRuntimeAdapter {
   /** Drops Three.js resources held by the adapter. Call before discarding. */
   dispose(): void {
     for (const obj of this.objects.values()) {
-      this.scene.remove(obj);
+      obj.parent?.remove(obj);
+      disposeSubtree(obj);
     }
     this.scene.clear();
     this.objects.clear();
