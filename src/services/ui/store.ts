@@ -13,6 +13,9 @@ interface UIState {
   setHierarchyCollapsed: (collapsed: boolean) => void;
   propertiesCollapsed: boolean;
   setPropertiesCollapsed: (collapsed: boolean) => void;
+  /** SceneNode.id under user inspection. null when nothing is selected. */
+  selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -22,4 +25,6 @@ export const useUIStore = create<UIState>((set) => ({
   setHierarchyCollapsed: (hierarchyCollapsed) => set({ hierarchyCollapsed }),
   propertiesCollapsed: false,
   setPropertiesCollapsed: (propertiesCollapsed) => set({ propertiesCollapsed }),
+  selectedNodeId: null,
+  setSelectedNodeId: (selectedNodeId) => set({ selectedNodeId }),
 }));

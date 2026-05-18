@@ -14,20 +14,30 @@ import {
 import { useAppViewStore, type LoadingTarget } from "@/services/app-view/store";
 import { SUPPORTED_LANGUAGES } from "@/i18n/config";
 import { useSettingsStore } from "@/services/settings/store";
+import { useSceneStore } from "@/services/scene/store";
+import { createDemoProject } from "@/services/scene/demo-project";
 import { cn } from "@/lib/utils";
 
 export function StartupView() {
   const { t, i18n } = useTranslation(["common", "startup", "settings"]);
   const startLoading = useAppViewStore((s) => s.startLoading);
+  const setProject = useSceneStore((s) => s.setProject);
   const { setLanguage, theme, setTheme } = useSettingsStore();
 
-  // All project actions route through loading. Clone-from-URL is intentionally
-  // wired to the "error" target so the error view is reachable through normal
-  // UI flow (it simulates a fetch / schema-mismatch failure).
-  const open =
-    (target: LoadingTarget = "editor") =>
-    () =>
-      startLoading(target);
+  // Most project actions stage a demo project before the loading view, so the
+  // editor lands on something visible. Clone-from-URL deliberately routes to
+  // the "error" target without setting a project so the error view is
+  // reachable through normal UI (it simulates a fetch / schema-mismatch).
+  const open = (target: LoadingTarget, projectName?: string) => () => {
+    if (target === "editor") {
+      setProject(
+        createDemoProject(projectName ?? t("startup:start.new_project_default_name")),
+      );
+    } else {
+      setProject(null);
+    }
+    startLoading(target);
+  };
 
   const cycleTheme = () => {
     const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
@@ -89,7 +99,7 @@ export function StartupView() {
               icon={<FilePlus className="h-4 w-4" />}
               label={t("startup:start.new_project")}
               shortcut="⌘N"
-              onClick={open("editor")}
+              onClick={open("editor", t("startup:start.new_project_default_name"))}
             />
             <RailAction
               icon={<FolderOpen className="h-4 w-4" />}
@@ -114,7 +124,7 @@ export function StartupView() {
             <RailAction
               icon={<LayoutTemplate className="h-4 w-4" />}
               label={t("startup:templates.three_vite")}
-              onClick={open("editor")}
+              onClick={open("editor", t("startup:templates.three_vite"))}
             />
             <RailAction
               icon={<GitBranch className="h-4 w-4" />}

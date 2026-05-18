@@ -2,6 +2,7 @@
   "start": {
     "heading": "开始",
     "new_project": "新建项目",
+    "new_project_default_name": "未命名项目",
     "open_project": "打开项目…",
     "clone_from_url": "从 URL 克隆",
     "import_glb": "导入 .glb 场景"
