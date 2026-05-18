@@ -3,16 +3,22 @@ import { Box, X } from "lucide-react";
 
 import { useAppViewStore } from "@/services/app-view/store";
 import { useSceneStore } from "@/services/scene/store";
+import { useUIStore } from "@/services/ui/store";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
+import type { SceneNode } from "@/core/scene/types";
+import { cn } from "@/lib/utils";
 
 export function EditorView() {
   const { t } = useTranslation(["common", "editor"]);
   const setView = useAppViewStore((s) => s.setView);
   const project = useSceneStore((s) => s.project);
   const setProject = useSceneStore((s) => s.setProject);
+  const selectedNodeId = useUIStore((s) => s.selectedNodeId);
+  const setSelectedNodeId = useUIStore((s) => s.setSelectedNodeId);
 
   const closeProject = () => {
     setProject(null);
+    setSelectedNodeId(null);
     setView("startup");
   };
 
@@ -21,6 +27,9 @@ export function EditorView() {
         .map((id) => project.scene.nodes[id])
         .filter((n): n is NonNullable<typeof n> => Boolean(n))
     : [];
+
+  const selectedNode =
+    project && selectedNodeId ? project.scene.nodes[selectedNodeId] : undefined;
 
   return (
     <section className="grid min-h-screen grid-cols-[240px_1fr_320px] bg-background text-foreground">
@@ -49,17 +58,32 @@ export function EditorView() {
             </p>
           ) : (
             <ul className="space-y-0.5 font-mono text-[11px]">
-              {rootNodes.map((node) => (
-                <li
-                  key={node.id}
-                  className="rounded px-2 py-1 text-foreground/90 hover:bg-muted"
-                >
-                  <span className="text-muted-foreground">
-                    {iconForKind(node.type)}
-                  </span>{" "}
-                  {node.name}
-                </li>
-              ))}
+              {rootNodes.map((node) => {
+                const active = node.id === selectedNodeId;
+                return (
+                  <li key={node.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNodeId(active ? null : node.id)}
+                      className={cn(
+                        "flex w-full items-center gap-1.5 rounded px-2 py-1 text-left transition",
+                        active
+                          ? "bg-primary/15 text-primary"
+                          : "text-foreground/90 hover:bg-muted",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          active ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
+                        {iconForKind(node.type)}
+                      </span>
+                      <span className="truncate">{node.name}</span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -88,12 +112,49 @@ export function EditorView() {
             {t("editor:properties.title")}
           </p>
         </div>
-        <div className="p-3 text-xs text-muted-foreground">
-          {t("editor:properties.empty")}
+        <div className="p-3 text-xs">
+          {selectedNode ? (
+            <NodeProperties node={selectedNode} />
+          ) : (
+            <p className="text-muted-foreground">{t("editor:properties.empty")}</p>
+          )}
         </div>
       </aside>
     </section>
   );
+}
+
+function NodeProperties({ node }: { node: SceneNode }) {
+  return (
+    <dl className="space-y-2 font-mono text-[11px]">
+      <Row label="id" value={node.id} />
+      <Row label="name" value={node.name} />
+      <Row label="type" value={node.type} />
+      <Row
+        label="position"
+        value={node.transform.position.map(formatNumber).join(", ")}
+      />
+      <Row
+        label="rotation"
+        value={node.transform.rotation.map(formatNumber).join(", ")}
+      />
+      <Row label="scale" value={node.transform.scale.map(formatNumber).join(", ")} />
+      <Row label="visible" value={node.visible ? "true" : "false"} />
+    </dl>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[80px_1fr] gap-2">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="truncate text-foreground/90">{value}</dd>
+    </div>
+  );
+}
+
+function formatNumber(n: number): string {
+  return Math.abs(n) < 1e-3 ? "0" : n.toFixed(3).replace(/\.?0+$/, "");
 }
 
 function iconForKind(kind: string): string {

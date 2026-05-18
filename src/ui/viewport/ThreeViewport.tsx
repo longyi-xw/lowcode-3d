@@ -5,6 +5,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ThreeAdapter } from "@/runtime/three/adapter";
 import type { SceneNode, SceneProject } from "@/core/scene/types";
 import { useSceneStore } from "@/services/scene/store";
+import { useUIStore } from "@/services/ui/store";
 
 /**
  * Three.js viewport — mounts a WebGL canvas into a host div and mirrors the
@@ -12,9 +13,11 @@ import { useSceneStore } from "@/services/scene/store";
  *
  * Lifecycle:
  *   - On mount: allocate adapter + WebGLRenderer + OrbitControls, attach to
- *     the host div, start the rAF loop.
+ *     the host div, start the rAF loop. Canvas "click" raycasts the scene
+ *     and writes the picked node id (or null) into useUIStore.
  *   - On unmount: stop the loop, dispose every Three.js handle (renderer,
- *     controls, adapter, the canvas element), disconnect ResizeObserver.
+ *     controls, adapter, the canvas element), disconnect ResizeObserver,
+ *     remove the click listener.
  *   - On `project` change: dispose the previous adapter and rebuild from the
  *     new project. Phase 2 will replace this with surgical per-node updates
  *     driven by the Command system; for now whole-tree replace is fine
@@ -22,12 +25,13 @@ import { useSceneStore } from "@/services/scene/store";
  *     across edits.
  *
  * Component-level tests are deferred to E2E because WebGL doesn't exist in
- * jsdom. The ThreeAdapter underneath this component is unit-covered in
- * `src/runtime/three/adapter.test.ts`.
+ * jsdom. The ThreeAdapter underneath this component (including its pickAt
+ * raycast logic) is unit-covered in `src/runtime/three/adapter.test.ts`.
  */
 export function ThreeViewport() {
   const containerRef = useRef<HTMLDivElement>(null);
   const project = useSceneStore((s) => s.project);
+  const setSelectedNodeId = useUIStore((s) => s.setSelectedNodeId);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -51,6 +55,7 @@ export function ThreeViewport() {
       const h = container.clientHeight;
       if (w === 0 || h === 0) return;
       renderer.setSize(w, h, false);
+      adapter.setViewportSize(w, h);
       if (adapter.camera instanceof THREE.PerspectiveCamera) {
         adapter.camera.aspect = w / h;
         adapter.camera.updateProjectionMatrix();
@@ -60,6 +65,17 @@ export function ThreeViewport() {
 
     const ro = new ResizeObserver(resize);
     ro.observe(container);
+
+    // Browser "click" only fires after a non-drag pointer-up, so OrbitControls
+    // drags don't accidentally clear the selection. Modifier keys are ignored
+    // for now — multi-select / range-select is a Phase 1 B concern.
+    const onClick = (event: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      setSelectedNodeId(adapter.pickAt(x, y));
+    };
+    renderer.domElement.addEventListener("click", onClick);
 
     let rafId = 0;
     const animate = () => {
@@ -71,6 +87,7 @@ export function ThreeViewport() {
 
     return () => {
       cancelAnimationFrame(rafId);
+      renderer.domElement.removeEventListener("click", onClick);
       ro.disconnect();
       controls.dispose();
       renderer.dispose();
@@ -79,7 +96,7 @@ export function ThreeViewport() {
       }
       adapter.dispose();
     };
-  }, [project]);
+  }, [project, setSelectedNodeId]);
 
   return <div ref={containerRef} className="absolute inset-0" />;
 }

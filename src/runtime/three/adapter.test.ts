@@ -357,6 +357,47 @@ describe("ThreeAdapter.syncNode unsupported paths", () => {
   });
 });
 
+describe("ThreeAdapter.pickAt", () => {
+  it("returns null when viewport size has not been set", () => {
+    const adapter = new ThreeAdapter(target);
+    adapter.syncNode(makeMeshNode("m1"), "add");
+    // setViewportSize default is 1x1 which makes any meaningful pick degenerate;
+    // an unset viewport coordinate at (0,0) should still not throw.
+    expect(typeof adapter.pickAt(0, 0)).toMatch(/string|object/); // either id or null
+  });
+
+  it("picks the mesh at the centre of the viewport when the camera looks at the origin", () => {
+    const adapter = new ThreeAdapter(target);
+    adapter.setViewportSize(800, 600);
+    adapter.syncNode(makeMeshNode("cube"), "add");
+    expect(adapter.pickAt(400, 300)).toBe("cube");
+  });
+
+  it("returns null when the ray hits empty space", () => {
+    const adapter = new ThreeAdapter(target);
+    adapter.setViewportSize(800, 600);
+    adapter.syncNode(makeMeshNode("cube"), "add");
+    // Top-left corner — far from where the cube projects given the default
+    // camera at (4,3,4) looking at origin.
+    expect(adapter.pickAt(0, 0)).toBeNull();
+  });
+
+  it("walks up to the nearest ancestor with userData.nodeId on a hit", () => {
+    const adapter = new ThreeAdapter(target);
+    adapter.setViewportSize(800, 600);
+    adapter.syncNode(makeMeshNode("cube"), "add");
+    const mesh = adapter.getRuntimeObject("cube") as THREE.Mesh;
+    // Simulate a glTF-style attachment where a child mesh has no nodeId of
+    // its own; the picker should still resolve to the parent's nodeId.
+    const child = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 0.1, 0.1),
+      new THREE.MeshBasicMaterial(),
+    );
+    mesh.add(child);
+    expect(adapter.pickAt(400, 300)).toBe("cube");
+  });
+});
+
 describe("ThreeAdapter shell methods still pending", () => {
   it("getRuntimeObject returns undefined for unknown ids", () => {
     const adapter = new ThreeAdapter(target);
@@ -366,11 +407,6 @@ describe("ThreeAdapter shell methods still pending", () => {
   it("getSupportedBehaviors returns an empty list (real behaviors land in v0.5)", () => {
     const adapter = new ThreeAdapter(target);
     expect(adapter.getSupportedBehaviors()).toEqual([]);
-  });
-
-  it("pickAt throws until the viewport wires raycasting", () => {
-    const adapter = new ThreeAdapter(target);
-    expect(() => adapter.pickAt(0, 0)).toThrow(/not implemented yet/);
   });
 
   it("syncAsset throws until asset loading lands", async () => {

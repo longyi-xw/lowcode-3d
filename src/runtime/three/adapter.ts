@@ -55,10 +55,11 @@ class NotImplementedYet extends Error {
  *   - `syncNode` (add / update / remove) — implemented for group / mesh /
  *     light / camera / helper. Mesh nodes render a placeholder cube until
  *     `syncAsset` wires real .glb loading; everything else is faithful.
+ *   - `pickAt` — raycasts against the live scene tree; requires the viewport
+ *     to keep `setViewportSize` in sync (renderer size update path).
  *   - `getRuntimeObject` / `dispose` — implemented.
- *   - `syncAsset` / `pickAt` / `exportProject` / `generateBehaviorCode` — still
- *     throw `NotImplementedYet`. `pickAt` lands with the viewport mount;
- *     `syncAsset` and `exportProject` land in their own commits.
+ *   - `syncAsset` / `exportProject` / `generateBehaviorCode` — still throw
+ *     `NotImplementedYet`. They land in their own commits.
  *
  * Callers should `dispose()` before discarding to release Three.js handles.
  */
@@ -69,6 +70,15 @@ export class ThreeAdapter implements IRuntimeAdapter {
 
   /** SceneNode.id → Three.js Object3D mirror. Populated by syncNode. */
   protected readonly objects = new Map<string, THREE.Object3D>();
+
+  /** Pixel dimensions of the viewport canvas. Updated by the viewport on every
+   *  ResizeObserver tick so pickAt can convert screen coords to NDC. */
+  private viewportWidth = 1;
+  private viewportHeight = 1;
+
+  /** Reused per pick to avoid per-event allocations. */
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly ndc = new THREE.Vector2();
 
   constructor(
     target: RuntimeTarget = DEFAULT_TARGET,
@@ -162,8 +172,38 @@ export class ThreeAdapter implements IRuntimeAdapter {
     return this.objects.get(node_id);
   }
 
-  pickAt(_screen_x: number, _screen_y: number): string | null {
-    throw new NotImplementedYet("pickAt", "after viewport mounts");
+  /** Mounted viewport updates this whenever the canvas resizes, so pickAt can
+   *  convert pixel coords to normalized device coords without owning the DOM. */
+  setViewportSize(width: number, height: number): void {
+    this.viewportWidth = Math.max(1, width);
+    this.viewportHeight = Math.max(1, height);
+  }
+
+  /**
+   * Raycast the scene at `(screen_x, screen_y)` in viewport-pixel space.
+   * Returns the SceneNode.id of the nearest hit, walking up the Object3D
+   * parent chain when the immediate hit is a child mesh of a SceneNode mirror.
+   * Returns null when the ray hits empty space.
+   */
+  pickAt(screen_x: number, screen_y: number): string | null {
+    if (this.viewportWidth <= 0 || this.viewportHeight <= 0) return null;
+    // setFromCamera reads camera.matrixWorld directly — refresh it in case the
+    // viewport's render loop hasn't ticked yet (e.g. during a synchronous
+    // click handler that fires before requestAnimationFrame).
+    this.camera.updateMatrixWorld(true);
+    this.ndc.set(
+      (screen_x / this.viewportWidth) * 2 - 1,
+      -((screen_y / this.viewportHeight) * 2 - 1),
+    );
+    this.raycaster.setFromCamera(this.ndc, this.camera);
+    const hits = this.raycaster.intersectObjects(this.scene.children, true);
+    if (hits.length === 0) return null;
+
+    for (const hit of hits) {
+      const nodeId = findNodeId(hit.object);
+      if (nodeId !== null) return nodeId;
+    }
+    return null;
   }
 
   // ───── Export ───────────────────────────────────────────────────
@@ -196,4 +236,17 @@ export class ThreeAdapter implements IRuntimeAdapter {
     this.scene.clear();
     this.objects.clear();
   }
+}
+
+/** Walk up from an intersected Object3D to the nearest ancestor carrying a
+ *  SceneNode.id in userData. Returns null if no ancestor has one (e.g., the
+ *  hit was on a child mesh of a glTF asset that hasn't been tagged yet). */
+function findNodeId(object: THREE.Object3D | null): string | null {
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    const id = current.userData?.nodeId;
+    if (typeof id === "string") return id;
+    current = current.parent;
+  }
+  return null;
 }
