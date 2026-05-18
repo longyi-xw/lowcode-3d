@@ -32,9 +32,10 @@ export function EditorView() {
     project && selectedNodeId ? project.scene.nodes[selectedNodeId] : undefined;
 
   return (
-    <section className="grid min-h-screen grid-cols-[240px_1fr_320px] bg-background text-foreground">
-      <aside className="flex flex-col border-r border-border">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+    <section className="grid h-screen w-screen grid-cols-[240px_1fr_320px] overflow-hidden bg-background text-foreground">
+      {/* Hierarchy */}
+      <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border">
+        <header className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
           <div className="flex items-center gap-2">
             <Box className="h-3.5 w-3.5 text-primary" />
             <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -50,8 +51,8 @@ export function EditorView() {
             <X className="h-3 w-3" />
             <span>{t("editor:close_project")}</span>
           </button>
-        </div>
-        <div className="flex-1 overflow-auto p-2">
+        </header>
+        <div className="min-h-0 flex-1 overflow-auto p-2">
           {rootNodes.length === 0 ? (
             <p className="px-1 text-xs text-muted-foreground">
               {t("editor:hierarchy.empty")}
@@ -89,7 +90,8 @@ export function EditorView() {
         </div>
       </aside>
 
-      <main className="relative">
+      {/* Viewport */}
+      <main className="relative h-full min-w-0 overflow-hidden">
         {project ? (
           <ThreeViewport />
         ) : (
@@ -106,13 +108,14 @@ export function EditorView() {
         )}
       </main>
 
-      <aside className="border-l border-border">
-        <div className="border-b border-border px-3 py-2">
+      {/* Properties */}
+      <aside className="flex h-full min-h-0 flex-col overflow-hidden border-l border-border">
+        <header className="shrink-0 border-b border-border px-3 py-2">
           <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
             {t("editor:properties.title")}
           </p>
-        </div>
-        <div className="p-3 text-xs">
+        </header>
+        <div className="min-h-0 flex-1 overflow-auto p-3 text-xs">
           {selectedNode ? (
             <NodeProperties node={selectedNode} />
           ) : (

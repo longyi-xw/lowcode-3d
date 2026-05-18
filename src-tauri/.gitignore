@@ -4,3 +4,8 @@ target/
 # Tauri build artifacts
 gen/
 WixTools/
+
+# Mobile icon variants — desktop-only MVP; regenerate with
+# `pnpm tauri icon <source>` once we add an iOS / Android target.
+icons/android/
+icons/ios/

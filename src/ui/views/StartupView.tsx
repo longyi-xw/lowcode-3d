@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next";
 import {
-  Box,
   FileBox,
   FilePlus,
   FolderOpen,
@@ -47,12 +46,14 @@ export function StartupView() {
   const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : SunMoon;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
+      <header className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <Box className="h-4 w-4" />
-          </div>
+          <img
+            src="/icon.svg"
+            alt={t("common:app.name")}
+            className="h-9 w-9 rounded-md"
+          />
           <div className="leading-tight">
             <h1 className="text-sm font-semibold">{t("common:app.name")}</h1>
             <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -91,7 +92,7 @@ export function StartupView() {
         </div>
       </header>
 
-      <main className="flex flex-1 gap-10 px-10 py-10">
+      <main className="flex min-h-0 flex-1 gap-10 overflow-auto px-10 py-10">
         <aside className="w-60 shrink-0 space-y-8">
           <section>
             <SectionHeading>{t("startup:start.heading")}</SectionHeading>
@@ -166,7 +167,7 @@ export function StartupView() {
         </div>
       </main>
 
-      <footer className="flex items-center justify-between border-t border-border px-6 py-3 font-mono text-[11px] text-muted-foreground">
+      <footer className="flex shrink-0 items-center justify-between border-t border-border px-6 py-3 font-mono text-[11px] text-muted-foreground">
         <span>{t("startup:footer.links")}</span>
         <span>{t("common:app.scaffold_status")}</span>
       </footer>
