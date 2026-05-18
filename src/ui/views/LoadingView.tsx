@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Box, Loader2 } from "lucide-react";
+
 import { useAppViewStore } from "@/services/app-view/store";
+import { useSceneStore } from "@/services/scene/store";
 import { cn } from "@/lib/utils";
 
 const STEP_KEYS = [
@@ -15,14 +17,11 @@ const STEP_KEYS = [
 
 const STEP_INTERVAL_MS = 450;
 
-// Placeholder project name shown while real project loading isn't wired yet.
-// Will be replaced by the actual project from useSceneStore in Phase 2.
-const DEMO_PROJECT_NAME = "showroom-hero";
-
 export function LoadingView() {
   const { t } = useTranslation("loading");
   const setView = useAppViewStore((s) => s.setView);
   const target = useAppViewStore((s) => s.loadingTarget);
+  const projectName = useSceneStore((s) => s.project?.metadata.name);
   const [stepIndex, setStepIndex] = useState(0);
 
   useEffect(() => {
@@ -48,7 +47,7 @@ export function LoadingView() {
           className="h-3.5 w-3.5 animate-spin text-muted-foreground"
           aria-hidden="true"
         />
-        <span>{t("title", { name: DEMO_PROJECT_NAME })}</span>
+        <span>{t("title", { name: projectName ?? "—" })}</span>
       </p>
 
       <ul className="mt-8 space-y-1.5 font-mono text-xs">

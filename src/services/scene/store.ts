@@ -1,18 +1,19 @@
 import { create } from "zustand";
+import type { SceneProject } from "@/core/scene/types";
 
 /**
- * Scene store — placeholder.
+ * Scene store — holds the live SceneProject the editor is operating on.
  *
- * Will hold the live `SceneProject` (see design/framework/architecture.md §3)
- * once the Scene Graph types land. For now exposes a stub `projectId` so the
- * rest of the app can check "is anything loaded" without crashing.
+ * For Phase 1 we keep this minimal: the project is either loaded or null.
+ * Per-node mutators that the Command system will drive live in a follow-up;
+ * the viewport currently re-syncs the entire tree on project replacement.
  */
 interface SceneState {
-  projectId: string | null;
-  setProjectId: (id: string | null) => void;
+  project: SceneProject | null;
+  setProject: (project: SceneProject | null) => void;
 }
 
 export const useSceneStore = create<SceneState>((set) => ({
-  projectId: null,
-  setProjectId: (projectId) => set({ projectId }),
+  project: null,
+  setProject: (project) => set({ project }),
 }));

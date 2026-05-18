@@ -2,6 +2,7 @@
   "start": {
     "heading": "START",
     "new_project": "New project",
+    "new_project_default_name": "Untitled project",
     "open_project": "Open project…",
     "clone_from_url": "Clone from URL",
     "import_glb": "Import .glb scene"
