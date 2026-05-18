@@ -14,7 +14,7 @@ export function ErrorView() {
   const startLoading = useAppViewStore((s) => s.startLoading);
 
   return (
-    <section className="flex min-h-screen items-center justify-center bg-background text-foreground">
+    <section className="flex h-screen w-screen items-center justify-center overflow-auto bg-background text-foreground">
       <div className="w-full max-w-xl px-6 text-center">
         <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive/60 text-destructive">
           <X className="h-7 w-7" />

@@ -44,9 +44,18 @@ export function ThreeViewport() {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x101418, 1);
     renderer.shadowMap.enabled = true;
-    container.appendChild(renderer.domElement);
+    // Pin the canvas to fill its container with explicit CSS so the click-coord
+    // math always matches the WebGL buffer. Without this, the canvas keeps its
+    // default 300×150 intrinsic size while setSize only resizes the framebuffer,
+    // and getBoundingClientRect reports the small CSS box — pickAt then maps
+    // click coordinates to a wildly wrong NDC point.
+    const canvas = renderer.domElement;
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    container.appendChild(canvas);
 
-    const controls = new OrbitControls(adapter.camera, renderer.domElement);
+    const controls = new OrbitControls(adapter.camera, canvas);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
 
@@ -54,6 +63,8 @@ export function ThreeViewport() {
       const w = container.clientWidth;
       const h = container.clientHeight;
       if (w === 0 || h === 0) return;
+      // updateStyle=false so our explicit 100% sizing above stays in effect;
+      // we only need setSize to update the framebuffer + drawing buffer.
       renderer.setSize(w, h, false);
       adapter.setViewportSize(w, h);
       if (adapter.camera instanceof THREE.PerspectiveCamera) {
@@ -70,12 +81,12 @@ export function ThreeViewport() {
     // drags don't accidentally clear the selection. Modifier keys are ignored
     // for now — multi-select / range-select is a Phase 1 B concern.
     const onClick = (event: MouseEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
+      const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       setSelectedNodeId(adapter.pickAt(x, y));
     };
-    renderer.domElement.addEventListener("click", onClick);
+    canvas.addEventListener("click", onClick);
 
     let rafId = 0;
     const animate = () => {
@@ -87,18 +98,18 @@ export function ThreeViewport() {
 
     return () => {
       cancelAnimationFrame(rafId);
-      renderer.domElement.removeEventListener("click", onClick);
+      canvas.removeEventListener("click", onClick);
       ro.disconnect();
       controls.dispose();
       renderer.dispose();
-      if (renderer.domElement.parentNode === container) {
-        container.removeChild(renderer.domElement);
+      if (canvas.parentNode === container) {
+        container.removeChild(canvas);
       }
       adapter.dispose();
     };
   }, [project, setSelectedNodeId]);
 
-  return <div ref={containerRef} className="absolute inset-0" />;
+  return <div ref={containerRef} className="relative h-full w-full overflow-hidden" />;
 }
 
 /**
