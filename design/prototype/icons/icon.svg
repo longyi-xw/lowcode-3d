@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171c27"></stop>
+      <stop offset="0.55" stop-color="#0a0e15"></stop>
+      <stop offset="1" stop-color="#04060b"></stop>
+    </linearGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.45" r="0.75">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.45"></stop>
+    </radialGradient>
+    <radialGradient id="floorGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5b8def" stop-opacity="0.70"></stop>
+      <stop offset="0.45" stop-color="#5b8def" stop-opacity="0.30"></stop>
+      <stop offset="1" stop-color="#5b8def" stop-opacity="0"></stop>
+    </radialGradient>
+    <linearGradient id="topFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a8c1ff"></stop>
+      <stop offset="1" stop-color="#5b8def"></stop>
+    </linearGradient>
+    <linearGradient id="leftFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a72d4"></stop>
+      <stop offset="1" stop-color="#2c4ca2"></stop>
+    </linearGradient>
+    <linearGradient id="rightFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a5cc0"></stop>
+      <stop offset="1" stop-color="#1d3786"></stop>
+    </linearGradient>
+    <radialGradient id="topHighlight" cx="0.3" cy="0.2" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.30"></stop>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"></stop>
+    </radialGradient>
+    <clipPath id="sq">
+      <rect width="1024" height="1024" rx="229" ry="229"></rect>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#sq)">
+    <rect width="1024" height="1024" fill="url(#bg)"></rect>
+
+    
+    <g fill="none" stroke="#5b8def">
+      
+      <line x1="0" y1="445" x2="1024" y2="445" stroke-opacity="0.06" stroke-width="1.5"></line>
+      <line x1="-30" y1="490" x2="1054" y2="490" stroke-opacity="0.10" stroke-width="2"></line>
+      <line x1="-100" y1="560" x2="1124" y2="560" stroke-opacity="0.16" stroke-width="2.5"></line>
+      <line x1="-220" y1="660" x2="1244" y2="660" stroke-opacity="0.24" stroke-width="3"></line>
+      <line x1="-380" y1="790" x2="1404" y2="790" stroke-opacity="0.32" stroke-width="3.5"></line>
+      <line x1="-600" y1="960" x2="1624" y2="960" stroke-opacity="0.38" stroke-width="4"></line>
+      
+      <line x1="-220" y1="1024" x2="512" y2="440" stroke-opacity="0.32" stroke-width="2"></line>
+      <line x1="80" y1="1024" x2="512" y2="440" stroke-opacity="0.28" stroke-width="2"></line>
+      <line x1="295" y1="1024" x2="512" y2="440" stroke-opacity="0.24" stroke-width="2"></line>
+      <line x1="512" y1="1024" x2="512" y2="440" stroke-opacity="0.40" stroke-width="2.5"></line>
+      <line x1="729" y1="1024" x2="512" y2="440" stroke-opacity="0.24" stroke-width="2"></line>
+      <line x1="944" y1="1024" x2="512" y2="440" stroke-opacity="0.28" stroke-width="2"></line>
+      <line x1="1244" y1="1024" x2="512" y2="440" stroke-opacity="0.32" stroke-width="2"></line>
+    </g>
+
+    
+    <rect width="1024" height="1024" fill="url(#vignette)"></rect>
+
+    
+    <ellipse cx="512" cy="700" rx="260" ry="56" fill="url(#floorGlow)"></ellipse>
+
+    
+    
+    
+    
+    
+
+    
+    <ellipse cx="512" cy="664" rx="160" ry="22" fill="#04060b" opacity="0.55"></ellipse>
+
+    
+    <polygon points="659,385 512,470 512,640 659,555" fill="url(#rightFace)"></polygon>
+    
+    <polygon points="365,385 512,470 512,640 365,555" fill="url(#leftFace)"></polygon>
+    
+    <polygon points="512,300 659,385 512,470 365,385" fill="url(#topFace)"></polygon>
+    
+    <polygon points="512,300 659,385 512,470 365,385" fill="url(#topHighlight)"></polygon>
+
+    
+    <g stroke-linecap="round" fill="none">
+      <line x1="512" y1="300" x2="659" y2="385" stroke="#dde7ff" stroke-width="3" stroke-opacity="0.75"></line>
+      <line x1="512" y1="300" x2="365" y2="385" stroke="#dde7ff" stroke-width="3" stroke-opacity="0.55"></line>
+      <line x1="512" y1="300" x2="512" y2="470" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.25"></line>
+    </g>
+  </g>
+</svg>
