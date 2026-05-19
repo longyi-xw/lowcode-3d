@@ -20,6 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "bindings": "cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings --quiet",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "husky"
@@ -42,6 +43,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "i18next": "^26.2.0",
