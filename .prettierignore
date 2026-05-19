@@ -5,6 +5,7 @@ src-tauri/target/
 src-tauri/gen/
 src-tauri/Cargo.lock
 src-tauri/icons/
+src/bindings/
 design/
 .husky/_/
 *.tsbuildinfo

@@ -15,6 +15,7 @@ export default tseslint.config(
       "node_modules/**",
       "src-tauri/target/**",
       "src-tauri/gen/**",
+      "src/bindings/**", // tauri-specta generated
       "src/components/ui/**", // vendored shadcn primitives
     ],
   },
