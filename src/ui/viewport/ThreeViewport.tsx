@@ -2,6 +2,10 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import { ThreeAdapter } from "@/runtime/three/adapter";
@@ -57,6 +61,29 @@ export function ThreeViewport() {
     canvas.style.height = "100%";
     container.appendChild(canvas);
 
+    // Post-processing chain so we can stack an OutlinePass for selection
+    // highlighting on top of the regular render. Render order: RenderPass
+    // (scene) → OutlinePass (edge detection on selectedObjects) → OutputPass
+    // (sRGB convert + tone-map so colours match the direct-render path).
+    // Edge tuning: 2 / 0 / 1 = a thin, no-glow line so it reads as "marked"
+    // without competing with the gizmo for attention. Colour matches the
+    // app's primary accent (--primary, hsl 217 91% 60%) so the outline ties
+    // into the same visual language as the selected hierarchy row.
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(adapter.scene, adapter.camera));
+    const outlinePass = new OutlinePass(
+      new THREE.Vector2(1, 1),
+      adapter.scene,
+      adapter.camera,
+    );
+    outlinePass.edgeStrength = 2;
+    outlinePass.edgeGlow = 0;
+    outlinePass.edgeThickness = 1;
+    outlinePass.visibleEdgeColor.set("#3b82f6");
+    outlinePass.hiddenEdgeColor.set("#1e3a5f");
+    composer.addPass(outlinePass);
+    composer.addPass(new OutputPass());
+
     const orbit = new OrbitControls(adapter.camera, canvas);
     orbit.enableDamping = true;
     orbit.dampingFactor = 0.08;
@@ -71,9 +98,19 @@ export function ThreeViewport() {
     let dragStart: Transform | null = null;
 
     gizmo.addEventListener("dragging-changed", (event) => {
+      const dragging = event.value as unknown as boolean;
       // Disable OrbitControls during a gizmo drag so the camera doesn't move
       // with the cursor.
-      orbit.enabled = !(event.value as unknown as boolean);
+      orbit.enabled = !dragging;
+      // Hide the selection outline while dragging — the gizmo handles already
+      // mark what's being manipulated, and an extra edge underneath competes
+      // with the gizmo for attention. Restore on release from the current
+      // selection state so we don't fight a concurrent selection change.
+      if (dragging) {
+        outlinePass.selectedObjects = [];
+      } else {
+        syncSelection(useUIStore.getState().selectedNodeId);
+      }
     });
     gizmo.addEventListener("mouseDown", () => {
       const obj = gizmo.object;
@@ -98,22 +135,30 @@ export function ThreeViewport() {
       );
     });
 
-    const attachGizmoToSelection = (id: string | null) => {
+    const syncSelection = (id: string | null) => {
       if (!id) {
         gizmo.detach();
+        outlinePass.selectedObjects = [];
         return;
       }
       const obj = adapter.getRuntimeObject(id);
-      if (obj) gizmo.attach(obj);
-      else gizmo.detach();
+      if (obj) {
+        gizmo.attach(obj);
+        outlinePass.selectedObjects = [obj];
+      } else {
+        gizmo.detach();
+        outlinePass.selectedObjects = [];
+      }
     };
-    attachGizmoToSelection(useUIStore.getState().selectedNodeId);
+    syncSelection(useUIStore.getState().selectedNodeId);
 
     const resize = () => {
       const w = container.clientWidth;
       const h = container.clientHeight;
       if (w === 0 || h === 0) return;
       renderer.setSize(w, h, false);
+      composer.setSize(w, h);
+      outlinePass.setSize(w, h);
       adapter.setViewportSize(w, h);
       if (adapter.camera instanceof THREE.PerspectiveCamera) {
         adapter.camera.aspect = w / h;
@@ -155,12 +200,12 @@ export function ThreeViewport() {
       if (!next || !old) return;
       if (next === old) return;
       if (next.metadata.id !== old.metadata.id) return; // handled by effect re-run
-      diffAndApply(adapter, old, next, gizmo);
+      diffAndApply(adapter, old, next, gizmo, outlinePass);
     });
 
     const unsubscribeUI = useUIStore.subscribe((state, prev) => {
       if (state.selectedNodeId !== prev.selectedNodeId) {
-        attachGizmoToSelection(state.selectedNodeId);
+        syncSelection(state.selectedNodeId);
       }
       if (state.gizmoMode !== prev.gizmoMode) {
         gizmo.setMode(state.gizmoMode);
@@ -171,7 +216,7 @@ export function ThreeViewport() {
     const animate = () => {
       rafId = requestAnimationFrame(animate);
       orbit.update();
-      renderer.render(adapter.scene, adapter.camera);
+      composer.render();
     };
     animate();
 
@@ -185,6 +230,7 @@ export function ThreeViewport() {
       gizmo.detach();
       gizmo.dispose();
       orbit.dispose();
+      composer.dispose();
       renderer.dispose();
       if (canvas.parentNode === container) {
         container.removeChild(canvas);
@@ -249,6 +295,7 @@ function diffAndApply(
   old: SceneProject,
   next: SceneProject,
   gizmo: TransformControls,
+  outlinePass: OutlinePass,
 ): void {
   const queue: string[] = [...next.scene.root_node_ids];
   const seen = new Set<string>();
@@ -272,6 +319,9 @@ function diffAndApply(
       if (removed) {
         if (gizmo.object && gizmo.object.userData.nodeId === id) {
           gizmo.detach();
+        }
+        if (outlinePass.selectedObjects.some((obj) => obj.userData.nodeId === id)) {
+          outlinePass.selectedObjects = [];
         }
         adapter.syncNode(removed, "remove");
       }
