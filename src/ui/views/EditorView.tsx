@@ -1,12 +1,17 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Box, X } from "lucide-react";
 
 import { useAppViewStore } from "@/services/app-view/store";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
+import { executeCommand } from "@/services/command-history";
+import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
+import type { SceneNode, Transform } from "@/core/scene/types";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
-import type { SceneNode } from "@/core/scene/types";
 import { HierarchyTree } from "./HierarchyTree";
+
+type Vec3 = [number, number, number];
 
 export function EditorView() {
   const { t } = useTranslation(["common", "editor"]);
@@ -103,26 +108,48 @@ export function EditorView() {
 }
 
 function NodeProperties({ node }: { node: SceneNode }) {
+  const commitTransform = (next: Partial<Transform>) => {
+    const newTransform: Transform = {
+      position: next.position ?? node.transform.position,
+      rotation: next.rotation ?? node.transform.rotation,
+      scale: next.scale ?? node.transform.scale,
+    };
+    if (transformsEqual(newTransform, node.transform)) return;
+    executeCommand(
+      new SetNodeTransformCommand({
+        node_id: node.id,
+        transform: newTransform,
+        prev_transform: node.transform,
+      }),
+    );
+  };
+
   return (
-    <dl className="space-y-2 font-mono text-[11px]">
-      <Row label="id" value={node.id} />
-      <Row label="name" value={node.name} />
-      <Row label="type" value={node.type} />
-      <Row
+    <dl className="space-y-3 font-mono text-[11px]">
+      <ReadonlyRow label="id" value={node.id} />
+      <ReadonlyRow label="name" value={node.name} />
+      <ReadonlyRow label="type" value={node.type} />
+      <Vec3Row
         label="position"
-        value={node.transform.position.map(formatNumber).join(", ")}
+        value={node.transform.position}
+        onChange={(position) => commitTransform({ position })}
       />
-      <Row
+      {/* Rotation stays read-only this commit; TransformControls handles it next. */}
+      <ReadonlyRow
         label="rotation"
         value={node.transform.rotation.map(formatNumber).join(", ")}
       />
-      <Row label="scale" value={node.transform.scale.map(formatNumber).join(", ")} />
-      <Row label="visible" value={node.visible ? "true" : "false"} />
+      <Vec3Row
+        label="scale"
+        value={node.transform.scale}
+        onChange={(scale) => commitTransform({ scale })}
+      />
+      <ReadonlyRow label="visible" value={node.visible ? "true" : "false"} />
     </dl>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function ReadonlyRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-[80px_1fr] gap-2">
       <dt className="text-muted-foreground">{label}</dt>
@@ -131,6 +158,108 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+function Vec3Row({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Vec3;
+  onChange: (next: Vec3) => void;
+}) {
+  return (
+    <div className="grid grid-cols-[80px_1fr] gap-2">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="grid grid-cols-3 gap-1">
+        {(["x", "y", "z"] as const).map((axis, i) => (
+          <NumberInput
+            key={axis}
+            label={axis}
+            value={value[i] ?? 0}
+            onChange={(v) => {
+              const next: Vec3 = [value[0], value[1], value[2]];
+              next[i] = v;
+              onChange(next);
+            }}
+          />
+        ))}
+      </dd>
+    </div>
+  );
+}
+
+function NumberInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  const [text, setText] = useState(() => formatNumber(value));
+  // Sync from props on external changes (undo/redo, gizmo) via the React-19-
+  // sanctioned "compare during render with a state anchor" pattern, NOT
+  // useEffect+setState (that's the cascading-render anti-pattern) and NOT a
+  // ref (refs can't be read or written during render).
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setText(formatNumber(value));
+  }
+
+  const commit = () => {
+    const parsed = Number.parseFloat(text);
+    if (!Number.isFinite(parsed)) {
+      setText(formatNumber(value));
+      return;
+    }
+    if (parsed !== value) onChange(parsed);
+    setText(formatNumber(parsed));
+  };
+
+  return (
+    <label className="flex items-center gap-1 rounded border border-border bg-background/50 px-1.5 py-0.5 focus-within:border-primary">
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            (e.target as HTMLInputElement).blur();
+          } else if (e.key === "Escape") {
+            setText(formatNumber(value));
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        className="w-0 flex-1 bg-transparent text-right font-mono text-[11px] text-foreground outline-none"
+      />
+    </label>
+  );
+}
+
+function transformsEqual(a: Transform, b: Transform): boolean {
+  return (
+    vec3Equal(a.position, b.position) &&
+    quatEqual(a.rotation, b.rotation) &&
+    vec3Equal(a.scale, b.scale)
+  );
+}
+
+function vec3Equal(a: Vec3, b: Vec3): boolean {
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+}
+
+function quatEqual(
+  a: [number, number, number, number],
+  b: [number, number, number, number],
+): boolean {
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+}
+
 function formatNumber(n: number): string {
-  return Math.abs(n) < 1e-3 ? "0" : n.toFixed(3).replace(/\.?0+$/, "");
+  return Math.abs(n) < 1e-4 ? "0" : Number(n.toFixed(3)).toString();
 }
