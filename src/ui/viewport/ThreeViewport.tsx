@@ -124,12 +124,29 @@ export function ThreeViewport() {
     const ro = new ResizeObserver(resize);
     ro.observe(container);
 
+    // Distinguish a real click from the click event that browsers dispatch
+    // after a drag (mouseup + mousedown on the same element fire a click
+    // regardless of distance travelled). Without this guard, releasing a
+    // gizmo or orbit drag inside the canvas runs pickAt at the release point
+    // and hijacks the selection — most painfully onto the grid helper which
+    // covers the whole floor plane.
+    const DRAG_PX_TOLERANCE_SQ = 25; // 5px
+    let downX = 0;
+    let downY = 0;
+    const onPointerDown = (event: PointerEvent) => {
+      downX = event.clientX;
+      downY = event.clientY;
+    };
     const onClick = (event: MouseEvent) => {
+      const dx = event.clientX - downX;
+      const dy = event.clientY - downY;
+      if (dx * dx + dy * dy > DRAG_PX_TOLERANCE_SQ) return;
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       setSelectedNodeId(adapter.pickAt(x, y));
     };
+    canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("click", onClick);
 
     const unsubscribeScene = useSceneStore.subscribe((state, prev) => {
@@ -163,6 +180,7 @@ export function ThreeViewport() {
       unsubscribeScene();
       unsubscribeUI();
       canvas.removeEventListener("click", onClick);
+      canvas.removeEventListener("pointerdown", onPointerDown);
       ro.disconnect();
       gizmo.detach();
       gizmo.dispose();
