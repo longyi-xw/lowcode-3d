@@ -65,6 +65,10 @@ export function ThreeViewport() {
     // highlighting on top of the regular render. Render order: RenderPass
     // (scene) → OutlinePass (edge detection on selectedObjects) → OutputPass
     // (sRGB convert + tone-map so colours match the direct-render path).
+    // Edge tuning: 2 / 0 / 1 = a thin, no-glow line so it reads as "marked"
+    // without competing with the gizmo for attention. Colour matches the
+    // app's primary accent (--primary, hsl 217 91% 60%) so the outline ties
+    // into the same visual language as the selected hierarchy row.
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(adapter.scene, adapter.camera));
     const outlinePass = new OutlinePass(
@@ -72,11 +76,11 @@ export function ThreeViewport() {
       adapter.scene,
       adapter.camera,
     );
-    outlinePass.edgeStrength = 4;
-    outlinePass.edgeGlow = 0.3;
+    outlinePass.edgeStrength = 2;
+    outlinePass.edgeGlow = 0;
     outlinePass.edgeThickness = 1;
-    outlinePass.visibleEdgeColor.set("#f5a623");
-    outlinePass.hiddenEdgeColor.set("#3a2a10");
+    outlinePass.visibleEdgeColor.set("#3b82f6");
+    outlinePass.hiddenEdgeColor.set("#1e3a5f");
     composer.addPass(outlinePass);
     composer.addPass(new OutputPass());
 
@@ -94,9 +98,19 @@ export function ThreeViewport() {
     let dragStart: Transform | null = null;
 
     gizmo.addEventListener("dragging-changed", (event) => {
+      const dragging = event.value as unknown as boolean;
       // Disable OrbitControls during a gizmo drag so the camera doesn't move
       // with the cursor.
-      orbit.enabled = !(event.value as unknown as boolean);
+      orbit.enabled = !dragging;
+      // Hide the selection outline while dragging — the gizmo handles already
+      // mark what's being manipulated, and an extra edge underneath competes
+      // with the gizmo for attention. Restore on release from the current
+      // selection state so we don't fight a concurrent selection change.
+      if (dragging) {
+        outlinePass.selectedObjects = [];
+      } else {
+        syncSelection(useUIStore.getState().selectedNodeId);
+      }
     });
     gizmo.addEventListener("mouseDown", () => {
       const obj = gizmo.object;
