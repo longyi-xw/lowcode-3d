@@ -8,6 +8,7 @@ import { useUIStore, type GizmoMode } from "@/services/ui/store";
 import { executeCommand } from "@/services/command-history";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import type { SceneNode, Transform } from "@/core/scene/types";
+import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
 import { useGizmoShortcuts } from "@/ui/viewport/use-gizmo-shortcuts";
 import { cn } from "@/lib/utils";
@@ -152,10 +153,10 @@ function NodeProperties({ node }: { node: SceneNode }) {
         value={node.transform.position}
         onChange={(position) => commitTransform({ position })}
       />
-      {/* Rotation stays read-only this commit; TransformControls handles it next. */}
-      <ReadonlyRow
-        label="rotation"
-        value={node.transform.rotation.map(formatNumber).join(", ")}
+      <Vec3Row
+        label="rotation°"
+        value={quatToEulerDeg(node.transform.rotation)}
+        onChange={(eulerDeg) => commitTransform({ rotation: eulerDegToQuat(eulerDeg) })}
       />
       <Vec3Row
         label="scale"
