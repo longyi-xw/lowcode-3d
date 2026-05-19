@@ -15,15 +15,18 @@ const IDENTITY = {
 };
 
 /**
- * Builds a fresh SceneProject matching `examples/single-cube`: one mesh, one
- * directional light, one perspective camera, and a grid helper for context.
+ * Builds a fresh SceneProject with a small, hand-authored scene that exercises
+ * every NodeKind ThreeAdapter currently supports: one mesh inside a parent
+ * group, one directional + one ambient light, and a grid helper. The parent
+ * group (`models-group` → `cube-1`) is intentional — Phase 1 B's hierarchy
+ * tree needs at least one parent/child relationship to verify nesting.
  *
  * Used as the temporary "New project" payload until a real template picker
  * lands. Distinct from the example fixture in two ways:
  *   - The project id and timestamps are generated at call time so each run is
  *     a fresh project rather than a stale fixture.
- *   - Node ids are slugged ("cube-1", "key-light", …) rather than uuid-based,
- *     so the hierarchy panel reads naturally in MVP.
+ *   - Node ids are slugged ("cube-1", "models-group", …) rather than uuid-
+ *     based, so the hierarchy panel reads naturally in MVP.
  */
 export function createDemoProject(name = "Untitled project"): SceneProject {
   const base = createDefaultProject({
@@ -46,12 +49,25 @@ export function createDemoProject(name = "Untitled project"): SceneProject {
       behaviors: [],
       user_data: {},
     },
+    "models-group": {
+      id: "models-group",
+      name: "Models",
+      type: "group",
+      transform: IDENTITY,
+      parent_id: null,
+      children_ids: ["cube-1"],
+      visible: true,
+      locked: false,
+      data: { type: "group" },
+      behaviors: [],
+      user_data: {},
+    },
     "cube-1": {
       id: "cube-1",
       name: "Cube",
       type: "mesh",
       transform: { ...IDENTITY, position: [0, 0.5, 0] },
-      parent_id: null,
+      parent_id: "models-group",
       children_ids: [],
       visible: true,
       locked: false,
@@ -106,7 +122,7 @@ export function createDemoProject(name = "Untitled project"): SceneProject {
     },
     scene: {
       nodes,
-      root_node_ids: ["grid-helper", "cube-1", "key-light", "fill-light"],
+      root_node_ids: ["grid-helper", "models-group", "key-light", "fill-light"],
     },
     assets: [
       {

@@ -6,7 +6,7 @@ import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
 import type { SceneNode } from "@/core/scene/types";
-import { cn } from "@/lib/utils";
+import { HierarchyTree } from "./HierarchyTree";
 
 export function EditorView() {
   const { t } = useTranslation(["common", "editor"]);
@@ -15,18 +15,14 @@ export function EditorView() {
   const setProject = useSceneStore((s) => s.setProject);
   const selectedNodeId = useUIStore((s) => s.selectedNodeId);
   const setSelectedNodeId = useUIStore((s) => s.setSelectedNodeId);
+  const expandedNodes = useUIStore((s) => s.expandedNodes);
+  const toggleNodeExpanded = useUIStore((s) => s.toggleNodeExpanded);
 
   const closeProject = () => {
     setProject(null);
     setSelectedNodeId(null);
     setView("startup");
   };
-
-  const rootNodes = project
-    ? project.scene.root_node_ids
-        .map((id) => project.scene.nodes[id])
-        .filter((n): n is NonNullable<typeof n> => Boolean(n))
-    : [];
 
   const selectedNode =
     project && selectedNodeId ? project.scene.nodes[selectedNodeId] : undefined;
@@ -53,39 +49,18 @@ export function EditorView() {
           </button>
         </header>
         <div className="min-h-0 flex-1 overflow-auto p-2">
-          {rootNodes.length === 0 ? (
+          {project && project.scene.root_node_ids.length > 0 ? (
+            <HierarchyTree
+              project={project}
+              selectedNodeId={selectedNodeId}
+              expandedNodes={expandedNodes}
+              onSelect={setSelectedNodeId}
+              onToggleExpand={toggleNodeExpanded}
+            />
+          ) : (
             <p className="px-1 text-xs text-muted-foreground">
               {t("editor:hierarchy.empty")}
             </p>
-          ) : (
-            <ul className="space-y-0.5 font-mono text-[11px]">
-              {rootNodes.map((node) => {
-                const active = node.id === selectedNodeId;
-                return (
-                  <li key={node.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedNodeId(active ? null : node.id)}
-                      className={cn(
-                        "flex w-full items-center gap-1.5 rounded px-2 py-1 text-left transition",
-                        active
-                          ? "bg-primary/15 text-primary"
-                          : "text-foreground/90 hover:bg-muted",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          active ? "text-primary" : "text-muted-foreground",
-                        )}
-                      >
-                        {iconForKind(node.type)}
-                      </span>
-                      <span className="truncate">{node.name}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
           )}
         </div>
       </aside>
@@ -158,21 +133,4 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function formatNumber(n: number): string {
   return Math.abs(n) < 1e-3 ? "0" : n.toFixed(3).replace(/\.?0+$/, "");
-}
-
-function iconForKind(kind: string): string {
-  switch (kind) {
-    case "group":
-      return "▸";
-    case "mesh":
-      return "◼";
-    case "light":
-      return "✦";
-    case "camera":
-      return "▦";
-    case "helper":
-      return "◇";
-    default:
-      return "•";
-  }
 }
