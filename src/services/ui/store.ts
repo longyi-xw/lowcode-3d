@@ -4,8 +4,11 @@ import { create } from "zustand";
  * UI store — ephemeral, never persisted.
  *
  * Holds session-only UI state: which panels are open, which dialogs are
- * visible, which node is selected for inspection, etc. Reset on every launch.
+ * visible, which node is selected for inspection, which nodes are expanded
+ * in the hierarchy tree. Reset on every launch.
  */
+export type GizmoMode = "translate" | "rotate" | "scale";
+
 interface UIState {
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
@@ -16,6 +19,13 @@ interface UIState {
   /** SceneNode.id under user inspection. null when nothing is selected. */
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
+  /** Per-node expanded flag in the hierarchy tree. Missing == collapsed. */
+  expandedNodes: Record<string, boolean>;
+  toggleNodeExpanded: (nodeId: string) => void;
+  setNodeExpanded: (nodeId: string, expanded: boolean) => void;
+  /** Which TransformControls mode the viewport gizmo is in. */
+  gizmoMode: GizmoMode;
+  setGizmoMode: (mode: GizmoMode) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -27,4 +37,18 @@ export const useUIStore = create<UIState>((set) => ({
   setPropertiesCollapsed: (propertiesCollapsed) => set({ propertiesCollapsed }),
   selectedNodeId: null,
   setSelectedNodeId: (selectedNodeId) => set({ selectedNodeId }),
+  expandedNodes: {},
+  toggleNodeExpanded: (nodeId) =>
+    set((s) => ({
+      expandedNodes: {
+        ...s.expandedNodes,
+        [nodeId]: !s.expandedNodes[nodeId],
+      },
+    })),
+  setNodeExpanded: (nodeId, expanded) =>
+    set((s) => ({
+      expandedNodes: { ...s.expandedNodes, [nodeId]: expanded },
+    })),
+  gizmoMode: "translate",
+  setGizmoMode: (gizmoMode) => set({ gizmoMode }),
 }));
