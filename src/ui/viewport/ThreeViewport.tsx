@@ -1,9 +1,12 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
 
+import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import { ThreeAdapter } from "@/runtime/three/adapter";
-import type { SceneNode, SceneProject } from "@/core/scene/types";
+import type { SceneNode, SceneProject, Transform } from "@/core/scene/types";
+import { executeCommand } from "@/services/command-history";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 
@@ -17,9 +20,14 @@ import { useUIStore } from "@/services/ui/store";
  *     re-create the adapter, so OrbitControls keeps the user's camera state.
  *   - Inside the mount effect we subscribe to useSceneStore for fine-grained
  *     scene changes and translate them into `syncNode("update"/"add"/"remove")`
- *     on the live adapter.
+ *     on the live adapter. We also subscribe to useUIStore for selection +
+ *     gizmo-mode changes, attaching / detaching TransformControls accordingly.
+ *   - TransformControls drags emit one SetNodeTransformCommand each on
+ *     mouseUp — never on objectChange — so a continuous drag is one undo
+ *     entry rather than many. Mid-drag the Object3D moves freely without
+ *     a round-trip through the scene store.
  *   - On unmount / project switch: stop the loop, dispose every Three.js
- *     handle, unsubscribe from the store, remove the canvas + click listener.
+ *     handle, unsubscribe from stores, remove the canvas + click listener.
  *
  * Component-level WebGL tests are deferred to E2E because jsdom has no WebGL;
  * ThreeAdapter (the layer doing the actual work) is unit-covered separately.
@@ -36,9 +44,6 @@ export function ThreeViewport() {
 
     const adapter = new ThreeAdapter();
 
-    // Seed from current project state (may have changed between projectId
-    // updating and this effect running, but only by mutation we missed —
-    // re-reading getState() is the safe path).
     const initial = useSceneStore.getState().project;
     if (initial) seedScene(adapter, initial);
 
@@ -52,9 +57,57 @@ export function ThreeViewport() {
     canvas.style.height = "100%";
     container.appendChild(canvas);
 
-    const controls = new OrbitControls(adapter.camera, canvas);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
+    const orbit = new OrbitControls(adapter.camera, canvas);
+    orbit.enableDamping = true;
+    orbit.dampingFactor = 0.08;
+
+    const gizmo = new TransformControls(adapter.camera, canvas);
+    // TransformControls.getHelper() returns the visual representation —
+    // the Helper is what gets added to the scene, NOT the controls instance
+    // itself (which is a controller; adding it would attach unwanted state).
+    adapter.scene.add(gizmo.getHelper());
+    gizmo.setMode(useUIStore.getState().gizmoMode);
+
+    let dragStart: Transform | null = null;
+
+    gizmo.addEventListener("dragging-changed", (event) => {
+      // Disable OrbitControls during a gizmo drag so the camera doesn't move
+      // with the cursor.
+      orbit.enabled = !(event.value as unknown as boolean);
+    });
+    gizmo.addEventListener("mouseDown", () => {
+      const obj = gizmo.object;
+      if (!obj) return;
+      dragStart = captureTransform(obj);
+    });
+    gizmo.addEventListener("mouseUp", () => {
+      const obj = gizmo.object;
+      const start = dragStart;
+      dragStart = null;
+      if (!obj || !start) return;
+      const nodeId = obj.userData.nodeId;
+      if (typeof nodeId !== "string") return;
+      const end = captureTransform(obj);
+      if (transformsEqual(start, end)) return;
+      executeCommand(
+        new SetNodeTransformCommand({
+          node_id: nodeId,
+          transform: end,
+          prev_transform: start,
+        }),
+      );
+    });
+
+    const attachGizmoToSelection = (id: string | null) => {
+      if (!id) {
+        gizmo.detach();
+        return;
+      }
+      const obj = adapter.getRuntimeObject(id);
+      if (obj) gizmo.attach(obj);
+      else gizmo.detach();
+    };
+    attachGizmoToSelection(useUIStore.getState().selectedNodeId);
 
     const resize = () => {
       const w = container.clientWidth;
@@ -79,32 +132,41 @@ export function ThreeViewport() {
     };
     canvas.addEventListener("click", onClick);
 
-    // Subscribe for incremental updates. We diff node-by-node by identity:
-    // the scene store always replaces changed nodes with a new SceneNode
-    // object, so referential inequality means the data shifted.
-    const unsubscribe = useSceneStore.subscribe((state, prev) => {
+    const unsubscribeScene = useSceneStore.subscribe((state, prev) => {
       const next = state.project;
       const old = prev.project;
       if (!next || !old) return;
       if (next === old) return;
       if (next.metadata.id !== old.metadata.id) return; // handled by effect re-run
-      diffAndApply(adapter, old, next);
+      diffAndApply(adapter, old, next, gizmo);
+    });
+
+    const unsubscribeUI = useUIStore.subscribe((state, prev) => {
+      if (state.selectedNodeId !== prev.selectedNodeId) {
+        attachGizmoToSelection(state.selectedNodeId);
+      }
+      if (state.gizmoMode !== prev.gizmoMode) {
+        gizmo.setMode(state.gizmoMode);
+      }
     });
 
     let rafId = 0;
     const animate = () => {
       rafId = requestAnimationFrame(animate);
-      controls.update();
+      orbit.update();
       renderer.render(adapter.scene, adapter.camera);
     };
     animate();
 
     return () => {
       cancelAnimationFrame(rafId);
-      unsubscribe();
+      unsubscribeScene();
+      unsubscribeUI();
       canvas.removeEventListener("click", onClick);
       ro.disconnect();
-      controls.dispose();
+      gizmo.detach();
+      gizmo.dispose();
+      orbit.dispose();
       renderer.dispose();
       if (canvas.parentNode === container) {
         container.removeChild(canvas);
@@ -114,6 +176,29 @@ export function ThreeViewport() {
   }, [projectId, setSelectedNodeId]);
 
   return <div ref={containerRef} className="relative h-full w-full overflow-hidden" />;
+}
+
+function captureTransform(obj: THREE.Object3D): Transform {
+  return {
+    position: [obj.position.x, obj.position.y, obj.position.z],
+    rotation: [obj.quaternion.x, obj.quaternion.y, obj.quaternion.z, obj.quaternion.w],
+    scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+  };
+}
+
+function transformsEqual(a: Transform, b: Transform): boolean {
+  return (
+    a.position[0] === b.position[0] &&
+    a.position[1] === b.position[1] &&
+    a.position[2] === b.position[2] &&
+    a.rotation[0] === b.rotation[0] &&
+    a.rotation[1] === b.rotation[1] &&
+    a.rotation[2] === b.rotation[2] &&
+    a.rotation[3] === b.rotation[3] &&
+    a.scale[0] === b.scale[0] &&
+    a.scale[1] === b.scale[1] &&
+    a.scale[2] === b.scale[2]
+  );
 }
 
 /**
@@ -138,18 +223,15 @@ function seedScene(adapter: ThreeAdapter, project: SceneProject): void {
 /**
  * Translate node-identity differences between two project snapshots into
  * syncNode calls. Update first (the common case during editing), then adds
- * (BFS-ordered so parents land first), then removes.
- *
- * Adds and removes are defensive: the scene store today only emits updates,
- * but this keeps the viewport correct if/when adders land.
+ * (BFS-ordered so parents land first), then removes — detaching the gizmo
+ * before any node it's currently attached to disappears.
  */
 function diffAndApply(
   adapter: ThreeAdapter,
   old: SceneProject,
   next: SceneProject,
+  gizmo: TransformControls,
 ): void {
-  // Updates + adds. To respect parents-before-children for adds, walk the
-  // next project's tree BFS from roots and only act on truly-new ids.
   const queue: string[] = [...next.scene.root_node_ids];
   const seen = new Set<string>();
   while (queue.length > 0) {
@@ -166,11 +248,15 @@ function diffAndApply(
     }
     queue.push(...n.children_ids);
   }
-  // Removes — anything in old but not in next.
   for (const id of Object.keys(old.scene.nodes)) {
     if (!next.scene.nodes[id]) {
       const removed = old.scene.nodes[id];
-      if (removed) adapter.syncNode(removed, "remove");
+      if (removed) {
+        if (gizmo.object && gizmo.object.userData.nodeId === id) {
+          gizmo.detach();
+        }
+        adapter.syncNode(removed, "remove");
+      }
     }
   }
 }

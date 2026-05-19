@@ -4,12 +4,20 @@ import { Box, X } from "lucide-react";
 
 import { useAppViewStore } from "@/services/app-view/store";
 import { useSceneStore } from "@/services/scene/store";
-import { useUIStore } from "@/services/ui/store";
+import { useUIStore, type GizmoMode } from "@/services/ui/store";
 import { executeCommand } from "@/services/command-history";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import type { SceneNode, Transform } from "@/core/scene/types";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
+import { useGizmoShortcuts } from "@/ui/viewport/use-gizmo-shortcuts";
+import { cn } from "@/lib/utils";
 import { HierarchyTree } from "./HierarchyTree";
+
+const GIZMO_MODES: { mode: GizmoMode; label: string; hotkey: string }[] = [
+  { mode: "translate", label: "Move", hotkey: "G" },
+  { mode: "rotate", label: "Rotate", hotkey: "R" },
+  { mode: "scale", label: "Scale", hotkey: "S" },
+];
 
 type Vec3 = [number, number, number];
 
@@ -22,6 +30,9 @@ export function EditorView() {
   const setSelectedNodeId = useUIStore((s) => s.setSelectedNodeId);
   const expandedNodes = useUIStore((s) => s.expandedNodes);
   const toggleNodeExpanded = useUIStore((s) => s.toggleNodeExpanded);
+  const gizmoMode = useUIStore((s) => s.gizmoMode);
+  const setGizmoMode = useUIStore((s) => s.setGizmoMode);
+  useGizmoShortcuts();
 
   const closeProject = () => {
     setProject(null);
@@ -73,7 +84,14 @@ export function EditorView() {
       {/* Viewport */}
       <main className="relative h-full min-w-0 overflow-hidden">
         {project ? (
-          <ThreeViewport />
+          <>
+            <ThreeViewport />
+            <GizmoModeToolbar
+              mode={gizmoMode}
+              disabled={selectedNodeId === null}
+              onChange={setGizmoMode}
+            />
+          </>
         ) : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
@@ -262,4 +280,53 @@ function quatEqual(
 
 function formatNumber(n: number): string {
   return Math.abs(n) < 1e-4 ? "0" : Number(n.toFixed(3)).toString();
+}
+
+function GizmoModeToolbar({
+  mode,
+  disabled,
+  onChange,
+}: {
+  mode: GizmoMode;
+  disabled: boolean;
+  onChange: (mode: GizmoMode) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-popover/90 px-1.5 py-1 text-[11px] shadow-lg backdrop-blur-sm",
+        disabled && "opacity-50",
+      )}
+    >
+      {GIZMO_MODES.map((entry) => {
+        const active = entry.mode === mode;
+        return (
+          <button
+            key={entry.mode}
+            type="button"
+            onClick={() => onChange(entry.mode)}
+            disabled={disabled}
+            title={`${entry.label} (${entry.hotkey})`}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-2.5 py-1 transition",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "text-foreground hover:bg-muted",
+              disabled && "cursor-not-allowed",
+            )}
+          >
+            <span>{entry.label}</span>
+            <span
+              className={cn(
+                "font-mono text-[10px]",
+                active ? "text-primary-foreground/80" : "text-muted-foreground",
+              )}
+            >
+              {entry.hotkey}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }

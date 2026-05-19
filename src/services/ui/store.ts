@@ -7,6 +7,8 @@ import { create } from "zustand";
  * visible, which node is selected for inspection, which nodes are expanded
  * in the hierarchy tree. Reset on every launch.
  */
+export type GizmoMode = "translate" | "rotate" | "scale";
+
 interface UIState {
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
@@ -21,6 +23,9 @@ interface UIState {
   expandedNodes: Record<string, boolean>;
   toggleNodeExpanded: (nodeId: string) => void;
   setNodeExpanded: (nodeId: string, expanded: boolean) => void;
+  /** Which TransformControls mode the viewport gizmo is in. */
+  gizmoMode: GizmoMode;
+  setGizmoMode: (mode: GizmoMode) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -44,4 +49,6 @@ export const useUIStore = create<UIState>((set) => ({
     set((s) => ({
       expandedNodes: { ...s.expandedNodes, [nodeId]: expanded },
     })),
+  gizmoMode: "translate",
+  setGizmoMode: (gizmoMode) => set({ gizmoMode }),
 }));

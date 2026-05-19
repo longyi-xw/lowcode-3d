@@ -8,6 +8,7 @@ function resetStore() {
     propertiesCollapsed: false,
     selectedNodeId: null,
     expandedNodes: {},
+    gizmoMode: "translate",
   });
 }
 
@@ -59,5 +60,23 @@ describe("useUIStore hierarchy expansion", () => {
       b: false,
       c: true,
     });
+  });
+});
+
+describe("useUIStore gizmo mode", () => {
+  beforeEach(resetStore);
+
+  it("defaults to translate", () => {
+    expect(useUIStore.getState().gizmoMode).toBe("translate");
+  });
+
+  it("cycles through translate / rotate / scale", () => {
+    const { setGizmoMode } = useUIStore.getState();
+    setGizmoMode("rotate");
+    expect(useUIStore.getState().gizmoMode).toBe("rotate");
+    setGizmoMode("scale");
+    expect(useUIStore.getState().gizmoMode).toBe("scale");
+    setGizmoMode("translate");
+    expect(useUIStore.getState().gizmoMode).toBe("translate");
   });
 });
