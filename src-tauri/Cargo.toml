@@ -5,6 +5,7 @@ description = "AI-assisted low-code platform for the Web 3D stack."
 authors = ["lowcode-3d contributors"]
 edition = "2021"
 rust-version = "1.77"
+default-run = "lowcode-3d"
 
 [lib]
 name = "lowcode_3d_lib"
