@@ -4,11 +4,46 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
-	/**
-	 *  Smoke-test command so the binding-generation pipeline can be verified before
-	 *  real I/O commands land in PR B2. Removable once `save_project_folder` /
-	 *  `open_project_folder` exist.
-	 */
-	ping: () => __TAURI_INVOKE<string>("ping"),
+	saveProjectFolder: (path: string, files: { [key in string]: string }, overwrite: boolean) => typedError<null, FolderError>(__TAURI_INVOKE("save_project_folder", { path, files, overwrite })),
+	openProjectFolder: (path: string) => typedError<{ [key in string]: string }, FolderError>(__TAURI_INVOKE("open_project_folder", { path })),
+	getCurrentProjectPath: () => __TAURI_INVOKE<string | null>("get_current_project_path"),
+	setCurrentProjectPath: (path: string | null) => __TAURI_INVOKE<void>("set_current_project_path", { path }),
 };
+
+/* Types */
+export type FolderError = 
+/**  std::io::Error wrapped with the path that triggered it. */
+{ code: "io"; data: {
+	path: string,
+	message: string,
+} } | 
+/**  Target path exists but isn't a directory. */
+{ code: "not_a_directory"; data: {
+	path: string,
+} } | 
+/**
+ *  Save target is a non-empty directory that doesn't look like a saved
+ *  lowcode-3d project. Front-end should ask "overwrite?" and call again
+ *  with `overwrite: true`.
+ */
+{ code: "already_exists_not_empty"; data: {
+	path: string,
+} } | 
+/**
+ *  Reserved for forwarding TS-side `PersistenceError` through the same
+ *  error union so the UI has a single error shape to handle.
+ */
+{ code: "persistence"; data: {
+	detail: string,
+} };
+
+/* Tauri Specta runtime */
+async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {
+    try {
+        return { status: "ok", data: await result };
+    } catch (e) {
+        if (e instanceof Error) throw e;
+        return { status: "error", error: e as any };
+    }
+}
 
