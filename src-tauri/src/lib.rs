@@ -90,7 +90,35 @@ fn build_menu<R: tauri::Runtime>(
         .item(&PredefinedMenuItem::select_all(app, None)?)
         .build()?;
 
-    MenuBuilder::new(app).items(&[&file, &edit]).build()
+    // macOS treats the first submenu as the application menu — without an
+    // explicit one, all our File items get collapsed under the app-name
+    // dropdown and "File" disappears from the menu bar. Prepend a standard
+    // app submenu with About / Services / Hide / Quit so File renders as
+    // its own top-level item. Other platforms keep the original two-item
+    // layout because they don't have the app-menu convention.
+    #[cfg(target_os = "macos")]
+    {
+        let app_name = app.package_info().name.clone();
+        let app_menu = SubmenuBuilder::new(app, &app_name)
+            .about(None)
+            .separator()
+            .services()
+            .separator()
+            .hide()
+            .hide_others()
+            .show_all()
+            .separator()
+            .quit()
+            .build()?;
+        return MenuBuilder::new(app)
+            .items(&[&app_menu, &file, &edit])
+            .build();
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        MenuBuilder::new(app).items(&[&file, &edit]).build()
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

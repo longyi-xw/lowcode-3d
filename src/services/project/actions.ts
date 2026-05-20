@@ -52,40 +52,67 @@ function renameProject(project: SceneProject, nextName: string): SceneProject {
  * EditorView's close button, and the native File menu. Centralising the dirty
  * check + dialog + error toast here means the three entry points stay in
  * lockstep.
+ *
+ * Re-entrancy guard: every menu/button action takes seconds (file pickers,
+ * confirm dialogs) and there are several paths where the same event can
+ * land twice — menu accelerator + double-click, React Strict Mode listener
+ * race during dev, HMR re-attaching handlers, an impatient user clicking
+ * the menu item while the previous click's dialog is up. Two concurrent
+ * `ask()` calls deadlock on macOS (the second native dialog steals focus
+ * but the first one's promise never resolves), so we hard-gate each action
+ * here. Granularity is per-action because Save during an in-flight Open is
+ * fine — only same-action re-entry is the failure mode.
  */
+const inFlight: Record<string, boolean> = {};
+
+function exclusive<T>(key: string, fn: () => Promise<T>): Promise<T | undefined> {
+  if (inFlight[key]) return Promise.resolve(undefined);
+  inFlight[key] = true;
+  return fn().finally(() => {
+    inFlight[key] = false;
+  });
+}
 
 export async function newProject(): Promise<void> {
-  if (!(await confirmDiscard("Start a new project and discard current changes?")))
-    return;
-  loadProjectIntoEditor(createDemoProject(), null);
+  await exclusive("newProject", async () => {
+    if (!(await confirmDiscard("Start a new project and discard current changes?")))
+      return;
+    loadProjectIntoEditor(createDemoProject(), null);
+  });
 }
 
 export async function openProject(): Promise<void> {
-  if (!(await confirmDiscard("Open another project and discard current changes?")))
-    return;
-  if (!isTauri()) {
-    console.warn("openProject called outside Tauri runtime");
-    return;
-  }
-  let selected: string | string[] | null;
-  try {
-    selected = await open({ directory: true, multiple: false });
-  } catch (e) {
-    console.error("dialog.open failed", e);
-    await reportRawError(`Couldn't open file picker: ${formatThrown(e)}`);
-    return;
-  }
-  if (typeof selected !== "string") return;
-  const result = await openProjectAt(selected);
-  if (!result.ok) {
-    await reportError(result.error);
-    return;
-  }
-  const renamed = renameProject(result.value, deriveProjectNameFromPath(selected));
-  loadProjectIntoEditor(renamed, selected);
+  await exclusive("openProject", async () => {
+    if (!(await confirmDiscard("Open another project and discard current changes?")))
+      return;
+    if (!isTauri()) {
+      console.warn("openProject called outside Tauri runtime");
+      return;
+    }
+    let selected: string | string[] | null;
+    try {
+      selected = await open({ directory: true, multiple: false });
+    } catch (e) {
+      console.error("dialog.open failed", e);
+      await reportRawError(`Couldn't open file picker: ${formatThrown(e)}`);
+      return;
+    }
+    if (typeof selected !== "string") return;
+    const result = await openProjectAt(selected);
+    if (!result.ok) {
+      await reportError(result.error);
+      return;
+    }
+    const renamed = renameProject(result.value, deriveProjectNameFromPath(selected));
+    loadProjectIntoEditor(renamed, selected);
+  });
 }
 
 export async function saveProject(opts: { forceDialog: boolean }): Promise<void> {
+  await exclusive("saveProject", () => saveProjectInner(opts));
+}
+
+async function saveProjectInner(opts: { forceDialog: boolean }): Promise<void> {
   const project = useSceneStore.getState().project;
   if (!project) return;
   if (!isTauri()) {
@@ -165,6 +192,10 @@ export async function saveProject(opts: { forceDialog: boolean }): Promise<void>
  * Delete Node command (which doesn't exist yet either).
  */
 export async function importGlb(): Promise<void> {
+  await exclusive("importGlb", importGlbInner);
+}
+
+async function importGlbInner(): Promise<void> {
   if (!isTauri()) {
     console.warn("importGlb called outside Tauri runtime");
     return;
@@ -184,6 +215,9 @@ export async function importGlb(): Promise<void> {
       },
     );
     if (!shouldSave) return;
+    // saveProject is guarded too, so calling it from inside importGlb's
+    // guard is fine — different keys. But heads-up: if you ever change
+    // both to share a key, this nested call will silently no-op.
     await saveProject({ forceDialog: true });
     currentPath = useProjectStore.getState().currentPath;
     if (!currentPath) return; // user cancelled the save dialog
@@ -253,15 +287,17 @@ function stemFromFilename(name: string): string {
 }
 
 export async function closeProject(): Promise<void> {
-  if (!(await confirmDiscard("Close project and discard current changes?"))) return;
-  useSceneStore.getState().setProject(null);
-  useUIStore.getState().setSelectedNodeId(null);
-  useCommandHistoryStore.getState().clear();
-  useProjectStore.getState().reset();
-  if (isTauri()) {
-    await commands.setCurrentProjectPath(null);
-  }
-  useAppViewStore.getState().setView("startup");
+  await exclusive("closeProject", async () => {
+    if (!(await confirmDiscard("Close project and discard current changes?"))) return;
+    useSceneStore.getState().setProject(null);
+    useUIStore.getState().setSelectedNodeId(null);
+    useCommandHistoryStore.getState().clear();
+    useProjectStore.getState().reset();
+    if (isTauri()) {
+      await commands.setCurrentProjectPath(null);
+    }
+    useAppViewStore.getState().setView("startup");
+  });
 }
 
 async function confirmDiscard(message: string): Promise<boolean> {
