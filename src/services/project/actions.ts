@@ -2,6 +2,7 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 
 import { commands } from "@/bindings/tauri";
 import { isTauri } from "@/lib/runtime";
+import type { SceneProject } from "@/core/scene/types";
 import { useAppViewStore } from "@/services/app-view/store";
 import { useCommandHistoryStore } from "@/services/command-history";
 import { createDemoProject } from "@/services/scene/demo-project";
@@ -15,6 +16,35 @@ import {
   type ProjectIoError,
 } from "./io";
 import { useProjectStore } from "./store";
+
+/**
+ * The on-disk folder is the project's identity — its name is whatever the
+ * user titled the folder. Treat `metadata.name` as a derived field that
+ * resyncs from the folder basename every time the project's path changes
+ * (save, save-as, open). Strip the conventional `.lowcode` / `.project`
+ * suffix so a folder named `my-scene.lowcode` displays as `my-scene`.
+ *
+ * If the user later wants a name that diverges from the folder, that needs
+ * an explicit rename UI which also renames the folder — out of scope for
+ * Phase 2 Step #1.
+ */
+function deriveProjectNameFromPath(folderPath: string): string {
+  const base = folderPath.split(/[\\/]/).filter(Boolean).pop() ?? "";
+  const stripped = base.replace(/\.(lowcode|project)$/i, "");
+  return stripped || base || "Untitled project";
+}
+
+function renameProject(project: SceneProject, nextName: string): SceneProject {
+  if (project.metadata.name === nextName) return project;
+  return {
+    ...project,
+    metadata: {
+      ...project.metadata,
+      name: nextName,
+      updated_at: new Date().toISOString(),
+    },
+  };
+}
 
 /**
  * Project-level actions shared between three callers: StartupView buttons,
@@ -50,7 +80,8 @@ export async function openProject(): Promise<void> {
     await reportError(result.error);
     return;
   }
-  loadProjectIntoEditor(result.value, selected);
+  const renamed = renameProject(result.value, deriveProjectNameFromPath(selected));
+  loadProjectIntoEditor(renamed, selected);
 }
 
 export async function saveProject(opts: { forceDialog: boolean }): Promise<void> {
@@ -76,9 +107,20 @@ export async function saveProject(opts: { forceDialog: boolean }): Promise<void>
   }
   if (typeof targetPath !== "string") return;
 
+  // If we picked (or had) a new path that doesn't match the project's current
+  // display name, sync the name to the folder basename BEFORE serialising so
+  // the on-disk project.json + the title bar + future re-opens all agree.
+  // This also covers the "first save" case where the demo project's stock
+  // "Untitled project" gets replaced with whatever the user typed in the
+  // save dialog.
+  const projectToSave = renameProject(project, deriveProjectNameFromPath(targetPath));
+  if (projectToSave !== project) {
+    useSceneStore.getState().setProject(projectToSave);
+  }
+
   useProjectStore.getState().setSaving(true);
   try {
-    let result = await saveProjectAt(targetPath, project, false);
+    let result = await saveProjectAt(targetPath, projectToSave, false);
     if (
       !result.ok &&
       result.error.kind === "folder" &&
@@ -94,7 +136,7 @@ export async function saveProject(opts: { forceDialog: boolean }): Promise<void>
         },
       );
       if (!proceed) return;
-      result = await saveProjectAt(targetPath, project, true);
+      result = await saveProjectAt(targetPath, projectToSave, true);
     }
     if (!result.ok) {
       await reportError(result.error);
