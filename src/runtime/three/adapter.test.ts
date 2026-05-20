@@ -396,6 +396,36 @@ describe("ThreeAdapter.pickAt", () => {
     mesh.add(child);
     expect(adapter.pickAt(400, 300)).toBe("cube");
   });
+
+  it("skips helpers when raycasting — they shouldn't trap clicks meant for meshes behind them", () => {
+    // Regression: a grid helper moved off origin used to intercept clicks
+    // intended for a mesh further along the ray (the grid lines float in
+    // front of the geometry). Helpers must opt out of raycast.
+    const adapter = new ThreeAdapter(target);
+    adapter.setViewportSize(800, 600);
+    adapter.syncNode(makeMeshNode("cube"), "add");
+    const helper: SceneNode = {
+      id: "grid-helper",
+      name: "Grid",
+      type: "helper",
+      // Float the grid up to where the camera ray will pass through before
+      // reaching the cube at origin.
+      transform: {
+        position: [0, 1, 0],
+        rotation: [0, 0, 0, 1],
+        scale: [1, 1, 1],
+      },
+      parent_id: null,
+      children_ids: [],
+      visible: true,
+      locked: false,
+      data: { type: "helper", helper_kind: "grid" },
+      behaviors: [],
+      user_data: {},
+    };
+    adapter.syncNode(helper, "add");
+    expect(adapter.pickAt(400, 300)).toBe("cube");
+  });
 });
 
 describe("ThreeAdapter shell methods still pending", () => {
