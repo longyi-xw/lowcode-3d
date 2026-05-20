@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Box, X } from "lucide-react";
 
-import { useAppViewStore } from "@/services/app-view/store";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore, type GizmoMode } from "@/services/ui/store";
 import { executeCommand } from "@/services/command-history";
+import { closeProject } from "@/services/project/actions";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import type { SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
@@ -24,9 +24,7 @@ type Vec3 = [number, number, number];
 
 export function EditorView() {
   const { t } = useTranslation(["common", "editor"]);
-  const setView = useAppViewStore((s) => s.setView);
   const project = useSceneStore((s) => s.project);
-  const setProject = useSceneStore((s) => s.setProject);
   const selectedNodeId = useUIStore((s) => s.selectedNodeId);
   const setSelectedNodeId = useUIStore((s) => s.setSelectedNodeId);
   const expandedNodes = useUIStore((s) => s.expandedNodes);
@@ -34,12 +32,6 @@ export function EditorView() {
   const gizmoMode = useUIStore((s) => s.gizmoMode);
   const setGizmoMode = useUIStore((s) => s.setGizmoMode);
   useGizmoShortcuts();
-
-  const closeProject = () => {
-    setProject(null);
-    setSelectedNodeId(null);
-    setView("startup");
-  };
 
   const selectedNode =
     project && selectedNodeId ? project.scene.nodes[selectedNodeId] : undefined;
@@ -57,7 +49,7 @@ export function EditorView() {
           </div>
           <button
             type="button"
-            onClick={closeProject}
+            onClick={() => void closeProject()}
             className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
             title={t("editor:close_project")}
           >

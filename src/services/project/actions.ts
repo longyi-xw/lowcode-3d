@@ -1,0 +1,217 @@
+import { ask, open, save } from "@tauri-apps/plugin-dialog";
+
+import { commands } from "@/bindings/tauri";
+import { isTauri } from "@/lib/runtime";
+import type { SceneProject } from "@/core/scene/types";
+import { useAppViewStore } from "@/services/app-view/store";
+import { useCommandHistoryStore } from "@/services/command-history";
+import { createDemoProject } from "@/services/scene/demo-project";
+import { useSceneStore } from "@/services/scene/store";
+import { useUIStore } from "@/services/ui/store";
+
+import {
+  formatProjectIoError,
+  openProjectAt,
+  saveProjectAt,
+  type ProjectIoError,
+} from "./io";
+import { useProjectStore } from "./store";
+
+/**
+ * The on-disk folder is the project's identity — its name is whatever the
+ * user titled the folder. Treat `metadata.name` as a derived field that
+ * resyncs from the folder basename every time the project's path changes
+ * (save, save-as, open). Strip the conventional `.lowcode` / `.project`
+ * suffix so a folder named `my-scene.lowcode` displays as `my-scene`.
+ *
+ * If the user later wants a name that diverges from the folder, that needs
+ * an explicit rename UI which also renames the folder — out of scope for
+ * Phase 2 Step #1.
+ */
+function deriveProjectNameFromPath(folderPath: string): string {
+  const base = folderPath.split(/[\\/]/).filter(Boolean).pop() ?? "";
+  const stripped = base.replace(/\.(lowcode|project)$/i, "");
+  return stripped || base || "Untitled project";
+}
+
+function renameProject(project: SceneProject, nextName: string): SceneProject {
+  if (project.metadata.name === nextName) return project;
+  return {
+    ...project,
+    metadata: {
+      ...project.metadata,
+      name: nextName,
+      updated_at: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Project-level actions shared between three callers: StartupView buttons,
+ * EditorView's close button, and the native File menu. Centralising the dirty
+ * check + dialog + error toast here means the three entry points stay in
+ * lockstep.
+ */
+
+export async function newProject(): Promise<void> {
+  if (!(await confirmDiscard("Start a new project and discard current changes?")))
+    return;
+  loadProjectIntoEditor(createDemoProject(), null);
+}
+
+export async function openProject(): Promise<void> {
+  if (!(await confirmDiscard("Open another project and discard current changes?")))
+    return;
+  if (!isTauri()) {
+    console.warn("openProject called outside Tauri runtime");
+    return;
+  }
+  let selected: string | string[] | null;
+  try {
+    selected = await open({ directory: true, multiple: false });
+  } catch (e) {
+    console.error("dialog.open failed", e);
+    await reportRawError(`Couldn't open file picker: ${formatThrown(e)}`);
+    return;
+  }
+  if (typeof selected !== "string") return;
+  const result = await openProjectAt(selected);
+  if (!result.ok) {
+    await reportError(result.error);
+    return;
+  }
+  const renamed = renameProject(result.value, deriveProjectNameFromPath(selected));
+  loadProjectIntoEditor(renamed, selected);
+}
+
+export async function saveProject(opts: { forceDialog: boolean }): Promise<void> {
+  const project = useSceneStore.getState().project;
+  if (!project) return;
+  if (!isTauri()) {
+    console.warn("saveProject called outside Tauri runtime");
+    return;
+  }
+  const known = useProjectStore.getState().currentPath;
+  let targetPath: string | null = known;
+  if (opts.forceDialog || !known) {
+    try {
+      targetPath = await save({
+        title: "Save project",
+        defaultPath: known ?? `${project.metadata.name}.lowcode`,
+      });
+    } catch (e) {
+      console.error("dialog.save failed", e);
+      await reportRawError(`Couldn't open save dialog: ${formatThrown(e)}`);
+      return;
+    }
+  }
+  if (typeof targetPath !== "string") return;
+
+  // If we picked (or had) a new path that doesn't match the project's current
+  // display name, sync the name to the folder basename BEFORE serialising so
+  // the on-disk project.json + the title bar + future re-opens all agree.
+  // This also covers the "first save" case where the demo project's stock
+  // "Untitled project" gets replaced with whatever the user typed in the
+  // save dialog.
+  const projectToSave = renameProject(project, deriveProjectNameFromPath(targetPath));
+  if (projectToSave !== project) {
+    useSceneStore.getState().setProject(projectToSave);
+  }
+
+  useProjectStore.getState().setSaving(true);
+  try {
+    let result = await saveProjectAt(targetPath, projectToSave, false);
+    if (
+      !result.ok &&
+      result.error.kind === "folder" &&
+      result.error.error.code === "already_exists_not_empty"
+    ) {
+      const proceed = await ask(
+        `${targetPath} is not empty and isn't a lowcode-3d project. Overwrite?`,
+        {
+          title: "Overwrite folder",
+          kind: "warning",
+          okLabel: "Overwrite",
+          cancelLabel: "Cancel",
+        },
+      );
+      if (!proceed) return;
+      result = await saveProjectAt(targetPath, projectToSave, true);
+    }
+    if (!result.ok) {
+      await reportError(result.error);
+      return;
+    }
+    useProjectStore.getState().setCurrentPath(targetPath);
+    useProjectStore.getState().markClean();
+  } finally {
+    useProjectStore.getState().setSaving(false);
+  }
+}
+
+export async function closeProject(): Promise<void> {
+  if (!(await confirmDiscard("Close project and discard current changes?"))) return;
+  useSceneStore.getState().setProject(null);
+  useUIStore.getState().setSelectedNodeId(null);
+  useCommandHistoryStore.getState().clear();
+  useProjectStore.getState().reset();
+  if (isTauri()) {
+    await commands.setCurrentProjectPath(null);
+  }
+  useAppViewStore.getState().setView("startup");
+}
+
+async function confirmDiscard(message: string): Promise<boolean> {
+  if (!useProjectStore.getState().isDirty) return true;
+  if (!isTauri()) {
+    return window.confirm(message);
+  }
+  return await ask(message, {
+    title: "Unsaved changes",
+    kind: "warning",
+    okLabel: "Discard",
+    cancelLabel: "Cancel",
+  });
+}
+
+function loadProjectIntoEditor(
+  project: ReturnType<typeof createDemoProject>,
+  path: string | null,
+): void {
+  useSceneStore.getState().setProject(project);
+  useUIStore.getState().setSelectedNodeId(null);
+  useCommandHistoryStore.getState().clear();
+  useProjectStore.getState().setCurrentPath(path);
+  useProjectStore.getState().markClean();
+  useAppViewStore.getState().setView("editor");
+  if (isTauri()) {
+    void commands.setCurrentProjectPath(path);
+  }
+}
+
+async function reportError(error: ProjectIoError): Promise<void> {
+  await reportRawError(formatProjectIoError(error));
+}
+
+async function reportRawError(message: string): Promise<void> {
+  if (!isTauri()) {
+    console.error(message);
+    return;
+  }
+  await ask(message, {
+    title: "Project I/O error",
+    kind: "error",
+    okLabel: "Dismiss",
+    cancelLabel: "Dismiss",
+  });
+}
+
+function formatThrown(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}

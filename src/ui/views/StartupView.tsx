@@ -15,6 +15,7 @@ import { SUPPORTED_LANGUAGES } from "@/i18n/config";
 import { useSettingsStore } from "@/services/settings/store";
 import { useSceneStore } from "@/services/scene/store";
 import { createDemoProject } from "@/services/scene/demo-project";
+import { newProject, openProject } from "@/services/project/actions";
 import { cn } from "@/lib/utils";
 
 export function StartupView() {
@@ -100,13 +101,13 @@ export function StartupView() {
               icon={<FilePlus className="h-4 w-4" />}
               label={t("startup:start.new_project")}
               shortcut="⌘N"
-              onClick={open("editor", t("startup:start.new_project_default_name"))}
+              onClick={() => void newProject()}
             />
             <RailAction
               icon={<FolderOpen className="h-4 w-4" />}
               label={t("startup:start.open_project")}
               shortcut="⌘O"
-              onClick={open("editor")}
+              onClick={() => void openProject()}
             />
             <RailAction
               icon={<Link2 className="h-4 w-4" />}
