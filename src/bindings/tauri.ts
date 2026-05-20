@@ -8,6 +8,16 @@ export const commands = {
 	openProjectFolder: (path: string) => typedError<{ [key in string]: string }, FolderError>(__TAURI_INVOKE("open_project_folder", { path })),
 	getCurrentProjectPath: () => __TAURI_INVOKE<string | null>("get_current_project_path"),
 	setCurrentProjectPath: (path: string | null) => __TAURI_INVOKE<void>("set_current_project_path", { path }),
+	importGlbIntoProject: (sourcePath: string, projectPath: string) => typedError<ImportedAsset, FolderError>(__TAURI_INVOKE("import_glb_into_project", { sourcePath, projectPath })),
+	/**
+	 *  Returns the asset bytes as standard (RFC 4648) base64. Encoded rather than
+	 *  the raw `Vec<u8>` because specta-generated bindings serialize byte vecs as
+	 *  `number[]` — fine for tiny payloads, catastrophic for a 5 MB .glb (5M
+	 *  JSON numbers, ~half a second of parse time). Base64 is ~33 % overhead +
+	 *  O(N) encode/decode, but the bytes stay in compact-string form across the
+	 *  IPC boundary.
+	 */
+	readProjectAsset: (projectPath: string, relativePath: string) => typedError<string, FolderError>(__TAURI_INVOKE("read_project_asset", { projectPath, relativePath })),
 };
 
 /* Types */
@@ -36,6 +46,30 @@ export type FolderError =
 { code: "persistence"; data: {
 	detail: string,
 } };
+
+export type ImportedAsset = {
+	/**  Lowercase hex SHA-256 of the file bytes. */
+	content_hash: string,
+	/**
+	 *  Project-relative POSIX path the file was written to (e.g.
+	 *  `assets/<hash>.glb`).
+	 */
+	relative_path: string,
+	/**
+	 *  Basename of the source file (before any rename / hash mapping). The TS
+	 *  side stores this in `AssetReference.source.original_filename` so the
+	 *  editor can show the human name even though the on-disk file is opaque.
+	 */
+	original_filename: string,
+	/**
+	 *  File size in bytes — surfaced in the properties panel so a user
+	 *  importing a 200 MB .glb gets visual feedback. Serialized as f64
+	 *  (not u64) because specta forbids BigInt-style ints across the FFI
+	 *  boundary; f64 is exact through 2^53, well above any plausible glTF
+	 *  size.
+	 */
+	byte_length: number | null,
+};
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

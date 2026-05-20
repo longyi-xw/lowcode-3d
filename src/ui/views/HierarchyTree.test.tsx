@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { SceneNode, SceneProject } from "@/core/scene/types";
 import { SPEC_VERSION } from "@/core/scene/schemas";
+import { useAssetPreviewStore } from "@/services/assets/preview-store";
 import { HierarchyTree } from "./HierarchyTree";
 
 const IDENTITY = {
@@ -43,6 +44,26 @@ function makeMesh(id: string, parentId: string | null = null): SceneNode {
     visible: true,
     locked: false,
     data: { type: "mesh", asset_id: "asset-x" },
+    behaviors: [],
+    user_data: {},
+  };
+}
+
+function makePrefabInstance(
+  id: string,
+  assetId: string,
+  parentId: string | null = null,
+): SceneNode {
+  return {
+    id,
+    name: id,
+    type: "prefab_instance",
+    transform: IDENTITY,
+    parent_id: parentId,
+    children_ids: [],
+    visible: true,
+    locked: false,
+    data: { type: "prefab_instance", asset_id: assetId },
     behaviors: [],
     user_data: {},
   };
@@ -191,6 +212,122 @@ describe("HierarchyTree", () => {
       />,
     );
     expect(screen.queryByRole("button", { name: /expand|collapse/ })).toBeNull();
+  });
+
+  describe("prefab_instance rows", () => {
+    afterEach(() => {
+      // Unmount mounted React trees BEFORE touching the preview store; if we
+      // clear first, the store update lands on still-mounted subscribers and
+      // React logs an unwrapped-act warning.
+      cleanup();
+      useAssetPreviewStore.getState().clear();
+    });
+
+    it("renders a 'prefab' badge next to prefab_instance nodes", () => {
+      const project = makeProject(
+        [makePrefabInstance("model-1", "asset-h1")],
+        ["model-1"],
+      );
+      render(
+        <HierarchyTree
+          project={project}
+          selectedNodeId={null}
+          expandedNodes={{}}
+          onSelect={() => {}}
+          onToggleExpand={() => {}}
+        />,
+      );
+      expect(screen.getByText("prefab")).toBeInTheDocument();
+    });
+
+    it("is always expandable even when the scene-graph children are empty", () => {
+      const project = makeProject(
+        [makePrefabInstance("model-1", "asset-h1")],
+        ["model-1"],
+      );
+      render(
+        <HierarchyTree
+          project={project}
+          selectedNodeId={null}
+          expandedNodes={{ "model-1": false }}
+          onSelect={() => {}}
+          onToggleExpand={() => {}}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "expand" })).toBeInTheDocument();
+    });
+
+    it("shows a loading placeholder when expanded but no preview tree is in the store", () => {
+      const project = makeProject(
+        [makePrefabInstance("model-1", "asset-h1")],
+        ["model-1"],
+      );
+      render(
+        <HierarchyTree
+          project={project}
+          selectedNodeId={null}
+          expandedNodes={{ "model-1": true }}
+          onSelect={() => {}}
+          onToggleExpand={() => {}}
+        />,
+      );
+      expect(screen.getByText(/loading model preview/i)).toBeInTheDocument();
+    });
+
+    it("renders the preview tree children when a preview is in the store", () => {
+      useAssetPreviewStore.getState().setTree("asset-h1", {
+        name: "Scene",
+        kind: "group",
+        children: [
+          { name: "Body", kind: "mesh", children: [] },
+          {
+            name: "Wheels",
+            kind: "group",
+            children: [{ name: "Wheel.001", kind: "mesh", children: [] }],
+          },
+        ],
+      });
+      const project = makeProject(
+        [makePrefabInstance("model-1", "asset-h1")],
+        ["model-1"],
+      );
+      render(
+        <HierarchyTree
+          project={project}
+          selectedNodeId={null}
+          expandedNodes={{ "model-1": true }}
+          onSelect={() => {}}
+          onToggleExpand={() => {}}
+        />,
+      );
+      expect(screen.getByText("Body")).toBeInTheDocument();
+      expect(screen.getByText("Wheels")).toBeInTheDocument();
+      expect(screen.getByText("Wheel.001")).toBeInTheDocument();
+    });
+
+    it("does not surface preview tree nodes as selection targets", async () => {
+      useAssetPreviewStore.getState().setTree("asset-h1", {
+        name: "Scene",
+        kind: "group",
+        children: [{ name: "Body", kind: "mesh", children: [] }],
+      });
+      const onSelect = vi.fn();
+      const project = makeProject(
+        [makePrefabInstance("model-1", "asset-h1")],
+        ["model-1"],
+      );
+      render(
+        <HierarchyTree
+          project={project}
+          selectedNodeId={null}
+          expandedNodes={{ "model-1": true }}
+          onSelect={onSelect}
+          onToggleExpand={() => {}}
+        />,
+      );
+      await userEvent.click(screen.getByText("Body"));
+      expect(onSelect).not.toHaveBeenCalled();
+    });
   });
 
   it("renders three levels of depth correctly", () => {

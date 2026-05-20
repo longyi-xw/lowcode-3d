@@ -1,6 +1,11 @@
 import { create } from "zustand";
 
-import type { SceneNode, SceneProject, Transform } from "@/core/scene/types";
+import type {
+  AssetReference,
+  SceneNode,
+  SceneProject,
+  Transform,
+} from "@/core/scene/types";
 import type { SceneEditorStore } from "@/core/command/types";
 
 /**
@@ -20,6 +25,15 @@ interface SceneState {
    *  identity so observers can diff. Implements the `setNodeTransform` half
    *  of {@link SceneEditorStore}. */
   setNodeTransform: (id: string, transform: Transform) => void;
+  /** Append a SceneNode to the project. If `node.parent_id` is null, the node
+   *  becomes a new root; otherwise it's appended to the parent's
+   *  children_ids. The caller is responsible for ensuring node.id is unique
+   *  and that any referenced parent already exists. */
+  addNode: (node: SceneNode) => void;
+  /** Add an AssetReference to project.assets[]. Deduplicates by content_hash
+   *  — re-importing identical bytes returns silently without growing the
+   *  manifest. Returns the canonical asset reference (existing or new). */
+  addAsset: (asset: AssetReference) => AssetReference;
 }
 
 export const useSceneStore = create<SceneState>((set, get) => ({
@@ -46,6 +60,64 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         },
       };
     }),
+  addNode: (node) =>
+    set((s) => {
+      if (!s.project) return s;
+      if (s.project.scene.nodes[node.id]) {
+        throw new Error(`addNode: node ${node.id} already exists`);
+      }
+      const parentId = node.parent_id;
+      let nextNodes = { ...s.project.scene.nodes, [node.id]: node };
+      let nextRootIds = s.project.scene.root_node_ids;
+      if (parentId === null) {
+        nextRootIds = [...nextRootIds, node.id];
+      } else {
+        const parent = nextNodes[parentId];
+        if (!parent) {
+          throw new Error(`addNode: parent ${parentId} not found for ${node.id}`);
+        }
+        nextNodes = {
+          ...nextNodes,
+          [parentId]: { ...parent, children_ids: [...parent.children_ids, node.id] },
+        };
+      }
+      return {
+        project: {
+          ...s.project,
+          metadata: {
+            ...s.project.metadata,
+            updated_at: new Date().toISOString(),
+          },
+          scene: {
+            ...s.project.scene,
+            nodes: nextNodes,
+            root_node_ids: nextRootIds,
+          },
+        },
+      };
+    }),
+  addAsset: (asset) => {
+    const s = get();
+    if (!s.project) return asset;
+    const existing = s.project.assets.find(
+      (a) => a.content_hash === asset.content_hash,
+    );
+    if (existing) return existing;
+    set((cur) => {
+      if (!cur.project) return cur;
+      return {
+        project: {
+          ...cur.project,
+          metadata: {
+            ...cur.project.metadata,
+            updated_at: new Date().toISOString(),
+          },
+          assets: [...cur.project.assets, asset],
+        },
+      };
+    });
+    return asset;
+  },
 }));
 
 /**

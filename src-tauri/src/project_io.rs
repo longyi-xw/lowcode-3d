@@ -40,6 +40,7 @@ pub type ProjectFiles = HashMap<String, String>;
 
 const PROJECT_FILE: &str = "project.json";
 const SCENE_DIR: &str = "scene";
+const ASSETS_DIR: &str = "assets";
 
 #[derive(Debug, Serialize, Deserialize, Type)]
 #[serde(tag = "code", content = "data", rename_all = "snake_case")]
@@ -58,7 +59,7 @@ pub enum FolderError {
 }
 
 impl FolderError {
-    fn io(path: impl AsRef<Path>, err: io::Error) -> Self {
+    pub(crate) fn io(path: impl AsRef<Path>, err: io::Error) -> Self {
         FolderError::Io {
             path: path.as_ref().to_string_lossy().into_owned(),
             message: err.to_string(),
@@ -122,6 +123,17 @@ pub fn save_project_folder(
         return Err(e);
     }
 
+    // Preserve the assets/ folder across the atomic swap. The serialized
+    // files map only contains the JSON manifest — the actual .glb / texture
+    // bytes were written at import time directly into target/assets/. Without
+    // this step the swap would orphan them. We hardlink each file (O(1), no
+    // bytes copied) so save stays cheap even with many large assets; failing
+    // a hardlink (e.g. cross-fs) falls back to copy.
+    if let Err(e) = preserve_subdir(&target, &tmp, ASSETS_DIR) {
+        let _ = fs::remove_dir_all(&tmp);
+        return Err(e);
+    }
+
     let target_existed = target.exists();
     if target_existed {
         if let Err(e) = fs::rename(&target, &bak) {
@@ -140,6 +152,36 @@ pub fn save_project_folder(
         let _ = fs::remove_dir_all(&bak);
     }
 
+    Ok(())
+}
+
+/// Mirror `target/{subdir}` into `tmp/{subdir}` so a subsequent atomic swap
+/// doesn't orphan it. Hardlinks per-file; falls back to byte-copy if the
+/// filesystem rejects hardlinks (e.g. cross-fs, exotic FS).
+fn preserve_subdir(target: &Path, tmp: &Path, subdir: &str) -> Result<(), FolderError> {
+    let from = target.join(subdir);
+    if !from.is_dir() {
+        return Ok(());
+    }
+    let to = tmp.join(subdir);
+    mirror_dir(&from, &to)
+}
+
+fn mirror_dir(from: &Path, to: &Path) -> Result<(), FolderError> {
+    fs::create_dir_all(to).map_err(|e| FolderError::io(to, e))?;
+    for entry in fs::read_dir(from).map_err(|e| FolderError::io(from, e))? {
+        let entry = entry.map_err(|e| FolderError::io(from, e))?;
+        let src = entry.path();
+        let dst = to.join(entry.file_name());
+        let ft = entry.file_type().map_err(|e| FolderError::io(&src, e))?;
+        if ft.is_dir() {
+            mirror_dir(&src, &dst)?;
+        } else if ft.is_file() {
+            if fs::hard_link(&src, &dst).is_err() {
+                fs::copy(&src, &dst).map_err(|e| FolderError::io(&dst, e))?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -344,6 +386,37 @@ mod tests {
         fs::write(target.join("scene/nodes/blob.bin"), [0u8, 1, 2, 3]).unwrap();
         let opened = open_project_folder(target.to_string_lossy().into_owned()).unwrap();
         assert!(!opened.contains_key("scene/nodes/blob.bin"));
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn save_preserves_existing_assets_dir() {
+        let base = tmp_dir("preserve-assets");
+        let target = base.join("proj");
+        // First save lays down project.json + scene/.
+        save_project_folder(
+            target.to_string_lossy().into_owned(),
+            sample_files(),
+            false,
+        )
+        .unwrap();
+        // Simulate an asset that landed in assets/ at import time, between
+        // the first save and the second.
+        fs::create_dir_all(target.join("assets")).unwrap();
+        fs::write(target.join("assets/abc123.glb"), b"GLB_BYTES").unwrap();
+
+        // Second save: serialized files are still just project.json + scene/.
+        save_project_folder(
+            target.to_string_lossy().into_owned(),
+            sample_files(),
+            false,
+        )
+        .unwrap();
+        assert!(target.join("assets/abc123.glb").is_file());
+        assert_eq!(
+            fs::read(target.join("assets/abc123.glb")).unwrap(),
+            b"GLB_BYTES"
+        );
         let _ = fs::remove_dir_all(&base);
     }
 

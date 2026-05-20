@@ -3,9 +3,21 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { isTauri } from "@/lib/runtime";
 
-import { closeProject, newProject, openProject, saveProject } from "./actions";
+import {
+  closeProject,
+  importGlb,
+  newProject,
+  openProject,
+  saveProject,
+} from "./actions";
 
-type MenuId = "file:new" | "file:open" | "file:save" | "file:save_as" | "file:close";
+type MenuId =
+  | "file:new"
+  | "file:open"
+  | "file:save"
+  | "file:save_as"
+  | "file:import_glb"
+  | "file:close";
 
 /**
  * Top-level effect that wires the native File menu (PR B2) into the project
@@ -48,6 +60,9 @@ async function dispatchMenu(id: MenuId): Promise<void> {
       return;
     case "file:save_as":
       await saveProject({ forceDialog: true });
+      return;
+    case "file:import_glb":
+      await importGlb();
       return;
     case "file:close":
       await closeProject();

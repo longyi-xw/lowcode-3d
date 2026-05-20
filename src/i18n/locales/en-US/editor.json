@@ -1,11 +1,14 @@
 {
   "hierarchy": {
     "title": "Hierarchy",
-    "empty": "No nodes yet"
+    "empty": "No nodes yet",
+    "prefab_badge": "prefab",
+    "prefab_loading": "loading model preview…"
   },
   "properties": {
     "title": "Properties",
-    "empty": "Select a node to inspect"
+    "empty": "Select a node to inspect",
+    "prefab_section": "prefab asset"
   },
   "viewport": {
     "empty": "Empty scene",

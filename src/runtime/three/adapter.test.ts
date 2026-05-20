@@ -439,19 +439,132 @@ describe("ThreeAdapter shell methods still pending", () => {
     expect(adapter.getSupportedBehaviors()).toEqual([]);
   });
 
-  it("syncAsset throws until asset loading lands", async () => {
+  it("syncAsset surfaces a no_project_path error in test/non-Tauri envs", async () => {
     const adapter = new ThreeAdapter(target);
-    await expect(
-      adapter.syncAsset({
-        id: "a1",
-        content_hash: "sha256-deadbeef",
-        kind: "geometry",
-        relative_path: "x.glb",
-        tags: [],
-        description: "",
-        source: { kind: "user_upload", original_filename: "x.glb" },
-      }),
-    ).rejects.toThrow(/not implemented yet/);
+    await adapter.syncAsset({
+      id: "a1",
+      content_hash: "sha256-deadbeef",
+      kind: "geometry",
+      relative_path: "x.glb",
+      tags: [],
+      description: "",
+      source: { kind: "user_upload", original_filename: "x.glb" },
+    });
+    const status = adapter.assetCache.get("a1");
+    // Cache records the failure path so the UI can surface it. The adapter
+    // itself never throws — the editor stays usable while the user resolves
+    // the underlying issue.
+    expect(status.status).toBe("error");
+  });
+});
+
+describe("ThreeAdapter prefab_instance + syncAsset", () => {
+  function makePrefabNode(id: string, assetId: string): SceneNode {
+    return {
+      id,
+      name: id,
+      type: "prefab_instance",
+      transform: identityTransform,
+      parent_id: null,
+      children_ids: [],
+      visible: true,
+      locked: false,
+      data: { type: "prefab_instance", asset_id: assetId },
+      behaviors: [],
+      user_data: {},
+    };
+  }
+
+  // Bare-bones in-memory AssetCache stub so we don't need to exercise the
+  // Rust FFI path in unit tests. Casting through `unknown` because we only
+  // implement the surface the adapter actually uses.
+  function makeStubCache(template: THREE.Object3D) {
+    let ready = false;
+    return {
+      stub: true,
+      setProjectPath: () => {},
+      get: (_id: string) =>
+        ready
+          ? {
+              status: "ready" as const,
+              template,
+              summary: { meshCount: 1, treeDepth: 0 },
+            }
+          : { status: "idle" as const },
+      ensureLoaded: async (_asset: { id: string }) => {
+        ready = true;
+        return {
+          status: "ready" as const,
+          template,
+          summary: { meshCount: 1, treeDepth: 0 },
+        };
+      },
+      cloneTemplate: (_id: string) => (ready ? template.clone(true) : null),
+      dispose: () => {},
+    } as unknown as import("./asset-cache").AssetCache;
+  }
+
+  it("adds a placeholder when the asset is not yet cached", () => {
+    const template = new THREE.Group();
+    const cache = makeStubCache(template);
+    const adapter = new ThreeAdapter(target, { assetCache: cache });
+    adapter.syncNode(makePrefabNode("p1", "a1"), "add");
+    const obj = adapter.getRuntimeObject("p1");
+    expect(obj?.userData["prefabPlaceholder"]).toBe(true);
+  });
+
+  it("clones the cached template at build time when the asset is preloaded", async () => {
+    const template = new THREE.Group();
+    template.add(
+      new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()),
+    );
+    const cache = makeStubCache(template);
+    const adapter = new ThreeAdapter(target, { assetCache: cache });
+
+    await adapter.syncAsset({
+      id: "a1",
+      content_hash: "h",
+      kind: "geometry",
+      relative_path: "assets/h.glb",
+      tags: [],
+      description: "",
+      source: { kind: "user_upload", original_filename: "x.glb" },
+    });
+    adapter.syncNode(makePrefabNode("p1", "a1"), "add");
+
+    const obj = adapter.getRuntimeObject("p1");
+    expect(obj?.userData["prefabPlaceholder"]).toBeUndefined();
+    expect(obj?.userData["prefabRoot"]).toBe(true);
+    expect(obj?.userData.nodeId).toBe("p1");
+  });
+
+  it("rebuilds placeholders into clones once syncAsset resolves", async () => {
+    const template = new THREE.Group();
+    template.add(
+      new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()),
+    );
+    const cache = makeStubCache(template);
+    const adapter = new ThreeAdapter(target, { assetCache: cache });
+
+    // Add the node BEFORE the asset resolves — placeholder path.
+    adapter.syncNode(makePrefabNode("p1", "a1"), "add");
+    const placeholder = adapter.getRuntimeObject("p1");
+    expect(placeholder?.userData["prefabPlaceholder"]).toBe(true);
+
+    await adapter.syncAsset({
+      id: "a1",
+      content_hash: "h",
+      kind: "geometry",
+      relative_path: "assets/h.glb",
+      tags: [],
+      description: "",
+      source: { kind: "user_upload", original_filename: "x.glb" },
+    });
+
+    const rebuilt = adapter.getRuntimeObject("p1");
+    expect(rebuilt).not.toBe(placeholder);
+    expect(rebuilt?.userData["prefabRoot"]).toBe(true);
+    expect(rebuilt?.userData.nodeId).toBe("p1");
   });
 });
 

@@ -5,9 +5,11 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuild
 use tauri::Emitter;
 use tauri_specta::{collect_commands, Builder};
 
+mod assets;
 mod project_io;
 mod project_state;
 
+use assets::{import_glb_into_project, read_project_asset};
 use project_io::{open_project_folder, save_project_folder};
 use project_state::{get_current_project_path, set_current_project_path, ProjectPath};
 
@@ -17,6 +19,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
         open_project_folder,
         get_current_project_path,
         set_current_project_path,
+        import_glb_into_project,
+        read_project_asset,
     ])
 }
 
@@ -57,6 +61,9 @@ fn build_menu<R: tauri::Runtime>(
     let save_as_item = MenuItemBuilder::with_id("file:save_as", "Save As…")
         .accelerator("CmdOrCtrl+Shift+S")
         .build(app)?;
+    let import_glb_item = MenuItemBuilder::with_id("file:import_glb", "Import .glb…")
+        .accelerator("CmdOrCtrl+I")
+        .build(app)?;
     let close_item = MenuItemBuilder::with_id("file:close", "Close Project")
         .accelerator("CmdOrCtrl+W")
         .build(app)?;
@@ -67,6 +74,8 @@ fn build_menu<R: tauri::Runtime>(
         .separator()
         .item(&save_item)
         .item(&save_as_item)
+        .separator()
+        .item(&import_glb_item)
         .separator()
         .item(&close_item)
         .build()?;
