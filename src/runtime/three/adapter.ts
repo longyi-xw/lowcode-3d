@@ -16,11 +16,15 @@ import type {
   SyncOp,
 } from "../adapter";
 
+import { AssetCache } from "./asset-cache";
 import {
   applyMeta,
   applyTransform,
   buildObject,
+  createBuilderRegistry,
+  createPrefabInstanceBuilder,
   disposeSubtree,
+  type BuilderRegistry,
   updateObject,
 } from "./node-builders";
 
@@ -33,6 +37,9 @@ export interface ThreeAdapterOptions {
     position?: [number, number, number];
     lookAt?: [number, number, number];
   };
+  /** Optional cache override — tests inject an in-memory stub. Defaults to a
+   *  fresh AssetCache that reads via Tauri commands. */
+  assetCache?: AssetCache;
 }
 
 const DEFAULT_TARGET: RuntimeTarget = {
@@ -53,12 +60,18 @@ class NotImplementedYet extends Error {
  *
  * Status:
  *   - `syncNode` (add / update / remove) — implemented for group / mesh /
- *     light / camera / helper. Mesh nodes render a placeholder cube until
- *     `syncAsset` wires real .glb loading; everything else is faithful.
+ *     light / camera / helper / prefab_instance. Mesh nodes (hand-authored)
+ *     still render as placeholder cubes; .glb imports come through as
+ *     prefab_instance nodes that clone a cached glTF template.
  *   - `pickAt` — raycasts against the live scene tree; requires the viewport
  *     to keep `setViewportSize` in sync (renderer size update path).
  *   - `getRuntimeObject` / `dispose` — implemented.
- *   - `syncAsset` / `exportProject` / `generateBehaviorCode` — still throw
+ *   - `syncAsset` — loads glTF bytes via the asset cache, parses with
+ *     GLTFLoader, and (if any prefab_instance nodes are already wearing a
+ *     placeholder) rebuilds their Object3D mirrors in place. The recommended
+ *     call order is syncAsset → syncNode("add") so the cache hit happens at
+ *     build time and the placeholder path is rare.
+ *   - `exportProject` / `generateBehaviorCode` — still throw
  *     `NotImplementedYet`. They land in their own commits.
  *
  * Callers should `dispose()` before discarding to release Three.js handles.
@@ -66,10 +79,17 @@ class NotImplementedYet extends Error {
 export class ThreeAdapter implements IRuntimeAdapter {
   readonly target: RuntimeTarget;
   readonly scene: THREE.Scene;
+  readonly assetCache: AssetCache;
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
+
+  private readonly builders: BuilderRegistry;
 
   /** SceneNode.id → Three.js Object3D mirror. Populated by syncNode. */
   protected readonly objects = new Map<string, THREE.Object3D>();
+  /** SceneNode.id → SceneNode (last-known full body), used when syncAsset
+   *  needs to rebuild a prefab placeholder in place without the caller
+   *  re-supplying the node. */
+  private readonly nodeSnapshots = new Map<string, SceneNode>();
 
   /** Pixel dimensions of the viewport canvas. Updated by the viewport on every
    *  ResizeObserver tick so pickAt can convert screen coords to NDC. */
@@ -86,6 +106,10 @@ export class ThreeAdapter implements IRuntimeAdapter {
   ) {
     this.target = target;
     this.scene = new THREE.Scene();
+    this.assetCache = options.assetCache ?? new AssetCache();
+    this.builders = createBuilderRegistry({
+      prefabInstance: createPrefabInstanceBuilder(this.assetCache),
+    });
 
     const defaults = options.defaultCamera ?? {};
     const camera = new THREE.PerspectiveCamera(
@@ -127,7 +151,7 @@ export class ThreeAdapter implements IRuntimeAdapter {
       throw new Error(`ThreeAdapter.syncNode("add"): node ${node.id} already exists`);
     }
 
-    const obj = buildObject(node);
+    const obj = buildObject(this.builders, node);
     applyTransform(obj, node.transform);
     applyMeta(obj, node);
 
@@ -140,6 +164,7 @@ export class ThreeAdapter implements IRuntimeAdapter {
     }
     parent.add(obj);
     this.objects.set(node.id, obj);
+    this.nodeSnapshots.set(node.id, node);
   }
 
   private updateNode(node: SceneNode): void {
@@ -149,7 +174,8 @@ export class ThreeAdapter implements IRuntimeAdapter {
     }
     applyTransform(obj, node.transform);
     applyMeta(obj, node);
-    updateObject(obj, node);
+    updateObject(this.builders, obj, node);
+    this.nodeSnapshots.set(node.id, node);
   }
 
   private removeNode(node: SceneNode): void {
@@ -162,10 +188,43 @@ export class ThreeAdapter implements IRuntimeAdapter {
     obj.parent?.remove(obj);
     disposeSubtree(obj);
     this.objects.delete(node.id);
+    this.nodeSnapshots.delete(node.id);
   }
 
-  async syncAsset(_asset: AssetReference): Promise<void> {
-    throw new NotImplementedYet("syncAsset", "next commit");
+  /**
+   * Ensure the asset's parsed template is in cache. On success, scan
+   * existing prefab_instance nodes that reference this asset and rebuild
+   * their Object3D mirrors so any placeholders (added before the load
+   * finished) get the real geometry. Returns silently when the cache
+   * surfaces a recoverable error so the editor can keep rendering — the UI
+   * is responsible for surfacing errors via the cache status API.
+   */
+  async syncAsset(asset: AssetReference): Promise<void> {
+    const status = await this.assetCache.ensureLoaded(asset);
+    if (status.status !== "ready") return;
+    for (const [id, node] of this.nodeSnapshots) {
+      if (node.data.type !== "prefab_instance") continue;
+      if (node.data.asset_id !== asset.id) continue;
+      const existing = this.objects.get(id);
+      const isPlaceholder = existing?.userData["prefabPlaceholder"] === true;
+      if (!isPlaceholder) continue;
+      this.rebuildNode(id, node);
+    }
+  }
+
+  private rebuildNode(id: string, node: SceneNode): void {
+    const old = this.objects.get(id);
+    if (!old) return;
+    const parent = old.parent;
+    if (!parent) return;
+    parent.remove(old);
+    disposeSubtree(old);
+
+    const obj = buildObject(this.builders, node);
+    applyTransform(obj, node.transform);
+    applyMeta(obj, node);
+    parent.add(obj);
+    this.objects.set(id, obj);
   }
 
   getRuntimeObject(node_id: string): THREE.Object3D | undefined {
@@ -235,6 +294,8 @@ export class ThreeAdapter implements IRuntimeAdapter {
     }
     this.scene.clear();
     this.objects.clear();
+    this.nodeSnapshots.clear();
+    this.assetCache.dispose();
   }
 }
 
