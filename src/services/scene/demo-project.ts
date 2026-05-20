@@ -44,7 +44,11 @@ export function createDemoProject(name = "Untitled project"): SceneProject {
       parent_id: null,
       children_ids: [],
       visible: true,
-      locked: false,
+      // Helpers default to locked: they're editor chrome, not user content.
+      // The gizmo skips attach and the properties panel disables inputs while
+      // locked, so the only way to accidentally move them — selecting from
+      // hierarchy + dragging the gizmo — is gone.
+      locked: true,
       data: { type: "helper", helper_kind: "grid" },
       behaviors: [],
       user_data: {},

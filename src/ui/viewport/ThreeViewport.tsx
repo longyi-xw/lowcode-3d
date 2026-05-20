@@ -142,13 +142,22 @@ export function ThreeViewport() {
         return;
       }
       const obj = adapter.getRuntimeObject(id);
-      if (obj) {
-        gizmo.attach(obj);
-        outlinePass.selectedObjects = [obj];
-      } else {
+      if (!obj) {
         gizmo.detach();
         outlinePass.selectedObjects = [];
+        return;
       }
+      // Locked nodes still get the outline so the user can see what they
+      // selected, but the gizmo doesn't attach — preventing accidental
+      // drag-edits of editor chrome (grid, future axes/guides). The
+      // properties panel separately disables its inputs for the same reason.
+      const node = useSceneStore.getState().project?.scene.nodes[id];
+      if (node?.locked) {
+        gizmo.detach();
+      } else {
+        gizmo.attach(obj);
+      }
+      outlinePass.selectedObjects = [obj];
     };
     syncSelection(useUIStore.getState().selectedNodeId);
 
