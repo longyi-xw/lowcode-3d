@@ -1,6 +1,11 @@
 import { ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { SceneNode, SceneProject } from "@/core/scene/types";
+import {
+  useAssetPreviewStore,
+  type PrefabPreviewNode,
+} from "@/services/assets/preview-store";
 import { cn } from "@/lib/utils";
 
 interface HierarchyTreeProps {
@@ -55,12 +60,29 @@ function HierarchyRow({
   onSelect,
   onToggleExpand,
 }: HierarchyRowProps) {
+  const { t } = useTranslation("editor");
   const node = project.scene.nodes[nodeId];
+  // Hooks must run unconditionally — we always read the prefab preview store
+  // even when the node isn't a prefab_instance (the selector returns null).
+  // Without this, conditional early-return below would violate the rules of
+  // hooks. The selector keeps re-render cost trivial: it returns `null` for
+  // every non-prefab node, so `useAssetPreviewStore` only triggers a render
+  // when a preview tree this row actually depends on changes.
+  const previewTree = useAssetPreviewStore((s) => {
+    if (!node || node.data.type !== "prefab_instance") return null;
+    return s.trees[node.data.asset_id] ?? null;
+  });
   if (!node) return null;
 
   const active = nodeId === selectedNodeId;
   const expanded = expandedNodes[nodeId] === true;
-  const hasChildren = node.children_ids.length > 0;
+  const isPrefab = node.type === "prefab_instance";
+  const hasOwnChildren = node.children_ids.length > 0;
+  // Prefab instances are always "expandable" — when the preview tree is in
+  // flight we still show the caret so the user can twirl it open and see
+  // "loading…". This matches Unity/Blender's behaviour: the prefab row
+  // commits to being expandable, then the contents render asynchronously.
+  const hasChildren = hasOwnChildren || isPrefab;
 
   return (
     <li role="treeitem" aria-expanded={hasChildren ? expanded : undefined}>
@@ -98,10 +120,15 @@ function HierarchyRow({
             {iconForKind(node.type)}
           </span>
           <span className="truncate">{node.name}</span>
+          {isPrefab && (
+            <span className="ml-1 rounded bg-muted px-1 py-px text-[9px] uppercase tracking-wider text-muted-foreground">
+              {t("hierarchy.prefab_badge")}
+            </span>
+          )}
         </button>
       </div>
 
-      {hasChildren && expanded && (
+      {hasOwnChildren && expanded && (
         <ul role="group" className="space-y-0.5">
           {node.children_ids.map((childId) => (
             <HierarchyRow
@@ -114,6 +141,55 @@ function HierarchyRow({
               onSelect={onSelect}
               onToggleExpand={onToggleExpand}
             />
+          ))}
+        </ul>
+      )}
+
+      {isPrefab && expanded && (
+        <ul role="group" className="space-y-0.5">
+          {previewTree ? (
+            previewTree.children.map((child, i) => (
+              <PrefabPreviewRow key={`${nodeId}/${i}`} node={child} depth={depth + 1} />
+            ))
+          ) : (
+            <li
+              role="treeitem"
+              className="cursor-default select-none py-1 italic text-muted-foreground"
+              style={{ paddingLeft: `${(depth + 1) * 12 + 28}px` }}
+            >
+              {t("hierarchy.prefab_loading")}
+            </li>
+          )}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+/**
+ * Read-only row inside a prefab_instance's expanded preview. Not selectable
+ * — the underlying glTF nodes aren't SceneNodes, so there's no id to feed
+ * the gizmo / properties panel. v2's "unpack" command is the migration path
+ * that turns these previews into real, editable SceneNodes.
+ */
+function PrefabPreviewRow({ node, depth }: { node: PrefabPreviewNode; depth: number }) {
+  return (
+    <li role="treeitem" aria-expanded={node.children.length > 0 || undefined}>
+      <div
+        className="flex w-full items-center gap-1 rounded text-muted-foreground"
+        style={{ paddingLeft: `${depth * 12 + 4}px` }}
+        title={node.name}
+      >
+        <span className="h-5 w-5 shrink-0" aria-hidden="true" />
+        <span className="flex flex-1 items-center gap-1.5 py-1 pr-2 text-left opacity-70">
+          <span aria-hidden="true">{iconForPrefabKind(node.kind)}</span>
+          <span className="truncate">{node.name}</span>
+        </span>
+      </div>
+      {node.children.length > 0 && (
+        <ul role="group" className="space-y-0.5">
+          {node.children.map((child, i) => (
+            <PrefabPreviewRow key={i} node={child} depth={depth + 1} />
           ))}
         </ul>
       )}
@@ -133,7 +209,20 @@ function iconForKind(kind: SceneNode["type"]): string {
       return "▦";
     case "helper":
       return "◇";
+    case "prefab_instance":
+      return "❖";
     default:
       return "•";
+  }
+}
+
+function iconForPrefabKind(kind: PrefabPreviewNode["kind"]): string {
+  switch (kind) {
+    case "group":
+      return "▸";
+    case "mesh":
+      return "◼";
+    default:
+      return "·";
   }
 }

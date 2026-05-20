@@ -3,12 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Box, X } from "lucide-react";
 
 import { useSceneStore } from "@/services/scene/store";
+import { useAssetPreviewStore } from "@/services/assets/preview-store";
 import { useUIStore, type GizmoMode } from "@/services/ui/store";
 import { executeCommand } from "@/services/command-history";
 import { closeProject } from "@/services/project/actions";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import { isEffectivelyLocked } from "@/core/scene/policy";
-import type { SceneNode, Transform } from "@/core/scene/types";
+import type { AssetReference, SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
 import { useGizmoShortcuts } from "@/ui/viewport/use-gizmo-shortcuts";
@@ -162,8 +163,61 @@ function NodeProperties({ node }: { node: SceneNode }) {
       />
       <ReadonlyRow label="visible" value={node.visible ? "true" : "false"} />
       <ReadonlyRow label="locked" value={locked ? "true" : "false"} />
+      {node.data.type === "prefab_instance" && (
+        <PrefabInfo assetId={node.data.asset_id} />
+      )}
     </dl>
   );
+}
+
+function PrefabInfo({ assetId }: { assetId: string }) {
+  const { t } = useTranslation("editor");
+  const asset = useSceneStore((s) => s.project?.assets.find((a) => a.id === assetId));
+  const previewTree = useAssetPreviewStore((s) => s.trees[assetId]);
+
+  if (!asset) {
+    return <ReadonlyRow label="asset" value={`${assetId} (missing)`} />;
+  }
+
+  return (
+    <>
+      <div className="mt-2 border-t border-border pt-3">
+        <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          {t("properties.prefab_section")}
+        </p>
+        <ReadonlyRow label="asset id" value={asset.id} />
+        <ReadonlyRow label="filename" value={describeSource(asset)} />
+        <ReadonlyRow
+          label="content hash"
+          value={asset.content_hash.slice(0, 12) + "…"}
+        />
+        <ReadonlyRow label="path" value={asset.relative_path} />
+        {previewTree && (
+          <ReadonlyRow label="meshes" value={String(countMeshes(previewTree))} />
+        )}
+      </div>
+    </>
+  );
+}
+
+function describeSource(asset: AssetReference): string {
+  if (asset.source.kind === "user_upload") return asset.source.original_filename;
+  if (asset.source.kind === "builtin") return `builtin: ${asset.source.library_id}`;
+  if (asset.source.kind === "online") return asset.source.url;
+  if (asset.source.kind === "ai_generated")
+    return `ai (${asset.source.model}): ${asset.source.prompt.slice(0, 32)}`;
+  return "—";
+}
+
+function countMeshes(node: {
+  kind: string;
+  children: Array<{ kind: string; children: unknown[] }>;
+}): number {
+  let count = node.kind === "mesh" ? 1 : 0;
+  for (const child of node.children) {
+    count += countMeshes(child as never);
+  }
+  return count;
 }
 
 function ReadonlyRow({ label, value }: { label: string; value: string }) {

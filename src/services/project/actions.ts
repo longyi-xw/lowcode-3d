@@ -1,8 +1,9 @@
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
 
 import { commands } from "@/bindings/tauri";
+import { generateUUID } from "@/core/id/uuid";
 import { isTauri } from "@/lib/runtime";
-import type { SceneProject } from "@/core/scene/types";
+import type { AssetReference, SceneNode, SceneProject } from "@/core/scene/types";
 import { useAppViewStore } from "@/services/app-view/store";
 import { useCommandHistoryStore } from "@/services/command-history";
 import { createDemoProject } from "@/services/scene/demo-project";
@@ -147,6 +148,108 @@ export async function saveProject(opts: { forceDialog: boolean }): Promise<void>
   } finally {
     useProjectStore.getState().setSaving(false);
   }
+}
+
+/**
+ * .glb import flow.
+ *
+ * Why save-first: assets are content-addressed into `<project>/assets/`, so
+ * the project folder must exist on disk before bytes have a home. Rather
+ * than introducing an in-memory asset buffer for the unsaved-project case,
+ * we ask the user to save first — same pattern Blender/Unity use for
+ * "this project hasn't been written yet, pick a path."
+ *
+ * Why no Command-history entry: import is closer to "Open Project" than
+ * "Tweak transform" — a state change the user perceives as committing.
+ * Undo for accidental imports is deferred to v2 alongside the explicit
+ * Delete Node command (which doesn't exist yet either).
+ */
+export async function importGlb(): Promise<void> {
+  if (!isTauri()) {
+    console.warn("importGlb called outside Tauri runtime");
+    return;
+  }
+  const project = useSceneStore.getState().project;
+  if (!project) return;
+
+  let currentPath = useProjectStore.getState().currentPath;
+  if (!currentPath) {
+    const shouldSave = await ask(
+      "Save the project to a folder first — imported assets live next to project.json. Save now?",
+      {
+        title: "Save project first",
+        kind: "info",
+        okLabel: "Save…",
+        cancelLabel: "Cancel",
+      },
+    );
+    if (!shouldSave) return;
+    await saveProject({ forceDialog: true });
+    currentPath = useProjectStore.getState().currentPath;
+    if (!currentPath) return; // user cancelled the save dialog
+  }
+
+  let selected: string | string[] | null;
+  try {
+    selected = await open({
+      multiple: false,
+      filters: [{ name: "glTF binary", extensions: ["glb", "gltf"] }],
+    });
+  } catch (e) {
+    console.error("dialog.open(glb) failed", e);
+    await reportRawError(`Couldn't open file picker: ${formatThrown(e)}`);
+    return;
+  }
+  if (typeof selected !== "string") return;
+
+  const importResult = await commands.importGlbIntoProject(selected, currentPath);
+  if (importResult.status === "error") {
+    await reportError({ kind: "folder", error: importResult.error });
+    return;
+  }
+  const imported = importResult.data;
+
+  const asset: AssetReference = {
+    id: `asset-${imported.content_hash.slice(0, 12)}`,
+    content_hash: imported.content_hash,
+    kind: "geometry",
+    relative_path: imported.relative_path,
+    tags: [],
+    description: imported.original_filename,
+    source: {
+      kind: "user_upload",
+      original_filename: imported.original_filename,
+    },
+  };
+  const canonical = useSceneStore.getState().addAsset(asset);
+
+  const nodeName = stemFromFilename(imported.original_filename);
+  const newNode: SceneNode = {
+    id: generateUUID(),
+    name: nodeName,
+    type: "prefab_instance",
+    transform: {
+      position: [0, 0, 0],
+      rotation: [0, 0, 0, 1],
+      scale: [1, 1, 1],
+    },
+    parent_id: null,
+    children_ids: [],
+    visible: true,
+    locked: false,
+    data: { type: "prefab_instance", asset_id: canonical.id },
+    behaviors: [],
+    user_data: {},
+  };
+  useSceneStore.getState().addNode(newNode);
+  useUIStore.getState().setSelectedNodeId(newNode.id);
+  useProjectStore.getState().markDirty();
+}
+
+function stemFromFilename(name: string): string {
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return name;
+  return name.slice(0, dot);
 }
 
 export async function closeProject(): Promise<void> {

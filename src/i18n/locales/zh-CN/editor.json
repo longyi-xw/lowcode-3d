@@ -1,11 +1,14 @@
 {
   "hierarchy": {
     "title": "层级",
-    "empty": "暂无节点"
+    "empty": "暂无节点",
+    "prefab_badge": "预制体",
+    "prefab_loading": "正在加载模型预览…"
   },
   "properties": {
     "title": "属性",
-    "empty": "选中节点以查看属性"
+    "empty": "选中节点以查看属性",
+    "prefab_section": "预制体资源"
   },
   "viewport": {
     "empty": "空场景",

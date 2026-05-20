@@ -10,8 +10,16 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import { isEffectivelyLocked } from "@/core/scene/policy";
 import { ThreeAdapter } from "@/runtime/three/adapter";
-import type { SceneNode, SceneProject, Transform } from "@/core/scene/types";
+import { describeTemplate } from "@/runtime/three/asset-cache";
+import type {
+  AssetReference,
+  SceneNode,
+  SceneProject,
+  Transform,
+} from "@/core/scene/types";
+import { useAssetPreviewStore } from "@/services/assets/preview-store";
 import { executeCommand } from "@/services/command-history";
+import { useProjectStore } from "@/services/project/store";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 
@@ -48,9 +56,10 @@ export function ThreeViewport() {
     if (!container) return;
 
     const adapter = new ThreeAdapter();
+    adapter.assetCache.setProjectPath(useProjectStore.getState().currentPath);
 
     const initial = useSceneStore.getState().project;
-    if (initial) seedScene(adapter, initial);
+    if (initial) void seedScene(adapter, initial);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -213,7 +222,13 @@ export function ThreeViewport() {
       if (!next || !old) return;
       if (next === old) return;
       if (next.metadata.id !== old.metadata.id) return; // handled by effect re-run
-      diffAndApply(adapter, old, next, gizmo, outlinePass);
+      void diffAndApply(adapter, old, next, gizmo, outlinePass);
+    });
+
+    const unsubscribeProject = useProjectStore.subscribe((state, prev) => {
+      if (state.currentPath !== prev.currentPath) {
+        adapter.assetCache.setProjectPath(state.currentPath);
+      }
     });
 
     const unsubscribeUI = useUIStore.subscribe((state, prev) => {
@@ -236,6 +251,7 @@ export function ThreeViewport() {
     return () => {
       cancelAnimationFrame(rafId);
       unsubscribeScene();
+      unsubscribeProject();
       unsubscribeUI();
       canvas.removeEventListener("click", onClick);
       canvas.removeEventListener("pointerdown", onPointerDown);
@@ -279,11 +295,52 @@ function transformsEqual(a: Transform, b: Transform): boolean {
 }
 
 /**
+ * Preload every glTF asset referenced by the project. Awaiting these before
+ * seeding nodes means prefab_instance builders hit the cache at build time
+ * and skip the placeholder path. Failures are tolerated — the cache records
+ * the error, the node still renders as a magenta placeholder, and the UI
+ * can surface the per-asset status when we add an asset panel.
+ */
+async function preloadAssets(
+  adapter: ThreeAdapter,
+  project: SceneProject,
+): Promise<void> {
+  const used = new Set<string>();
+  for (const node of Object.values(project.scene.nodes)) {
+    if (node.data.type === "prefab_instance") used.add(node.data.asset_id);
+  }
+  const tasks: Promise<unknown>[] = [];
+  for (const asset of project.assets) {
+    if (!used.has(asset.id)) continue;
+    tasks.push(syncAndPublishPreview(adapter, asset as AssetReference));
+  }
+  await Promise.all(tasks);
+}
+
+/**
+ * Load the asset, then publish a names-only preview tree to the asset
+ * preview store so the hierarchy panel can render an expanded prefab_instance
+ * without reaching into the runtime adapter. Skips publishing on failure —
+ * the hierarchy panel falls back to a "loading…" placeholder row.
+ */
+async function syncAndPublishPreview(
+  adapter: ThreeAdapter,
+  asset: AssetReference,
+): Promise<void> {
+  await adapter.syncAsset(asset);
+  const status = adapter.assetCache.get(asset.id);
+  if (status.status !== "ready") return;
+  const tree = describeTemplate(status.template);
+  useAssetPreviewStore.getState().setTree(asset.id, tree);
+}
+
+/**
  * BFS-walk the project so parents are added before their children — required
  * because ThreeAdapter.syncNode("add") refuses to attach a child whose parent
- * is not yet registered.
+ * is not yet registered. Async because we preload referenced assets first.
  */
-function seedScene(adapter: ThreeAdapter, project: SceneProject): void {
+async function seedScene(adapter: ThreeAdapter, project: SceneProject): Promise<void> {
+  await preloadAssets(adapter, project);
   const queue: string[] = [...project.scene.root_node_ids];
   const seen = new Set<string>();
   while (queue.length > 0) {
@@ -302,14 +359,29 @@ function seedScene(adapter: ThreeAdapter, project: SceneProject): void {
  * syncNode calls. Update first (the common case during editing), then adds
  * (BFS-ordered so parents land first), then removes — detaching the gizmo
  * before any node it's currently attached to disappears.
+ *
+ * Async because newly-added prefab_instance nodes may reference an asset
+ * not yet in the cache; we kick off syncAsset for any unknown asset_ids
+ * surfaced in the diff so the rebuild path picks them up.
  */
-function diffAndApply(
+async function diffAndApply(
   adapter: ThreeAdapter,
   old: SceneProject,
   next: SceneProject,
   gizmo: TransformControls,
   outlinePass: OutlinePass,
-): void {
+): Promise<void> {
+  // Preload any assets that are new in `next` but absent from `old` —
+  // typically a fresh import. Doing this BEFORE the node walk means the
+  // prefab_instance builder runs with the template already cached, so the
+  // placeholder path is skipped on the happy path.
+  const oldAssetIds = new Set(old.assets.map((a) => a.id));
+  const newAssets = next.assets.filter((a) => !oldAssetIds.has(a.id));
+  if (newAssets.length > 0) {
+    await Promise.all(
+      newAssets.map((a) => syncAndPublishPreview(adapter, a as AssetReference)),
+    );
+  }
   const queue: string[] = [...next.scene.root_node_ids];
   const seen = new Set<string>();
   while (queue.length > 0) {
