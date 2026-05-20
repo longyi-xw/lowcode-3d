@@ -44,6 +44,9 @@ export function createDemoProject(name = "Untitled project"): SceneProject {
       parent_id: null,
       children_ids: [],
       visible: true,
+      // `locked: false` on disk — the runtime treats every helper as
+      // effectively locked via `isEffectivelyLocked` regardless of this
+      // value, so older project files keep working without a migration.
       locked: false,
       data: { type: "helper", helper_kind: "grid" },
       behaviors: [],

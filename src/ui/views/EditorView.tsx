@@ -7,6 +7,7 @@ import { useUIStore, type GizmoMode } from "@/services/ui/store";
 import { executeCommand } from "@/services/command-history";
 import { closeProject } from "@/services/project/actions";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
+import { isEffectivelyLocked } from "@/core/scene/policy";
 import type { SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
@@ -119,6 +120,7 @@ export function EditorView() {
 }
 
 function NodeProperties({ node }: { node: SceneNode }) {
+  const locked = isEffectivelyLocked(node);
   const commitTransform = (next: Partial<Transform>) => {
     const newTransform: Transform = {
       position: next.position ?? node.transform.position,
@@ -143,19 +145,23 @@ function NodeProperties({ node }: { node: SceneNode }) {
       <Vec3Row
         label="position"
         value={node.transform.position}
+        disabled={locked}
         onChange={(position) => commitTransform({ position })}
       />
       <Vec3Row
         label="rotation°"
         value={quatToEulerDeg(node.transform.rotation)}
+        disabled={locked}
         onChange={(eulerDeg) => commitTransform({ rotation: eulerDegToQuat(eulerDeg) })}
       />
       <Vec3Row
         label="scale"
         value={node.transform.scale}
+        disabled={locked}
         onChange={(scale) => commitTransform({ scale })}
       />
       <ReadonlyRow label="visible" value={node.visible ? "true" : "false"} />
+      <ReadonlyRow label="locked" value={locked ? "true" : "false"} />
     </dl>
   );
 }
@@ -172,10 +178,12 @@ function ReadonlyRow({ label, value }: { label: string; value: string }) {
 function Vec3Row({
   label,
   value,
+  disabled = false,
   onChange,
 }: {
   label: string;
   value: Vec3;
+  disabled?: boolean;
   onChange: (next: Vec3) => void;
 }) {
   return (
@@ -187,6 +195,7 @@ function Vec3Row({
             key={axis}
             label={axis}
             value={value[i] ?? 0}
+            disabled={disabled}
             onChange={(v) => {
               const next: Vec3 = [value[0], value[1], value[2]];
               next[i] = v;
@@ -202,10 +211,12 @@ function Vec3Row({
 function NumberInput({
   label,
   value,
+  disabled = false,
   onChange,
 }: {
   label: string;
   value: number;
+  disabled?: boolean;
   onChange: (next: number) => void;
 }) {
   const [text, setText] = useState(() => formatNumber(value));
@@ -230,12 +241,18 @@ function NumberInput({
   };
 
   return (
-    <label className="flex items-center gap-1 rounded border border-border bg-background/50 px-1.5 py-0.5 focus-within:border-primary">
+    <label
+      className={cn(
+        "flex items-center gap-1 rounded border border-border bg-background/50 px-1.5 py-0.5",
+        disabled ? "cursor-not-allowed opacity-50" : "focus-within:border-primary",
+      )}
+    >
       <span className="text-[10px] text-muted-foreground">{label}</span>
       <input
         type="text"
         inputMode="decimal"
         value={text}
+        disabled={disabled}
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -246,7 +263,10 @@ function NumberInput({
             (e.target as HTMLInputElement).blur();
           }
         }}
-        className="w-0 flex-1 bg-transparent text-right font-mono text-[11px] text-foreground outline-none"
+        className={cn(
+          "w-0 flex-1 bg-transparent text-right font-mono text-[11px] text-foreground outline-none",
+          disabled && "cursor-not-allowed",
+        )}
       />
     </label>
   );
