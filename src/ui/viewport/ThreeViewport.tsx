@@ -8,6 +8,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
+import { isEffectivelyLocked } from "@/core/scene/policy";
 import { ThreeAdapter } from "@/runtime/three/adapter";
 import type { SceneNode, SceneProject, Transform } from "@/core/scene/types";
 import { executeCommand } from "@/services/command-history";
@@ -151,8 +152,11 @@ export function ThreeViewport() {
       // selected, but the gizmo doesn't attach — preventing accidental
       // drag-edits of editor chrome (grid, future axes/guides). The
       // properties panel separately disables its inputs for the same reason.
+      // Lock semantics go through `isEffectivelyLocked`, not `node.locked`,
+      // so helpers stay locked even when an older project file on disk has
+      // `locked: false` written for them.
       const node = useSceneStore.getState().project?.scene.nodes[id];
-      if (node?.locked) {
+      if (node && isEffectivelyLocked(node)) {
         gizmo.detach();
       } else {
         gizmo.attach(obj);

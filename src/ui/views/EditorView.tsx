@@ -7,6 +7,7 @@ import { useUIStore, type GizmoMode } from "@/services/ui/store";
 import { executeCommand } from "@/services/command-history";
 import { closeProject } from "@/services/project/actions";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
+import { isEffectivelyLocked } from "@/core/scene/policy";
 import type { SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
@@ -119,6 +120,7 @@ export function EditorView() {
 }
 
 function NodeProperties({ node }: { node: SceneNode }) {
+  const locked = isEffectivelyLocked(node);
   const commitTransform = (next: Partial<Transform>) => {
     const newTransform: Transform = {
       position: next.position ?? node.transform.position,
@@ -143,23 +145,23 @@ function NodeProperties({ node }: { node: SceneNode }) {
       <Vec3Row
         label="position"
         value={node.transform.position}
-        disabled={node.locked}
+        disabled={locked}
         onChange={(position) => commitTransform({ position })}
       />
       <Vec3Row
         label="rotation°"
         value={quatToEulerDeg(node.transform.rotation)}
-        disabled={node.locked}
+        disabled={locked}
         onChange={(eulerDeg) => commitTransform({ rotation: eulerDegToQuat(eulerDeg) })}
       />
       <Vec3Row
         label="scale"
         value={node.transform.scale}
-        disabled={node.locked}
+        disabled={locked}
         onChange={(scale) => commitTransform({ scale })}
       />
       <ReadonlyRow label="visible" value={node.visible ? "true" : "false"} />
-      <ReadonlyRow label="locked" value={node.locked ? "true" : "false"} />
+      <ReadonlyRow label="locked" value={locked ? "true" : "false"} />
     </dl>
   );
 }
