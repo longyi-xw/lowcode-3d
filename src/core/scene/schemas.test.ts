@@ -92,6 +92,16 @@ describe("NodeDataSchema", () => {
       }),
     ).not.toThrow(); // unknown extra keys are allowed by default
   });
+
+  it("accepts prefab_instance with asset_id", () => {
+    expect(
+      NodeDataSchema.parse({ type: "prefab_instance", asset_id: "asset-1" }),
+    ).toMatchObject({ type: "prefab_instance", asset_id: "asset-1" });
+  });
+
+  it("rejects prefab_instance without asset_id", () => {
+    expect(() => NodeDataSchema.parse({ type: "prefab_instance" })).toThrow();
+  });
 });
 
 describe("SceneNodeSchema", () => {

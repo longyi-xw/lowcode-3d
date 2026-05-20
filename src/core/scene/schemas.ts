@@ -51,6 +51,7 @@ export const NodeKindSchema = z.enum([
   "light",
   "camera",
   "helper",
+  "prefab_instance",
   "custom",
 ]);
 
@@ -97,6 +98,15 @@ export const NodeDataSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("helper"),
     helper_kind: z.string(),
+  }),
+  // Prefab_instance: a leaf SceneNode that references a glTF asset. The
+  // sub-tree lives inside the cached template (loaded once per asset by
+  // ThreeAdapter.syncAsset) and is cloned per instance at render time. This
+  // keeps 50× duplicates of the same model from inflating the SceneGraph.
+  // Per-instance overrides + unpack-to-tree are deferred to v2.
+  z.object({
+    type: z.literal("prefab_instance"),
+    asset_id: z.string(),
   }),
   z.object({
     type: z.literal("custom"),
