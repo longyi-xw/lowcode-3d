@@ -6,10 +6,12 @@ use tauri::Emitter;
 use tauri_specta::{collect_commands, Builder};
 
 mod assets;
+mod export;
 mod project_io;
 mod project_state;
 
 use assets::{import_glb_into_project, read_project_asset};
+use export::write_export_files;
 use project_io::{open_project_folder, save_project_folder};
 use project_state::{get_current_project_path, set_current_project_path, ProjectPath};
 
@@ -21,6 +23,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
         set_current_project_path,
         import_glb_into_project,
         read_project_asset,
+        write_export_files,
     ])
 }
 
@@ -64,6 +67,13 @@ fn build_menu<R: tauri::Runtime>(
     let import_glb_item = MenuItemBuilder::with_id("file:import_glb", "Import .glb…")
         .accelerator("CmdOrCtrl+I")
         .build(app)?;
+    let export_vite_item =
+        MenuItemBuilder::with_id("file:export_vite", "Export as Vite Project…")
+            .accelerator("CmdOrCtrl+Shift+E")
+            .build(app)?;
+    let export_standalone_item =
+        MenuItemBuilder::with_id("file:export_standalone", "Export as Standalone HTML…")
+            .build(app)?;
     let close_item = MenuItemBuilder::with_id("file:close", "Close Project")
         .accelerator("CmdOrCtrl+W")
         .build(app)?;
@@ -76,6 +86,9 @@ fn build_menu<R: tauri::Runtime>(
         .item(&save_as_item)
         .separator()
         .item(&import_glb_item)
+        .separator()
+        .item(&export_vite_item)
+        .item(&export_standalone_item)
         .separator()
         .item(&close_item)
         .build()?;

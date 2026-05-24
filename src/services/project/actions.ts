@@ -4,6 +4,8 @@ import { commands } from "@/bindings/tauri";
 import { generateUUID } from "@/core/id/uuid";
 import { isTauri } from "@/lib/runtime";
 import type { AssetReference, SceneNode, SceneProject } from "@/core/scene/types";
+import type { ExportTarget } from "@/runtime/adapter";
+import { ThreeAdapter } from "@/runtime/three/adapter";
 import { useAppViewStore } from "@/services/app-view/store";
 import { useCommandHistoryStore } from "@/services/command-history";
 import { createDemoProject } from "@/services/scene/demo-project";
@@ -284,6 +286,127 @@ function stemFromFilename(name: string): string {
   const dot = name.lastIndexOf(".");
   if (dot <= 0) return name;
   return name.slice(0, dot);
+}
+
+/**
+ * Export the active project as either a Vite project or a zero-build
+ * standalone HTML page. The asset pipeline references files on disk under
+ * `<project>/assets/`, so this requires a saved project — same gate as
+ * `importGlb`. If the project hasn't been saved yet we offer to save it
+ * first; the rest of the flow doesn't change.
+ *
+ * Emitters are pure functions that build a `Map<path, ExportFile>`. Rust
+ * does the atomic write + asset copy in one shot, so the user either gets
+ * a complete export directory or nothing — no half-written intermediate.
+ */
+export async function exportProject(target: ExportTarget): Promise<void> {
+  await exclusive(`exportProject:${target}`, () => exportProjectInner(target));
+}
+
+async function exportProjectInner(target: ExportTarget): Promise<void> {
+  if (!isTauri()) {
+    console.warn("exportProject called outside Tauri runtime");
+    return;
+  }
+  const project = useSceneStore.getState().project;
+  if (!project) return;
+
+  let sourceProjectPath = useProjectStore.getState().currentPath;
+  if (!sourceProjectPath) {
+    const shouldSave = await ask(
+      "Save the project first — exporting reads assets from the project's folder. Save now?",
+      {
+        title: "Save project first",
+        kind: "info",
+        okLabel: "Save…",
+        cancelLabel: "Cancel",
+      },
+    );
+    if (!shouldSave) return;
+    await saveProject({ forceDialog: true });
+    sourceProjectPath = useProjectStore.getState().currentPath;
+    if (!sourceProjectPath) return;
+  }
+
+  let destination: string | string[] | null;
+  try {
+    destination = await save({
+      title: target === "vite" ? "Export as Vite project" : "Export as standalone HTML",
+      defaultPath: defaultExportPath(project.metadata.name, target),
+    });
+  } catch (e) {
+    console.error("dialog.save (export) failed", e);
+    await reportRawError(`Couldn't open export dialog: ${formatThrown(e)}`);
+    return;
+  }
+  if (typeof destination !== "string") return;
+
+  // Run the emitter through a transient adapter instance so the export
+  // honours the IRuntimeAdapter contract rather than reaching into the
+  // emitter modules directly. The adapter holds no editor state at this
+  // point — it's a lightweight scope for the dispatch.
+  const adapter = new ThreeAdapter();
+  let result;
+  try {
+    result = await adapter.exportProject(project, {
+      target,
+      include_dev_comments: true,
+    });
+  } catch (e) {
+    console.error("adapter.exportProject failed", e);
+    await reportRawError(`Export failed: ${formatThrown(e)}`);
+    adapter.dispose();
+    return;
+  } finally {
+    adapter.dispose();
+  }
+
+  const textFiles: Record<string, string> = {};
+  const assetCopies: Record<string, string> = {};
+  for (const [path, file] of result.files) {
+    if (file.kind === "text") {
+      textFiles[path] = file.content;
+    } else {
+      assetCopies[path] = file.source_relative_path;
+    }
+  }
+
+  const writeResult = await commands.writeExportFiles({
+    source_project_path: sourceProjectPath,
+    destination_path: destination,
+    text_files: textFiles,
+    asset_copies: assetCopies,
+  });
+  if (writeResult.status === "error") {
+    await reportError({ kind: "folder", error: writeResult.error });
+    return;
+  }
+  const summary = writeResult.data;
+
+  const warnLine =
+    result.warnings.length > 0
+      ? `\n\nNotes:\n${result.warnings.map((w) => `• ${w}`).join("\n")}`
+      : "";
+  await ask(
+    `Wrote ${summary.text_file_count} files + ${summary.asset_file_count} assets to ${summary.destination_path}.${warnLine}`,
+    {
+      title: target === "vite" ? "Vite project exported" : "Standalone export ready",
+      kind: "info",
+      okLabel: "OK",
+      cancelLabel: "OK",
+    },
+  );
+}
+
+function defaultExportPath(projectName: string, target: ExportTarget): string {
+  const slug =
+    projectName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "lowcode-export";
+  const suffix = target === "vite" ? "-vite" : "-standalone";
+  return `${slug}${suffix}`;
 }
 
 export async function closeProject(): Promise<void> {

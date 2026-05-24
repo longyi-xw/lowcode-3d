@@ -15,18 +15,60 @@ import type {
  */
 export type SyncOp = "add" | "update" | "remove";
 
+/**
+ * Identifier for an export emitter. Each target shapes the on-disk output:
+ *   - `vite`           — full Vite project source (package.json + vite.config
+ *                        + index.html + src/), user runs pnpm install && pnpm
+ *                        dev. AI-collab friendly: open in Cursor / Copilot and
+ *                        keep iterating.
+ *   - `standalone-esm` — single index.html + main.js with an importmap
+ *                        pointing three at esm.sh. Drop into any static
+ *                        server (python -m http.server, npx serve) and it
+ *                        just runs. Best for chat-share / demo sites.
+ *
+ * Future targets (e.g. `vite-build` for prebuilt dist/, `r3f` for a
+ * react-three-fiber project, `babylon` for the Babylon adapter) plug into
+ * the same {@link Exporter} interface — no new dispatch in the adapter.
+ */
+export type ExportTarget = "vite" | "standalone-esm";
+
 export interface ExportOptions {
-  /** Absolute destination directory on disk. Tauri resolves it before passing. */
-  destination_path: string;
-  /** When true, the exporter emits AI-friendly comments and TODO markers. */
+  /** Which emitter shape to produce. Defaults to "vite" on the adapter side
+   *  if callers omit it. */
+  target?: ExportTarget;
+  /** When true, emitters include AI-friendly comments + TODO markers in the
+   *  generated code so downstream LLMs can navigate the output more easily. */
   include_dev_comments?: boolean;
 }
 
+/**
+ * Relative path → file content. Text payloads carry the actual file body;
+ * binary entries describe an asset to copy from somewhere on disk (the
+ * source project's `assets/<hash>.glb`, typically) rather than carry the
+ * bytes in memory. Keeping binaries as path-references means the exporter
+ * stays cheap even for projects with hundreds of MB of glTF assets, and the
+ * Rust write side can use hardlinks where the filesystem supports them.
+ */
+export type ExportFile =
+  | { kind: "text"; content: string }
+  | { kind: "asset_copy"; source_relative_path: string };
+
 export interface ExportResult {
-  /** Relative-to-destination path → file content. Binary assets are Uint8Array. */
-  files: Map<string, string | Uint8Array>;
-  /** Non-fatal notes the UI should surface (e.g. "fell back to Lambert material"). */
+  files: Map<string, ExportFile>;
+  /** Non-fatal notes the UI should surface (e.g. "fell back to Lambert
+   *  material", "skipped helper grid-1 — helpers are editor-only"). */
   warnings: string[];
+}
+
+/**
+ * Stateless emitter — takes a SceneProject snapshot and returns the files
+ * that make up the export. Concrete emitters live in
+ * `src/runtime/three/export/<target>.ts`; the adapter dispatches based on
+ * `ExportOptions.target`. Future targets register an entry here.
+ */
+export interface Exporter {
+  readonly target: ExportTarget;
+  emit(project: SceneProject, options: ExportOptions): ExportResult;
 }
 
 export interface CodegenContext {

@@ -18,9 +18,23 @@ export const commands = {
 	 *  IPC boundary.
 	 */
 	readProjectAsset: (projectPath: string, relativePath: string) => typedError<string, FolderError>(__TAURI_INVOKE("read_project_asset", { projectPath, relativePath })),
+	writeExportFiles: (payload: ExportPayload) => typedError<ExportSummary, FolderError>(__TAURI_INVOKE("write_export_files", { payload })),
 };
 
 /* Types */
+export type ExportPayload = {
+	source_project_path: string,
+	destination_path: string,
+	text_files: { [key in string]: string },
+	asset_copies: { [key in string]: string },
+};
+
+export type ExportSummary = {
+	destination_path: string,
+	text_file_count: number,
+	asset_file_count: number,
+};
+
 export type FolderError = 
 /**  std::io::Error wrapped with the path that triggered it. */
 { code: "io"; data: {
