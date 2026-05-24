@@ -5,6 +5,7 @@ import { isTauri } from "@/lib/runtime";
 
 import {
   closeProject,
+  exportProject,
   importGlb,
   newProject,
   openProject,
@@ -17,6 +18,8 @@ type MenuId =
   | "file:save"
   | "file:save_as"
   | "file:import_glb"
+  | "file:export_vite"
+  | "file:export_standalone"
   | "file:close";
 
 /**
@@ -77,6 +80,12 @@ async function dispatchMenu(id: MenuId): Promise<void> {
       return;
     case "file:import_glb":
       await importGlb();
+      return;
+    case "file:export_vite":
+      await exportProject("vite");
+      return;
+    case "file:export_standalone":
+      await exportProject("standalone-esm");
       return;
     case "file:close":
       await closeProject();
