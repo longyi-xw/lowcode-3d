@@ -73,7 +73,7 @@ describe("IRuntimeAdapter", () => {
   it("exportProject resolves to a Map<string, …> + warnings[] shape", async () => {
     const adapter = new NoopAdapter();
     const result = await adapter.exportProject({} as SceneProject, {
-      destination_path: "/tmp/out",
+      target: "vite",
     });
     expect(result.files).toBeInstanceOf(Map);
     expect(result.warnings).toEqual([]);

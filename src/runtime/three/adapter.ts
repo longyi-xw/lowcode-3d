@@ -17,6 +17,8 @@ import type {
 } from "../adapter";
 
 import { AssetCache } from "./asset-cache";
+import { standaloneEsmEmitter } from "./export/standalone-esm-emitter";
+import { viteEmitter } from "./export/vite-emitter";
 import {
   applyMeta,
   applyTransform,
@@ -27,6 +29,8 @@ import {
   type BuilderRegistry,
   updateObject,
 } from "./node-builders";
+
+import type { Exporter, ExportTarget } from "../adapter";
 
 export interface ThreeAdapterOptions {
   /** Defaults applied when no camera node is present in the SceneProject. */
@@ -46,6 +50,15 @@ const DEFAULT_TARGET: RuntimeTarget = {
   kind: "three.js",
   version: "0.184.0",
   module_format: "esm",
+};
+
+/**
+ * Registered emitters for `exportProject`. Adding a new target = adding a
+ * key + an Exporter implementation. The dispatcher stays one switch wide.
+ */
+const EXPORTERS: Record<ExportTarget, Exporter> = {
+  vite: viteEmitter,
+  "standalone-esm": standaloneEsmEmitter,
 };
 
 class NotImplementedYet extends Error {
@@ -268,10 +281,18 @@ export class ThreeAdapter implements IRuntimeAdapter {
   // ───── Export ───────────────────────────────────────────────────
 
   async exportProject(
-    _project: SceneProject,
-    _options: ExportOptions,
+    project: SceneProject,
+    options: ExportOptions,
   ): Promise<ExportResult> {
-    throw new NotImplementedYet("exportProject", "Phase 2");
+    const target: ExportTarget = options.target ?? "vite";
+    const exporter: Exporter | undefined = EXPORTERS[target];
+    if (!exporter) {
+      throw new Error(`ThreeAdapter.exportProject: no emitter for target "${target}"`);
+    }
+    // Emitters are pure / synchronous today; the Promise wrapper exists so
+    // future targets that need to async-resolve metadata (network fetches,
+    // disk reads of supplementary data) can do so without breaking callers.
+    return exporter.emit(project, options);
   }
 
   // ───── Behaviors ───────────────────────────────────────────────
