@@ -31,9 +31,13 @@ const VITE_VERSION = "^5.4.21";
 
 export const viteEmitter: Exporter = {
   target: "vite",
-  emit(project: SceneProject, options): ExportResult {
+  emit(project: SceneProject, options, generateBehaviorCode): ExportResult {
     const includeDevComments = options.include_dev_comments ?? false;
-    const codegen = generateSceneModule({ project, includeDevComments });
+    const codegen = generateSceneModule({
+      project,
+      includeDevComments,
+      generateBehaviorCode,
+    });
 
     const files = new Map<string, ExportFile>();
     const projectName = slugifyProjectName(project.metadata.name);

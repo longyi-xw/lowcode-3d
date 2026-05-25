@@ -68,7 +68,11 @@ export interface ExportResult {
  */
 export interface Exporter {
   readonly target: ExportTarget;
-  emit(project: SceneProject, options: ExportOptions): ExportResult;
+  emit(
+    project: SceneProject,
+    options: ExportOptions,
+    generateBehaviorCode: (binding: BehaviorBinding, ctx: CodegenContext) => string,
+  ): ExportResult;
 }
 
 export interface CodegenContext {

@@ -17,6 +17,7 @@ import type {
 } from "../adapter";
 
 import { AssetCache } from "./asset-cache";
+import { createThreeBehaviorRegistry, ThreeBehaviorRegistry } from "./behaviors";
 import { standaloneEsmEmitter } from "./export/standalone-esm-emitter";
 import { viteEmitter } from "./export/vite-emitter";
 import {
@@ -61,13 +62,6 @@ const EXPORTERS: Record<ExportTarget, Exporter> = {
   "standalone-esm": standaloneEsmEmitter,
 };
 
-class NotImplementedYet extends Error {
-  constructor(method: string, when: string) {
-    super(`ThreeAdapter.${method} is not implemented yet (${when})`);
-    this.name = "NotImplementedYet";
-  }
-}
-
 /**
  * Three.js adapter — implements `IRuntimeAdapter` for the MVP renderer.
  *
@@ -96,6 +90,7 @@ export class ThreeAdapter implements IRuntimeAdapter {
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
 
   private readonly builders: BuilderRegistry;
+  private readonly behaviorRegistry: ThreeBehaviorRegistry;
 
   /** SceneNode.id → Three.js Object3D mirror. Populated by syncNode. */
   protected readonly objects = new Map<string, THREE.Object3D>();
@@ -120,6 +115,7 @@ export class ThreeAdapter implements IRuntimeAdapter {
     this.target = target;
     this.scene = new THREE.Scene();
     this.assetCache = options.assetCache ?? new AssetCache();
+    this.behaviorRegistry = createThreeBehaviorRegistry();
     this.builders = createBuilderRegistry({
       prefabInstance: createPrefabInstanceBuilder(this.assetCache),
     });
@@ -292,17 +288,30 @@ export class ThreeAdapter implements IRuntimeAdapter {
     // Emitters are pure / synchronous today; the Promise wrapper exists so
     // future targets that need to async-resolve metadata (network fetches,
     // disk reads of supplementary data) can do so without breaking callers.
-    return exporter.emit(project, options);
+    return exporter.emit(project, options, this.generateBehaviorCode.bind(this));
   }
 
   // ───── Behaviors ───────────────────────────────────────────────
 
   getSupportedBehaviors(): BehaviorDefinition[] {
-    return [];
+    return this.behaviorRegistry.list().map((b) => b.definition);
   }
 
-  generateBehaviorCode(_binding: BehaviorBinding, _context: CodegenContext): string {
-    throw new NotImplementedYet("generateBehaviorCode", "no behaviors registered yet");
+  generateBehaviorCode(binding: BehaviorBinding, ctx: CodegenContext): string {
+    if (!binding.enabled) return "";
+    const b = this.behaviorRegistry.get(binding.behavior_type);
+    if (!b) {
+      ctx.warnings.push(`unknown behavior_type "${binding.behavior_type}" — skipped`);
+      return "";
+    }
+    const parsed = b.definition.parameters_schema.safeParse(binding.parameters);
+    if (!parsed.success) {
+      ctx.warnings.push(
+        `behavior "${binding.behavior_type}" (binding ${binding.id}) skipped: invalid params`,
+      );
+      return "";
+    }
+    return b.emit(ctx.currentNodeVar, parsed.data, ctx);
   }
 
   // ───── Lifecycle ───────────────────────────────────────────────

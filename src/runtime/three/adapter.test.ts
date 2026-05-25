@@ -434,9 +434,9 @@ describe("ThreeAdapter shell methods still pending", () => {
     expect(adapter.getRuntimeObject("nope")).toBeUndefined();
   });
 
-  it("getSupportedBehaviors returns an empty list (real behaviors land in v0.5)", () => {
+  it("getSupportedBehaviors returns at least one definition (behaviors are now wired)", () => {
     const adapter = new ThreeAdapter(target);
-    expect(adapter.getSupportedBehaviors()).toEqual([]);
+    expect(adapter.getSupportedBehaviors().length).toBeGreaterThan(0);
   });
 
   it("syncAsset surfaces a no_project_path error in test/non-Tauri envs", async () => {
@@ -577,5 +577,110 @@ describe("ThreeAdapter.dispose", () => {
     expect(adapter.scene.children).toEqual([]);
     expect(adapter.getRuntimeObject("g1")).toBeUndefined();
     expect(adapter.getRuntimeObject("m1")).toBeUndefined();
+  });
+});
+
+import type { BehaviorBinding } from "@/core/scene/types";
+import type { CodegenContext } from "@/runtime/adapter";
+
+describe("ThreeAdapter behaviors", () => {
+  function emptyProject() {
+    return {
+      metadata: {
+        id: "p1",
+        name: "test",
+        target,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+      scene: { nodes: {}, root_node_ids: [] },
+      assets: [],
+      settings: { background: { kind: "color", color: "#101418" } },
+    } as never;
+  }
+
+  it("getSupportedBehaviors returns auto-rotate definition", () => {
+    const adapter = new ThreeAdapter(target);
+    const defs = adapter.getSupportedBehaviors();
+    expect(defs.find((d) => d.type === "auto-rotate")).toBeDefined();
+  });
+
+  it("generateBehaviorCode emits code for enabled auto-rotate binding", () => {
+    const adapter = new ThreeAdapter(target);
+    const binding: BehaviorBinding = {
+      id: "b1",
+      behavior_type: "auto-rotate",
+      enabled: true,
+      parameters: { axis: "y", speed: 30 },
+    };
+    const ctx: CodegenContext = {
+      project: emptyProject(),
+      warnings: [],
+      currentNodeVar: "n_test",
+    };
+    const code = adapter.generateBehaviorCode(binding, ctx);
+    expect(code).toContain("tickers.push");
+    expect(code).toContain("n_test.rotation.y");
+  });
+
+  it("generateBehaviorCode returns empty string for disabled bindings", () => {
+    const adapter = new ThreeAdapter(target);
+    const ctx: CodegenContext = {
+      project: emptyProject(),
+      warnings: [],
+      currentNodeVar: "n_test",
+    };
+    const code = adapter.generateBehaviorCode(
+      {
+        id: "b1",
+        behavior_type: "auto-rotate",
+        enabled: false,
+        parameters: { axis: "y", speed: 30 },
+      },
+      ctx,
+    );
+    expect(code).toBe("");
+  });
+
+  it("generateBehaviorCode returns empty + pushes warning for unknown type", () => {
+    const adapter = new ThreeAdapter(target);
+    const ctx: CodegenContext = {
+      project: emptyProject(),
+      warnings: [],
+      currentNodeVar: "n_test",
+    };
+    const code = adapter.generateBehaviorCode(
+      {
+        id: "b1",
+        behavior_type: "future-thing",
+        enabled: true,
+        parameters: {},
+      },
+      ctx,
+    );
+    expect(code).toBe("");
+    expect(ctx.warnings).toEqual(
+      expect.arrayContaining([expect.stringContaining(`"future-thing"`)]),
+    );
+  });
+
+  it("generateBehaviorCode returns empty + warning when params fail validation", () => {
+    const adapter = new ThreeAdapter(target);
+    const ctx: CodegenContext = {
+      project: emptyProject(),
+      warnings: [],
+      currentNodeVar: "n_test",
+    };
+    const code = adapter.generateBehaviorCode(
+      {
+        id: "b1",
+        behavior_type: "auto-rotate",
+        enabled: true,
+        parameters: { axis: "w", speed: "fast" }, // both invalid
+      },
+      ctx,
+    );
+    expect(code).toBe("");
+    expect(ctx.warnings.length).toBeGreaterThan(0);
   });
 });
