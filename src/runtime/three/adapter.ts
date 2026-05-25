@@ -78,8 +78,10 @@ const EXPORTERS: Record<ExportTarget, Exporter> = {
  *     placeholder) rebuilds their Object3D mirrors in place. The recommended
  *     call order is syncAsset → syncNode("add") so the cache hit happens at
  *     build time and the placeholder path is rare.
- *   - `exportProject` / `generateBehaviorCode` — still throw
- *     `NotImplementedYet`. They land in their own commits.
+ *   - `exportProject` / `generateBehaviorCode` / `getSupportedBehaviors` —
+ *     implemented. Exporters dispatch on `ExportOptions.target`; behaviors
+ *     come from a per-adapter `ThreeBehaviorRegistry` (see
+ *     `./behaviors/index.ts`).
  *
  * Callers should `dispose()` before discarding to release Three.js handles.
  */
