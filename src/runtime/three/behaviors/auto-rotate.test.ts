@@ -55,6 +55,9 @@ describe("AutoRotateBehavior", () => {
   });
 
   it("emit returns code referencing tickers + varName", () => {
+    // `currentNodeVar` lands on CodegenContext in task A5; until then we
+    // cast through `as never` so the test compiles against today's
+    // CodegenContext (which only has project + warnings).
     const code = b.emit("n_abc", { axis: "y", speed: 30 }, {
       project: { metadata: {}, scene: {}, assets: [], settings: {} } as never,
       warnings: [],

@@ -40,6 +40,9 @@ export class AutoRotateBehavior implements Behavior<Params> {
     // Lines start at column 0; scene-codegen's pushBlock() prefixes each
     // line with the surrounding indent. The block is wrapped in `{}` so
     // multiple auto-rotate bindings on the same node don't collide.
+    // `tickers` is declared by the scene-codegen prolog (`const tickers = []`)
+    // and drained in the emitter main.js animate loop — those wirings land in
+    // tasks A6 / A9 of this stage.
     return [
       `{`,
       `  const _omega = ${params.speed} * Math.PI / 180;`,
