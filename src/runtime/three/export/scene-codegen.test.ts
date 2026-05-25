@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import { createDefaultProject } from "@/core/scene/defaults";
 import type {
   AssetReference,
+  BehaviorBinding,
   RuntimeTarget,
   SceneNode,
   SceneProject,
 } from "@/core/scene/types";
+
+import type { CodegenContext } from "@/runtime/adapter";
 
 import { generateSceneModule } from "./scene-codegen";
 
@@ -52,7 +55,9 @@ describe("generateSceneModule", () => {
     const out = generateSceneModule({ project: emptyProject() });
     expect(out.sceneModuleSource).toMatch(/import \* as THREE from "three";/);
     expect(out.sceneModuleSource).toMatch(/export async function buildScene\(\)/);
-    expect(out.sceneModuleSource).toMatch(/return \{ scene, camera, templates \};/);
+    expect(out.sceneModuleSource).toMatch(
+      /return \{ scene, camera, templates, tickers \};/,
+    );
     expect(out.warnings).toEqual([]);
     expect(out.referencedAssets).toEqual([]);
   });
@@ -233,5 +238,169 @@ describe("generateSceneModule", () => {
     expect(generateSceneModule({ project: p }).sceneModuleSource).toMatch(
       /n_g1\.visible = false;/,
     );
+  });
+});
+
+function meshNodeWith(id: string, behaviors: BehaviorBinding[]): SceneNode {
+  return {
+    id,
+    name: id,
+    type: "mesh",
+    transform: IDENTITY,
+    parent_id: null,
+    children_ids: [],
+    visible: true,
+    locked: false,
+    data: { type: "mesh", asset_id: "missing" },
+    behaviors,
+    user_data: {},
+  };
+}
+
+function stubBehaviorEmitter(): (
+  binding: BehaviorBinding,
+  ctx: CodegenContext,
+) => string {
+  return (binding, ctx) => {
+    if (!binding.enabled) return "";
+    if (binding.behavior_type === "unknown-future") {
+      ctx.warnings.push(`unknown behavior_type "${binding.behavior_type}" — skipped`);
+      return "";
+    }
+    return `{ tickers.push((dt) => { ${ctx.currentNodeVar}.rotation.y += dt; }); }`;
+  };
+}
+
+describe("scene-codegen behaviors integration", () => {
+  it("emits tickers array in prolog and includes it in the epilog return", () => {
+    const p = withNodes(emptyProject(), [meshNodeWith("n1", [])], ["n1"]);
+    const out = generateSceneModule({
+      project: p,
+      generateBehaviorCode: stubBehaviorEmitter(),
+    });
+    expect(out.sceneModuleSource).toContain("const tickers = [];");
+    expect(out.sceneModuleSource).toContain(
+      "return { scene, camera, templates, tickers };",
+    );
+  });
+
+  it("emits behavior code for enabled bindings", () => {
+    const p = withNodes(
+      emptyProject(),
+      [
+        meshNodeWith("n1", [
+          {
+            id: "b1",
+            behavior_type: "auto-rotate",
+            enabled: true,
+            parameters: { axis: "y", speed: 30 },
+          },
+        ]),
+      ],
+      ["n1"],
+    );
+    const out = generateSceneModule({
+      project: p,
+      generateBehaviorCode: stubBehaviorEmitter(),
+    });
+    expect(out.sceneModuleSource).toContain("tickers.push");
+  });
+
+  it("skips disabled bindings", () => {
+    const p = withNodes(
+      emptyProject(),
+      [
+        meshNodeWith("n1", [
+          {
+            id: "b1",
+            behavior_type: "auto-rotate",
+            enabled: false,
+            parameters: { axis: "y", speed: 30 },
+          },
+        ]),
+      ],
+      ["n1"],
+    );
+    const out = generateSceneModule({
+      project: p,
+      generateBehaviorCode: stubBehaviorEmitter(),
+    });
+    expect(out.sceneModuleSource).not.toContain("tickers.push");
+  });
+
+  it("pushes a warning for unknown behavior_type", () => {
+    const p = withNodes(
+      emptyProject(),
+      [
+        meshNodeWith("n1", [
+          {
+            id: "b1",
+            behavior_type: "unknown-future",
+            enabled: true,
+            parameters: {},
+          },
+        ]),
+      ],
+      ["n1"],
+    );
+    const out = generateSceneModule({
+      project: p,
+      generateBehaviorCode: stubBehaviorEmitter(),
+    });
+    expect(out.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(`unknown behavior_type "unknown-future"`),
+      ]),
+    );
+    expect(out.sceneModuleSource).not.toContain("tickers.push");
+  });
+
+  it("emits multiple bindings without var collisions (block scoping)", () => {
+    const p = withNodes(
+      emptyProject(),
+      [
+        meshNodeWith("n1", [
+          {
+            id: "b1",
+            behavior_type: "auto-rotate",
+            enabled: true,
+            parameters: { axis: "y", speed: 30 },
+          },
+          {
+            id: "b2",
+            behavior_type: "auto-rotate",
+            enabled: true,
+            parameters: { axis: "x", speed: 15 },
+          },
+        ]),
+      ],
+      ["n1"],
+    );
+    const out = generateSceneModule({
+      project: p,
+      generateBehaviorCode: stubBehaviorEmitter(),
+    });
+    const pushes = out.sceneModuleSource.match(/tickers\.push/g) ?? [];
+    expect(pushes.length).toBe(2);
+  });
+
+  it("legacy callers without generateBehaviorCode still produce a valid module", () => {
+    const p = withNodes(
+      emptyProject(),
+      [
+        meshNodeWith("n1", [
+          {
+            id: "b1",
+            behavior_type: "auto-rotate",
+            enabled: true,
+            parameters: { axis: "y", speed: 30 },
+          },
+        ]),
+      ],
+      ["n1"],
+    );
+    const out = generateSceneModule({ project: p });
+    expect(out.sceneModuleSource).toContain("const tickers = [];");
+    expect(out.sceneModuleSource).not.toContain("tickers.push");
   });
 });

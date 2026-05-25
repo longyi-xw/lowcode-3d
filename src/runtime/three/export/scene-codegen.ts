@@ -139,6 +139,7 @@ function emitProlog(ctx: EmitContext): void {
   push(ctx, ` * @property {THREE.Scene} scene`);
   push(ctx, ` * @property {THREE.Camera} camera`);
   push(ctx, ` * @property {Map<string, THREE.Group>} templates`);
+  push(ctx, ` * @property {Array<(dt: number) => void>} tickers`);
   push(ctx, ` */`);
   push(ctx, ``);
   push(ctx, `/** @returns {Promise<BuiltScene>} */`);
@@ -149,6 +150,7 @@ function emitProlog(ctx: EmitContext): void {
   push(ctx, `camera.position.set(4, 3, 4);`);
   push(ctx, `camera.lookAt(0, 0, 0);`);
   push(ctx, `const templates = new Map();`);
+  push(ctx, `const tickers = [];`);
   push(ctx, `const loader = new GLTFLoader();`);
   push(ctx, ``);
   push(ctx, `async function loadAsset(id, url) {`);
@@ -169,7 +171,7 @@ function emitProlog(ctx: EmitContext): void {
 
 function emitEpilog(ctx: EmitContext): void {
   push(ctx, ``);
-  push(ctx, `return { scene, camera, templates };`);
+  push(ctx, `return { scene, camera, templates, tickers };`);
   ctx.indent = 0;
   push(ctx, `}`);
 }
@@ -209,8 +211,17 @@ function emitNode(ctx: EmitContext, nodeId: string, parentVar: string): void {
   ctx.currentNodeVar = varName;
   emitTransform(ctx, varName, node);
   emitMeta(ctx, varName, node);
-  // A6 wires behavior emission here via pushBlock(ctx, generated).
   push(ctx, `${parentVar}.add(${varName});`);
+  if (ctx.generateBehaviorCode) {
+    for (const binding of node.behaviors) {
+      const code = ctx.generateBehaviorCode(binding, {
+        project: ctx.project,
+        warnings: ctx.warnings,
+        currentNodeVar: varName,
+      });
+      if (code) pushBlock(ctx, code);
+    }
+  }
   push(ctx, ``);
 
   for (const childId of node.children_ids) {
