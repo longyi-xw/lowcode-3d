@@ -1,4 +1,11 @@
-import type { AssetReference, SceneNode, SceneProject } from "@/core/scene/types";
+import type {
+  AssetReference,
+  BehaviorBinding,
+  SceneNode,
+  SceneProject,
+} from "@/core/scene/types";
+
+import type { CodegenContext } from "@/runtime/adapter";
 
 /**
  * Shared scene → three.js codegen for every exporter.
@@ -20,6 +27,17 @@ import type { AssetReference, SceneNode, SceneProject } from "@/core/scene/types
 export interface SceneCodegenInput {
   project: SceneProject;
   includeDevComments?: boolean;
+  /**
+   * Inject behavior code emission. Callers (ThreeAdapter.exportProject)
+   * bind this to their own `generateBehaviorCode` so scene-codegen doesn't
+   * need to import IRuntimeAdapter (avoids the circular dep and keeps the
+   * codegen module engine-agnostic).
+   *
+   * Optional: legacy callers without behaviors still produce a valid
+   * module — node.behaviors arrays are ignored (warned about as a
+   * forward-compat measure in A6 once the loop is wired up).
+   */
+  generateBehaviorCode?: (binding: BehaviorBinding, ctx: CodegenContext) => string;
 }
 
 export interface SceneCodegenOutput {
@@ -43,7 +61,7 @@ const NODE_KINDS_EMITTED = new Set<SceneNode["type"]>([
 ]);
 
 export function generateSceneModule(input: SceneCodegenInput): SceneCodegenOutput {
-  const { project, includeDevComments = false } = input;
+  const { project, includeDevComments = false, generateBehaviorCode } = input;
   const warnings: string[] = [];
   const referenced = new Map<string, AssetReference>();
 
@@ -54,6 +72,8 @@ export function generateSceneModule(input: SceneCodegenInput): SceneCodegenOutpu
     warnings,
     referenced,
     includeDevComments,
+    currentNodeVar: "",
+    generateBehaviorCode,
   };
 
   emitProlog(ctx);
@@ -69,13 +89,15 @@ export function generateSceneModule(input: SceneCodegenInput): SceneCodegenOutpu
   };
 }
 
-interface EmitContext {
+export interface EmitContext {
   indent: number;
   lines: string[];
   project: SceneProject;
   warnings: string[];
   referenced: Map<string, AssetReference>;
   includeDevComments: boolean;
+  currentNodeVar: string;
+  generateBehaviorCode?: SceneCodegenInput["generateBehaviorCode"];
 }
 
 function push(ctx: EmitContext, line: string): void {
@@ -84,6 +106,15 @@ function push(ctx: EmitContext, line: string): void {
     return;
   }
   ctx.lines.push("  ".repeat(ctx.indent) + line);
+}
+
+export function pushBlock(ctx: EmitContext, text: string): void {
+  // text lines start at column 0; prefix each with the current indent
+  // (mirrors how push() already prefixes single lines).
+  const indent = "  ".repeat(ctx.indent);
+  for (const line of text.split("\n")) {
+    ctx.lines.push(line.length === 0 ? "" : indent + line);
+  }
 }
 
 function devComment(ctx: EmitContext, text: string): void {
@@ -175,8 +206,10 @@ function emitNode(ctx: EmitContext, nodeId: string, parentVar: string): void {
       break;
   }
 
+  ctx.currentNodeVar = varName;
   emitTransform(ctx, varName, node);
   emitMeta(ctx, varName, node);
+  // A6 wires behavior emission here via pushBlock(ctx, generated).
   push(ctx, `${parentVar}.add(${varName});`);
   push(ctx, ``);
 

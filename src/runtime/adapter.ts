@@ -76,6 +76,18 @@ export interface CodegenContext {
   project: SceneProject;
   /** Mutable: behaviors push warnings into this array as they generate. */
   warnings: string[];
+  /**
+   * The runtime variable name for the SceneNode currently being emitted.
+   * Set by scene-codegen before delegating to a Behavior.emit.
+   *
+   * **Authority note:** A Behavior's emit method also receives `varName` as
+   * its first parameter, which carries the same value. The explicit
+   * `varName` parameter is the authoritative source for emit
+   * implementations; `ctx.currentNodeVar` exists so future emit utilities
+   * (helpers shared across behaviors) can pick it up without threading it
+   * through every helper signature.
+   */
+  currentNodeVar: string;
 }
 
 export interface BehaviorDefinition {
