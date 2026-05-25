@@ -46,3 +46,20 @@ describe("ThreeBehaviorRegistry", () => {
     expect(() => r.register(fakeBehavior("dup"))).toThrow(/duplicate type "dup"/);
   });
 });
+
+import { createThreeBehaviorRegistry } from "./index";
+
+describe("createThreeBehaviorRegistry", () => {
+  it("returns a registry pre-populated with auto-rotate", () => {
+    const r = createThreeBehaviorRegistry();
+    const ar = r.get("auto-rotate");
+    expect(ar).toBeDefined();
+    expect(ar?.definition.type).toBe("auto-rotate");
+  });
+
+  it("each call returns a fresh registry instance", () => {
+    const a = createThreeBehaviorRegistry();
+    const b = createThreeBehaviorRegistry();
+    expect(a).not.toBe(b);
+  });
+});
