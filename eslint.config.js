@@ -17,6 +17,7 @@ export default tseslint.config(
       "src-tauri/gen/**",
       "src/bindings/**", // tauri-specta generated
       "src/components/ui/**", // vendored shadcn primitives
+      ".claude/skills/**", // vendored superpowers-zh skill helpers
     ],
   },
   js.configs.recommended,
