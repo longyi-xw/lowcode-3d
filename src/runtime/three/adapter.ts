@@ -18,6 +18,7 @@ import type {
 
 import { AssetCache } from "./asset-cache";
 import { createThreeBehaviorRegistry, ThreeBehaviorRegistry } from "./behaviors";
+import type { Behavior, BehaviorHandle } from "./behaviors";
 import { standaloneEsmEmitter } from "./export/standalone-esm-emitter";
 import { viteEmitter } from "./export/vite-emitter";
 import {
@@ -32,6 +33,12 @@ import {
 } from "./node-builders";
 
 import type { Exporter, ExportTarget } from "../adapter";
+
+interface BehaviorRuntimeEntry {
+  behavior: Behavior;
+  params: unknown;
+  handle: BehaviorHandle;
+}
 
 export interface ThreeAdapterOptions {
   /** Defaults applied when no camera node is present in the SceneProject. */
@@ -100,6 +107,12 @@ export class ThreeAdapter implements IRuntimeAdapter {
    *  needs to rebuild a prefab placeholder in place without the caller
    *  re-supplying the node. */
   private readonly nodeSnapshots = new Map<string, SceneNode>();
+  /** SceneNode.id → (bindingId → active runtime entry). Populated by
+   *  installBehaviors and drained by uninstallBehaviors / dispose. */
+  private readonly behaviorRuntime = new Map<
+    string,
+    Map<string, BehaviorRuntimeEntry>
+  >();
 
   /** Pixel dimensions of the viewport canvas. Updated by the viewport on every
    *  ResizeObserver tick so pickAt can convert screen coords to NDC. */
@@ -316,10 +329,74 @@ export class ThreeAdapter implements IRuntimeAdapter {
     return b.emit(ctx.currentNodeVar, parsed.data, ctx);
   }
 
+  installBehaviors(nodeId: string, bindings: BehaviorBinding[]): void {
+    const object = this.objects.get(nodeId);
+    if (!object) return;
+    const perNode = new Map<string, BehaviorRuntimeEntry>();
+    for (const binding of bindings) {
+      if (!binding.enabled) continue;
+      const b = this.behaviorRegistry.get(binding.behavior_type);
+      if (!b) {
+        console.warn(
+          `installBehaviors: unknown behavior_type "${binding.behavior_type}"`,
+        );
+        continue;
+      }
+      const parsed = b.definition.parameters_schema.safeParse(binding.parameters);
+      if (!parsed.success) {
+        console.warn(
+          `installBehaviors: invalid params on binding ${binding.id} (${binding.behavior_type})`,
+        );
+        continue;
+      }
+      try {
+        const handle = b.install(object, parsed.data);
+        perNode.set(binding.id, {
+          behavior: b,
+          params: parsed.data,
+          handle,
+        });
+      } catch (e) {
+        console.error(`installBehaviors: install threw on ${binding.id}`, e);
+      }
+    }
+    this.behaviorRuntime.set(nodeId, perNode);
+  }
+
+  uninstallBehaviors(nodeId: string): void {
+    const perNode = this.behaviorRuntime.get(nodeId);
+    if (!perNode) return;
+    for (const entry of perNode.values()) {
+      try {
+        entry.handle.dispose?.();
+      } catch (e) {
+        console.error("uninstallBehaviors: dispose threw", e);
+      }
+    }
+    this.behaviorRuntime.delete(nodeId);
+  }
+
+  tickBehaviors(dt: number): void {
+    for (const [nodeId, perNode] of this.behaviorRuntime) {
+      const object = this.objects.get(nodeId);
+      if (!object) continue;
+      for (const entry of perNode.values()) {
+        try {
+          entry.behavior.tick(object, entry.params, entry.handle, dt);
+        } catch (e) {
+          console.error(`tickBehaviors: tick threw on node ${nodeId}`, e);
+        }
+      }
+    }
+  }
+
   // ───── Lifecycle ───────────────────────────────────────────────
 
   /** Drops Three.js resources held by the adapter. Call before discarding. */
   dispose(): void {
+    for (const nodeId of [...this.behaviorRuntime.keys()]) {
+      this.uninstallBehaviors(nodeId);
+    }
     for (const obj of this.objects.values()) {
       obj.parent?.remove(obj);
       disposeSubtree(obj);
