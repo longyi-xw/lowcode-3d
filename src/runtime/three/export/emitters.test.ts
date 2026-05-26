@@ -56,6 +56,16 @@ describe("viteEmitter", () => {
     expect(main.content).toMatch(/new THREE\.AmbientLight\(0xffffff, 0\.3\)/);
   });
 
+  it("drives tickers from a THREE.Clock RAF loop in main.js", () => {
+    const result = viteEmitter.emit(createDemoProject(), { target: "vite" }, () => "");
+    const file = result.files.get("src/main.js");
+    expect(file?.kind).toBe("text");
+    const content = (file as { kind: "text"; content: string }).content;
+    expect(content).toContain("const clock = new THREE.Clock();");
+    expect(content).toContain("const dt = clock.getDelta();");
+    expect(content).toContain("for (const t of built.tickers) t(dt);");
+  });
+
   it("ships an asset_copy entry per referenced AssetReference", () => {
     // Demo project has one mesh node referencing asset-cube, but mesh nodes
     // emit as placeholder cubes (no glTF load) — so the demo doesn't trip
@@ -113,6 +123,20 @@ describe("standaloneEsmEmitter", () => {
     expect(main.content).toMatch(/new OrbitControls\(built\.camera, canvas\)/);
     expect(main.content).toMatch(/controls\.update\(\);/);
     expect(main.content).toMatch(/new THREE\.AmbientLight\(0xffffff, 0\.3\)/);
+  });
+
+  it("drives tickers from a THREE.Clock RAF loop in main.js", () => {
+    const result = standaloneEsmEmitter.emit(
+      createDemoProject(),
+      { target: "standalone-esm" },
+      () => "",
+    );
+    const file = result.files.get("main.js");
+    expect(file?.kind).toBe("text");
+    const content = (file as { kind: "text"; content: string }).content;
+    expect(content).toContain("const clock = new THREE.Clock();");
+    expect(content).toContain("const dt = clock.getDelta();");
+    expect(content).toContain("for (const t of built.tickers) t(dt);");
   });
 
   it("scene.js has no TypeScript-only syntax (browser can run it directly)", () => {

@@ -205,7 +205,11 @@ function mainJs(project: SceneProject, includeDevComments: boolean): string {
   lines.push(`resize();`);
   lines.push(`new ResizeObserver(resize).observe(canvas);`);
   lines.push(``);
+  lines.push(`const clock = new THREE.Clock();`);
+  lines.push(``);
   lines.push(`function tick() {`);
+  lines.push(`  const dt = clock.getDelta();`);
+  lines.push(`  for (const t of built.tickers) t(dt);`);
   lines.push(`  controls.update();`);
   lines.push(`  renderer.render(built.scene, built.camera);`);
   lines.push(`  requestAnimationFrame(tick);`);
