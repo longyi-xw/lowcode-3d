@@ -205,6 +205,10 @@ export function ThreeViewport() {
       downY = event.clientY;
     };
     const onClick = (event: MouseEvent) => {
+      // Play mode: behaviors are running; clicking should not change the
+      // selection / gizmo target. The Properties + Behaviors panels stay
+      // locked to whatever was selected at the moment Play was pressed.
+      if (useUIStore.getState().playState === "play") return;
       const dx = event.clientX - downX;
       const dy = event.clientY - downY;
       if (dx * dx + dy * dy > DRAG_PX_TOLERANCE_SQ) return;
@@ -215,6 +219,49 @@ export function ThreeViewport() {
     };
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("click", onClick);
+
+    // ── Play / Pause side effects ─────────────────────────────────
+    // transformSnapshots captures every Object3D's transform at the moment
+    // Play is pressed so Pause can restore them — otherwise the cube would
+    // stay frozen at whatever rotation the behavior happened to be at when
+    // the user paused, instead of returning to the authored value.
+    const transformSnapshots = new Map<string, Transform>();
+    let playClock: THREE.Clock | null = null;
+
+    const enterPlay = () => {
+      const project = useSceneStore.getState().project;
+      if (!project) return;
+      transformSnapshots.clear();
+      for (const node of Object.values(project.scene.nodes)) {
+        const obj = adapter.getRuntimeObject(node.id);
+        if (obj) transformSnapshots.set(node.id, captureTransform(obj));
+        if (node.behaviors.length > 0) {
+          adapter.installBehaviors(node.id, node.behaviors);
+        }
+      }
+      gizmo.detach();
+      outlinePass.selectedObjects = [];
+      playClock = new THREE.Clock();
+    };
+
+    const exitPlay = () => {
+      playClock = null;
+      const project = useSceneStore.getState().project;
+      if (project) {
+        for (const node of Object.values(project.scene.nodes)) {
+          adapter.uninstallBehaviors(node.id);
+        }
+      }
+      for (const [nodeId, t] of transformSnapshots) {
+        const obj = adapter.getRuntimeObject(nodeId);
+        if (!obj) continue;
+        obj.position.fromArray(t.position);
+        obj.quaternion.fromArray(t.rotation);
+        obj.scale.fromArray(t.scale);
+      }
+      transformSnapshots.clear();
+      syncSelection(useUIStore.getState().selectedNodeId);
+    };
 
     const unsubscribeScene = useSceneStore.subscribe((state, prev) => {
       const next = state.project;
@@ -238,12 +285,19 @@ export function ThreeViewport() {
       if (state.gizmoMode !== prev.gizmoMode) {
         gizmo.setMode(state.gizmoMode);
       }
+      if (state.playState !== prev.playState) {
+        if (state.playState === "play") enterPlay();
+        else exitPlay();
+      }
     });
 
     let rafId = 0;
     const animate = () => {
       rafId = requestAnimationFrame(animate);
       orbit.update();
+      if (playClock) {
+        adapter.tickBehaviors(playClock.getDelta());
+      }
       composer.render();
     };
     animate();
