@@ -14,5 +14,21 @@
     "empty": "空场景",
     "empty_hint": "拖入 .glb 文件，或从菜单选一个模板。"
   },
+  "behaviors": {
+    "tab_title": "行为",
+    "properties_tab_title": "属性",
+    "add_behavior": "添加行为",
+    "empty_state": "暂无行为。点 + 添加。",
+    "unknown_type": "未知行为 \"{{type}}\"",
+    "axis": "轴",
+    "speed": "速度",
+    "speed_unit": "度/秒",
+    "auto_rotate_name": "自动旋转",
+    "auto_rotate_desc": "让节点绕一个本地轴匀速旋转。"
+  },
+  "play": {
+    "play": "播放",
+    "pause": "暂停"
+  },
   "close_project": "关闭项目"
 }

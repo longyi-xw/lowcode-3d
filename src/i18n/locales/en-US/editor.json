@@ -14,5 +14,21 @@
     "empty": "Empty scene",
     "empty_hint": "Drop a .glb file here or pick a template from the menu."
   },
+  "behaviors": {
+    "tab_title": "Behaviors",
+    "properties_tab_title": "Properties",
+    "add_behavior": "Add Behavior",
+    "empty_state": "No behaviors. Click + to add.",
+    "unknown_type": "Unknown behavior \"{{type}}\"",
+    "axis": "Axis",
+    "speed": "Speed",
+    "speed_unit": "deg/s",
+    "auto_rotate_name": "Auto Rotate",
+    "auto_rotate_desc": "Rotates the node around a local axis."
+  },
+  "play": {
+    "play": "Play",
+    "pause": "Pause"
+  },
   "close_project": "Close project"
 }
