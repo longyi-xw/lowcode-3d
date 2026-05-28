@@ -17,6 +17,8 @@ import type {
 } from "../adapter";
 
 import { AssetCache } from "./asset-cache";
+import { createThreeBehaviorRegistry, ThreeBehaviorRegistry } from "./behaviors";
+import type { Behavior, BehaviorHandle } from "./behaviors";
 import { standaloneEsmEmitter } from "./export/standalone-esm-emitter";
 import { viteEmitter } from "./export/vite-emitter";
 import {
@@ -31,6 +33,12 @@ import {
 } from "./node-builders";
 
 import type { Exporter, ExportTarget } from "../adapter";
+
+interface BehaviorRuntimeEntry {
+  behavior: Behavior;
+  params: unknown;
+  handle: BehaviorHandle;
+}
 
 export interface ThreeAdapterOptions {
   /** Defaults applied when no camera node is present in the SceneProject. */
@@ -61,13 +69,6 @@ const EXPORTERS: Record<ExportTarget, Exporter> = {
   "standalone-esm": standaloneEsmEmitter,
 };
 
-class NotImplementedYet extends Error {
-  constructor(method: string, when: string) {
-    super(`ThreeAdapter.${method} is not implemented yet (${when})`);
-    this.name = "NotImplementedYet";
-  }
-}
-
 /**
  * Three.js adapter — implements `IRuntimeAdapter` for the MVP renderer.
  *
@@ -84,8 +85,10 @@ class NotImplementedYet extends Error {
  *     placeholder) rebuilds their Object3D mirrors in place. The recommended
  *     call order is syncAsset → syncNode("add") so the cache hit happens at
  *     build time and the placeholder path is rare.
- *   - `exportProject` / `generateBehaviorCode` — still throw
- *     `NotImplementedYet`. They land in their own commits.
+ *   - `exportProject` / `generateBehaviorCode` / `getSupportedBehaviors` —
+ *     implemented. Exporters dispatch on `ExportOptions.target`; behaviors
+ *     come from a per-adapter `ThreeBehaviorRegistry` (see
+ *     `./behaviors/index.ts`).
  *
  * Callers should `dispose()` before discarding to release Three.js handles.
  */
@@ -96,6 +99,7 @@ export class ThreeAdapter implements IRuntimeAdapter {
   camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
 
   private readonly builders: BuilderRegistry;
+  private readonly behaviorRegistry: ThreeBehaviorRegistry;
 
   /** SceneNode.id → Three.js Object3D mirror. Populated by syncNode. */
   protected readonly objects = new Map<string, THREE.Object3D>();
@@ -103,6 +107,12 @@ export class ThreeAdapter implements IRuntimeAdapter {
    *  needs to rebuild a prefab placeholder in place without the caller
    *  re-supplying the node. */
   private readonly nodeSnapshots = new Map<string, SceneNode>();
+  /** SceneNode.id → (bindingId → active runtime entry). Populated by
+   *  installBehaviors and drained by uninstallBehaviors / dispose. */
+  private readonly behaviorRuntime = new Map<
+    string,
+    Map<string, BehaviorRuntimeEntry>
+  >();
 
   /** Pixel dimensions of the viewport canvas. Updated by the viewport on every
    *  ResizeObserver tick so pickAt can convert screen coords to NDC. */
@@ -120,6 +130,7 @@ export class ThreeAdapter implements IRuntimeAdapter {
     this.target = target;
     this.scene = new THREE.Scene();
     this.assetCache = options.assetCache ?? new AssetCache();
+    this.behaviorRegistry = createThreeBehaviorRegistry();
     this.builders = createBuilderRegistry({
       prefabInstance: createPrefabInstanceBuilder(this.assetCache),
     });
@@ -292,23 +303,100 @@ export class ThreeAdapter implements IRuntimeAdapter {
     // Emitters are pure / synchronous today; the Promise wrapper exists so
     // future targets that need to async-resolve metadata (network fetches,
     // disk reads of supplementary data) can do so without breaking callers.
-    return exporter.emit(project, options);
+    return exporter.emit(project, options, this.generateBehaviorCode.bind(this));
   }
 
   // ───── Behaviors ───────────────────────────────────────────────
 
   getSupportedBehaviors(): BehaviorDefinition[] {
-    return [];
+    return this.behaviorRegistry.list().map((b) => b.definition);
   }
 
-  generateBehaviorCode(_binding: BehaviorBinding, _context: CodegenContext): string {
-    throw new NotImplementedYet("generateBehaviorCode", "no behaviors registered yet");
+  generateBehaviorCode(binding: BehaviorBinding, ctx: CodegenContext): string {
+    if (!binding.enabled) return "";
+    const b = this.behaviorRegistry.get(binding.behavior_type);
+    if (!b) {
+      ctx.warnings.push(`unknown behavior_type "${binding.behavior_type}" — skipped`);
+      return "";
+    }
+    const parsed = b.definition.parameters_schema.safeParse(binding.parameters);
+    if (!parsed.success) {
+      ctx.warnings.push(
+        `behavior "${binding.behavior_type}" (binding ${binding.id}) skipped: invalid params`,
+      );
+      return "";
+    }
+    return b.emit(ctx.currentNodeVar, parsed.data, ctx);
+  }
+
+  installBehaviors(nodeId: string, bindings: BehaviorBinding[]): void {
+    const object = this.objects.get(nodeId);
+    if (!object) return;
+    const perNode = new Map<string, BehaviorRuntimeEntry>();
+    for (const binding of bindings) {
+      if (!binding.enabled) continue;
+      const b = this.behaviorRegistry.get(binding.behavior_type);
+      if (!b) {
+        console.warn(
+          `installBehaviors: unknown behavior_type "${binding.behavior_type}"`,
+        );
+        continue;
+      }
+      const parsed = b.definition.parameters_schema.safeParse(binding.parameters);
+      if (!parsed.success) {
+        console.warn(
+          `installBehaviors: invalid params on binding ${binding.id} (${binding.behavior_type})`,
+        );
+        continue;
+      }
+      try {
+        const handle = b.install(object, parsed.data);
+        perNode.set(binding.id, {
+          behavior: b,
+          params: parsed.data,
+          handle,
+        });
+      } catch (e) {
+        console.error(`installBehaviors: install threw on ${binding.id}`, e);
+      }
+    }
+    this.behaviorRuntime.set(nodeId, perNode);
+  }
+
+  uninstallBehaviors(nodeId: string): void {
+    const perNode = this.behaviorRuntime.get(nodeId);
+    if (!perNode) return;
+    for (const entry of perNode.values()) {
+      try {
+        entry.handle.dispose?.();
+      } catch (e) {
+        console.error("uninstallBehaviors: dispose threw", e);
+      }
+    }
+    this.behaviorRuntime.delete(nodeId);
+  }
+
+  tickBehaviors(dt: number): void {
+    for (const [nodeId, perNode] of this.behaviorRuntime) {
+      const object = this.objects.get(nodeId);
+      if (!object) continue;
+      for (const entry of perNode.values()) {
+        try {
+          entry.behavior.tick(object, entry.params, entry.handle, dt);
+        } catch (e) {
+          console.error(`tickBehaviors: tick threw on node ${nodeId}`, e);
+        }
+      }
+    }
   }
 
   // ───── Lifecycle ───────────────────────────────────────────────
 
   /** Drops Three.js resources held by the adapter. Call before discarding. */
   dispose(): void {
+    for (const nodeId of [...this.behaviorRuntime.keys()]) {
+      this.uninstallBehaviors(nodeId);
+    }
     for (const obj of this.objects.values()) {
       obj.parent?.remove(obj);
       disposeSubtree(obj);

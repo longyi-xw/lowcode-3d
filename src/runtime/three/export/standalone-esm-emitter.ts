@@ -25,9 +25,13 @@ const THREE_CDN_VERSION = "0.184.0";
 
 export const standaloneEsmEmitter: Exporter = {
   target: "standalone-esm",
-  emit(project: SceneProject, options): ExportResult {
+  emit(project: SceneProject, options, generateBehaviorCode): ExportResult {
     const includeDevComments = options.include_dev_comments ?? false;
-    const codegen = generateSceneModule({ project, includeDevComments });
+    const codegen = generateSceneModule({
+      project,
+      includeDevComments,
+      generateBehaviorCode,
+    });
 
     const files = new Map<string, ExportFile>();
     files.set("index.html", text(indexHtml(project)));
@@ -130,7 +134,11 @@ function mainJs(project: SceneProject, includeDevComments: boolean): string {
   lines.push(`resize();`);
   lines.push(`new ResizeObserver(resize).observe(canvas);`);
   lines.push(``);
+  lines.push(`const clock = new THREE.Clock();`);
+  lines.push(``);
   lines.push(`function tick() {`);
+  lines.push(`  const dt = clock.getDelta();`);
+  lines.push(`  for (const t of built.tickers) t(dt);`);
   lines.push(`  controls.update();`);
   lines.push(`  renderer.render(built.scene, built.camera);`);
   lines.push(`  requestAnimationFrame(tick);`);
