@@ -8,6 +8,8 @@ import { create } from "zustand";
  * in the hierarchy tree. Reset on every launch.
  */
 export type GizmoMode = "translate" | "rotate" | "scale";
+export type RightPanelTab = "properties" | "behaviors";
+export type PlayState = "edit" | "play";
 
 interface UIState {
   settingsOpen: boolean;
@@ -26,6 +28,13 @@ interface UIState {
   /** Which TransformControls mode the viewport gizmo is in. */
   gizmoMode: GizmoMode;
   setGizmoMode: (mode: GizmoMode) => void;
+  /** Right-aside tab — properties (default) or behaviors. */
+  rightPanelTab: RightPanelTab;
+  setRightPanelTab: (tab: RightPanelTab) => void;
+  /** edit = author mode (commands enabled); play = behaviors run, mutations
+   *  via undo/redo / commands are swallowed by command-history. */
+  playState: PlayState;
+  setPlayState: (state: PlayState) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -51,4 +60,8 @@ export const useUIStore = create<UIState>((set) => ({
     })),
   gizmoMode: "translate",
   setGizmoMode: (gizmoMode) => set({ gizmoMode }),
+  rightPanelTab: "properties",
+  setRightPanelTab: (rightPanelTab) => set({ rightPanelTab }),
+  playState: "edit",
+  setPlayState: (playState) => set({ playState }),
 }));

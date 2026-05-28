@@ -80,3 +80,32 @@ describe("useUIStore gizmo mode", () => {
     expect(useUIStore.getState().gizmoMode).toBe("translate");
   });
 });
+
+describe("useUIStore — Phase 3 Stage B", () => {
+  beforeEach(() => {
+    useUIStore.setState({
+      rightPanelTab: "properties",
+      playState: "edit",
+    });
+  });
+
+  it("rightPanelTab defaults to 'properties'", () => {
+    expect(useUIStore.getState().rightPanelTab).toBe("properties");
+  });
+
+  it("setRightPanelTab switches to behaviors", () => {
+    useUIStore.getState().setRightPanelTab("behaviors");
+    expect(useUIStore.getState().rightPanelTab).toBe("behaviors");
+  });
+
+  it("playState defaults to 'edit'", () => {
+    expect(useUIStore.getState().playState).toBe("edit");
+  });
+
+  it("setPlayState toggles between edit and play", () => {
+    useUIStore.getState().setPlayState("play");
+    expect(useUIStore.getState().playState).toBe("play");
+    useUIStore.getState().setPlayState("edit");
+    expect(useUIStore.getState().playState).toBe("edit");
+  });
+});
