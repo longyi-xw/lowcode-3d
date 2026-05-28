@@ -6,6 +6,10 @@ export interface BehaviorFormProps {
   value: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
   disabled: boolean;
+  // Unique id of the BehaviorBinding instance — forms must scope DOM-grouped
+  // controls (e.g. radio `name`) by this so multiple instances on the same
+  // node don't share native browser grouping.
+  instanceId: string;
 }
 
 /**

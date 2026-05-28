@@ -56,6 +56,7 @@ export function BehaviorRow({
           value={binding.parameters}
           onChange={onChangeParams}
           disabled={disabled}
+          instanceId={binding.id}
         />
       )}
     </div>

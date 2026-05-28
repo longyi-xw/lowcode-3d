@@ -9,10 +9,12 @@ interface Props {
   value: AutoRotateValue;
   onChange: (next: AutoRotateValue) => void;
   disabled: boolean;
+  instanceId: string;
 }
 
-export function AutoRotateForm({ value, onChange, disabled }: Props) {
+export function AutoRotateForm({ value, onChange, disabled, instanceId }: Props) {
   const { t } = useTranslation("editor");
+  const groupName = `auto-rotate-axis-${instanceId}`;
   return (
     <div className="space-y-2 text-sm">
       <div className="flex items-center gap-3">
@@ -21,7 +23,7 @@ export function AutoRotateForm({ value, onChange, disabled }: Props) {
           <label key={axis} className="flex items-center gap-1">
             <input
               type="radio"
-              name="auto-rotate-axis"
+              name={groupName}
               value={axis}
               checked={value.axis === axis}
               disabled={disabled}
