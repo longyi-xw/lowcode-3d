@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Command, SceneEditorStore } from "@/core/command/types";
 import type { SceneNode, Transform } from "@/core/scene/types";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
+import { useUIStore } from "@/services/ui/store";
 import { useCommandHistoryStore } from "./store";
 
 const IDENTITY: Transform = {
@@ -247,5 +248,53 @@ describe("useCommandHistoryStore.clear", () => {
 
     expect(useCommandHistoryStore.getState().undoStack).toEqual([]);
     expect(useCommandHistoryStore.getState().redoStack).toEqual([]);
+  });
+});
+
+describe("useCommandHistoryStore — play mode", () => {
+  beforeEach(() => {
+    useCommandHistoryStore.getState().clear();
+    useUIStore.setState({ playState: "edit" });
+  });
+
+  function noopCommand(): Command {
+    return {
+      id: "c1",
+      type: "test",
+      timestamp: 0,
+      payload: {},
+      apply: vi.fn(),
+      revert: vi.fn(),
+      canMergeWith: () => false,
+      mergeWith: () => {
+        throw new Error("no merge");
+      },
+    };
+  }
+
+  it("execute is a no-op when playState === 'play'", () => {
+    useUIStore.setState({ playState: "play" });
+    const cmd = noopCommand();
+    useCommandHistoryStore.getState().execute(cmd, {} as SceneEditorStore);
+    expect(cmd.apply).not.toHaveBeenCalled();
+    expect(useCommandHistoryStore.getState().undoStack).toEqual([]);
+  });
+
+  it("undo is a no-op when playState === 'play'", () => {
+    const cmd = noopCommand();
+    useCommandHistoryStore.getState().execute(cmd, {} as SceneEditorStore);
+    useUIStore.setState({ playState: "play" });
+    useCommandHistoryStore.getState().undo({} as SceneEditorStore);
+    expect(cmd.revert).not.toHaveBeenCalled();
+    expect(useCommandHistoryStore.getState().undoStack.length).toBe(1);
+  });
+
+  it("redo is a no-op when playState === 'play'", () => {
+    const cmd = noopCommand();
+    useCommandHistoryStore.getState().execute(cmd, {} as SceneEditorStore);
+    useCommandHistoryStore.getState().undo({} as SceneEditorStore);
+    useUIStore.setState({ playState: "play" });
+    useCommandHistoryStore.getState().redo({} as SceneEditorStore);
+    expect(useCommandHistoryStore.getState().redoStack.length).toBe(1);
   });
 });
