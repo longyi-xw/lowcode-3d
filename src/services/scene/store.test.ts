@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createDefaultProject } from "@/core/scene/defaults";
-import type { AssetReference, SceneNode } from "@/core/scene/types";
+import type { AssetReference, BehaviorBinding, SceneNode } from "@/core/scene/types";
 
 import { useSceneStore } from "./store";
 
@@ -109,5 +109,76 @@ describe("useSceneStore.addAsset", () => {
     expect(stored).toBe(first);
     expect(stored2).toBe(first); // returns the canonical first one
     expect(useSceneStore.getState().project!.assets).toHaveLength(1);
+  });
+});
+
+describe("useSceneStore behavior mutators", () => {
+  const sampleBinding: BehaviorBinding = {
+    id: "b1",
+    behavior_type: "auto-rotate",
+    enabled: true,
+    parameters: { axis: "y", speed: 30 },
+  };
+
+  function seedProjectWithNode(nodeId: string) {
+    useSceneStore.getState().setProject(freshProject());
+    useSceneStore.getState().addNode(prefabInstance(nodeId, "asset-x"));
+  }
+
+  beforeEach(() => {
+    useSceneStore.getState().setProject(null);
+  });
+
+  it("addBehavior appends a binding to the node", () => {
+    seedProjectWithNode("n1");
+    useSceneStore.getState().addBehavior("n1", sampleBinding);
+    expect(useSceneStore.getState().getNode("n1")!.behaviors).toEqual([sampleBinding]);
+  });
+
+  it("addBehavior throws when binding.id is already on the node", () => {
+    seedProjectWithNode("n1");
+    useSceneStore.getState().addBehavior("n1", sampleBinding);
+    expect(() => useSceneStore.getState().addBehavior("n1", sampleBinding)).toThrow(
+      /duplicate/,
+    );
+  });
+
+  it("removeBehavior drops the binding by id", () => {
+    seedProjectWithNode("n1");
+    useSceneStore.getState().addBehavior("n1", sampleBinding);
+    useSceneStore.getState().removeBehavior("n1", "b1");
+    expect(useSceneStore.getState().getNode("n1")!.behaviors).toEqual([]);
+  });
+
+  it("removeBehavior on unknown bindingId is a silent no-op", () => {
+    seedProjectWithNode("n1");
+    expect(() => useSceneStore.getState().removeBehavior("n1", "nope")).not.toThrow();
+  });
+
+  it("setBehaviorEnabled flips the flag on the matching binding", () => {
+    seedProjectWithNode("n1");
+    useSceneStore.getState().addBehavior("n1", sampleBinding);
+    useSceneStore.getState().setBehaviorEnabled("n1", "b1", false);
+    expect(useSceneStore.getState().getNode("n1")!.behaviors[0]!.enabled).toBe(false);
+  });
+
+  it("setBehaviorParameters replaces the params object", () => {
+    seedProjectWithNode("n1");
+    useSceneStore.getState().addBehavior("n1", sampleBinding);
+    useSceneStore
+      .getState()
+      .setBehaviorParameters("n1", "b1", { axis: "x", speed: 90 });
+    expect(useSceneStore.getState().getNode("n1")!.behaviors[0]!.parameters).toEqual({
+      axis: "x",
+      speed: 90,
+    });
+  });
+
+  it("each mutator produces a new SceneNode identity (structural sharing)", () => {
+    seedProjectWithNode("n1");
+    const before = useSceneStore.getState().getNode("n1");
+    useSceneStore.getState().addBehavior("n1", sampleBinding);
+    const after = useSceneStore.getState().getNode("n1");
+    expect(after).not.toBe(before);
   });
 });

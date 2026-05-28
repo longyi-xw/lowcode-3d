@@ -35,6 +35,18 @@ function makeEditor(initial: SceneNode): SceneEditorStore {
       const n = map.get(id);
       if (n) map.set(id, { ...n, transform });
     },
+    addBehavior: () => {
+      throw new Error("addBehavior not implemented in this fake");
+    },
+    removeBehavior: () => {
+      throw new Error("removeBehavior not implemented in this fake");
+    },
+    setBehaviorEnabled: () => {
+      throw new Error("setBehaviorEnabled not implemented in this fake");
+    },
+    setBehaviorParameters: () => {
+      throw new Error("setBehaviorParameters not implemented in this fake");
+    },
   };
 }
 
