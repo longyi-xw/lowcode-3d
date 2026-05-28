@@ -1,3 +1,4 @@
+import { ChevronDown, Plus } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -56,9 +57,11 @@ export function BehaviorsPanel() {
           type="button"
           disabled={disabled}
           onClick={() => setAddOpen((o) => !o)}
-          className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-left disabled:opacity-50"
+          className="flex w-full items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-left disabled:opacity-50"
         >
-          + {t("behaviors.add_behavior")} ▾
+          <Plus className="h-3 w-3" aria-hidden="true" />
+          <span className="flex-1">{t("behaviors.add_behavior")}</span>
+          <ChevronDown className="h-3 w-3" aria-hidden="true" />
         </button>
         {addOpen && (
           <div className="absolute z-10 mt-1 w-full rounded border border-zinc-700 bg-zinc-900 shadow">
