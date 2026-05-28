@@ -4,13 +4,14 @@ import { Box, X } from "lucide-react";
 
 import { useSceneStore } from "@/services/scene/store";
 import { useAssetPreviewStore } from "@/services/assets/preview-store";
-import { useUIStore, type GizmoMode } from "@/services/ui/store";
+import { useUIStore, type GizmoMode, type RightPanelTab } from "@/services/ui/store";
 import { executeCommand } from "@/services/command-history";
 import { closeProject } from "@/services/project/actions";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import { isEffectivelyLocked } from "@/core/scene/policy";
 import type { AssetReference, SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
+import { BehaviorsPanel } from "@/ui/editor/BehaviorsPanel";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
 import { useGizmoShortcuts } from "@/ui/viewport/use-gizmo-shortcuts";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,9 @@ export function EditorView() {
   const toggleNodeExpanded = useUIStore((s) => s.toggleNodeExpanded);
   const gizmoMode = useUIStore((s) => s.gizmoMode);
   const setGizmoMode = useUIStore((s) => s.setGizmoMode);
+  const rightPanelTab = useUIStore((s) => s.rightPanelTab);
+  const setRightPanelTab = useUIStore((s) => s.setRightPanelTab);
+  const playState = useUIStore((s) => s.playState);
   useGizmoShortcuts();
 
   const selectedNode =
@@ -101,18 +105,41 @@ export function EditorView() {
         )}
       </main>
 
-      {/* Properties */}
+      {/* Properties / Behaviors */}
       <aside className="flex h-full min-h-0 flex-col overflow-hidden border-l border-border">
-        <header className="shrink-0 border-b border-border px-3 py-2">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-            {t("editor:properties.title")}
-          </p>
-        </header>
-        <div className="min-h-0 flex-1 overflow-auto p-3 text-xs">
-          {selectedNode ? (
-            <NodeProperties node={selectedNode} />
+        <div className="flex shrink-0 border-b border-border">
+          {(["properties", "behaviors"] as RightPanelTab[]).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setRightPanelTab(tab)}
+              className={cn(
+                "flex-1 px-3 py-2 font-mono text-[11px] uppercase tracking-wider",
+                rightPanelTab === tab
+                  ? "border-b-2 border-primary text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab === "properties"
+                ? t("editor:behaviors.properties_tab_title")
+                : t("editor:behaviors.tab_title")}
+            </button>
+          ))}
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto text-xs">
+          {rightPanelTab === "properties" ? (
+            <fieldset
+              disabled={playState === "play"}
+              className="border-0 p-3 disabled:opacity-60"
+            >
+              {selectedNode ? (
+                <NodeProperties node={selectedNode} />
+              ) : (
+                <p className="text-muted-foreground">{t("editor:properties.empty")}</p>
+              )}
+            </fieldset>
           ) : (
-            <p className="text-muted-foreground">{t("editor:properties.empty")}</p>
+            <BehaviorsPanel />
           )}
         </div>
       </aside>
