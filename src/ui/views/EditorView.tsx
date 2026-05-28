@@ -12,6 +12,7 @@ import { isEffectivelyLocked } from "@/core/scene/policy";
 import type { AssetReference, SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { BehaviorsPanel } from "@/ui/editor/BehaviorsPanel";
+import { PlayButton } from "@/ui/viewport/PlayButton";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
 import { useGizmoShortcuts } from "@/ui/viewport/use-gizmo-shortcuts";
 import { cn } from "@/lib/utils";
@@ -90,6 +91,9 @@ export function EditorView() {
               disabled={selectedNodeId === null}
               onChange={setGizmoMode}
             />
+            <div className="absolute right-3 top-3 z-10">
+              <PlayButton />
+            </div>
           </>
         ) : (
           <div className="flex h-full items-center justify-center">
