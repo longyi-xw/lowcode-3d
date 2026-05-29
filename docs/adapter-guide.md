@@ -580,4 +580,443 @@ Adapters don't have to know about any of this — they just return the
 `ExportResult` and the host (`src/services/...` plus `commands.write_export_files`)
 wires the rest.
 
-Sections §7–§10 land in the next commit.
+## 7. Writing your own adapter — step by step
+
+> **Hypothetical code, not tested. Babylon.js 8.x API as of 2026-05.**
+> The snippets below illustrate the wiring; they are not compiled or
+> exercised against a real Babylon installation. Use them as a
+> structural reference, not as copy-paste working code. Behavior method
+> signatures match the real `Behavior` interface in
+> `src/runtime/three/behaviors/types.ts` so the cross-engine port is
+> mechanical.
+
+We build a fictitious `BabylonAdapter` from scratch. The final layout
+is `src/runtime/babylon/` (currently a reserved empty folder).
+
+### 7.1 Step 1 — constructor + empty `syncNode`
+
+`IRuntimeAdapter` has no `mount` / `unmount` (see §3): the viewport host
+calls `new ThreeAdapter()` directly and owns the renderer / canvas
+lifecycle. A Babylon adapter follows the same shape — accept the
+`<canvas>` (or `RuntimeTarget`) at construction time, expose `dispose()`
+for teardown.
+
+```ts
+// src/runtime/babylon/adapter.ts
+import { ArcRotateCamera, Engine, Scene, Vector3 } from "@babylonjs/core";
+import type { IRuntimeAdapter } from "@/runtime/adapter";
+import type { RuntimeTarget, SceneNode } from "@/core/scene/types";
+
+export class BabylonAdapter implements IRuntimeAdapter {
+  readonly target: RuntimeTarget = {
+    kind: "babylon.js",
+    version: "8.0.0",
+  } as const;
+  private readonly engine: Engine;
+  private readonly scene: Scene;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.engine = new Engine(canvas, true);
+    this.scene = new Scene(this.engine);
+    new ArcRotateCamera(
+      "editor-cam",
+      -Math.PI / 2,
+      Math.PI / 3,
+      5,
+      Vector3.Zero(),
+      this.scene,
+    );
+    this.engine.runRenderLoop(() => this.scene.render());
+  }
+
+  syncNode(_node: SceneNode, _op: "add" | "update" | "remove"): void {
+    /* TODO */
+  }
+
+  dispose(): void {
+    this.engine.dispose();
+  }
+  // … remaining IRuntimeAdapter methods throw NotImplementedYet for now
+}
+```
+
+**Acceptance for Step 1**: opening an empty project shows a Babylon
+canvas with an `ArcRotateCamera`. Verify with a vitest test that
+asserts `new BabylonAdapter(canvas)` creates an `Engine` and that
+`dispose()` releases it.
+
+### 7.2 Step 2 — per-kind builders via `BuilderRegistry`
+
+Pattern: a `BuilderRegistry` analogous to the Three.js one in
+`src/runtime/three/node-builders/index.ts`. The Three.js registry uses
+free functions `buildObject(registry, node)` and `updateObject(registry,
+object, node)` that dispatch via `selectBuilder(node)`. Mirror the
+shape:
+
+```ts
+// src/runtime/babylon/node-builders/index.ts
+import type { Scene, TransformNode } from "@babylonjs/core";
+import type { SceneNode } from "@/core/scene/types";
+import { buildMesh } from "./mesh";
+import { buildLight } from "./light";
+import { buildGroup } from "./group";
+// …
+
+export interface BabylonBuilderRegistry {
+  buildObject(node: SceneNode): TransformNode;
+  updateObject(object: TransformNode, node: SceneNode): void;
+}
+
+export function createBuilderRegistry(scene: Scene): BabylonBuilderRegistry {
+  return {
+    buildObject(node) {
+      switch (node.type) {
+        case "group":
+          return buildGroup(scene, node);
+        case "mesh":
+          return buildMesh(scene, node);
+        case "light":
+          return buildLight(scene, node);
+        /* … */
+        default:
+          throw new Error(`BabylonAdapter: no builder for type ${node.type}`);
+      }
+    },
+    updateObject(object, node) {
+      /* per-kind property re-apply */
+    },
+  };
+}
+```
+
+Each per-kind file owns the engine mapping. For `mesh` you'd resolve
+the geometry from `AssetCache` (Step 4) and create a Babylon
+`AbstractMesh`. **Acceptance**: a project with one mesh + one light
+renders in the Babylon canvas.
+
+### 7.3 Step 3 — `pickAt`
+
+Babylon ships hit testing out of the box:
+
+```ts
+pickAt(screen_x: number, screen_y: number): string | null {
+  const pick = this.scene.pick(screen_x, screen_y);
+  if (!pick?.hit || !pick.pickedMesh) return null;
+  // Walk up to the nearest ancestor carrying a SceneNode.id, matching
+  // the ThreeAdapter's findNodeId() walk (see adapter.ts).
+  let current: TransformNode | null = pick.pickedMesh;
+  while (current) {
+    const id = current.metadata?.nodeId;
+    if (typeof id === "string") return id;
+    current = current.parent as TransformNode | null;
+  }
+  return null;
+}
+```
+
+Stamp `node.id` into `mesh.metadata.nodeId` during build. Helpers (if
+you add any) should be marked `mesh.isPickable = false` — the
+equivalent of the ThreeAdapter's helper `raycast = () => {}` override.
+**Acceptance**: clicking a mesh sets `useUIStore.selectedNodeId`.
+
+### 7.4 Step 4 — `AssetCache` + `syncAsset`
+
+Babylon's `SceneLoader.LoadAssetContainerAsync` loads .glb into a
+container; you clone instances on demand. Mirror the ThreeAdapter
+contract: `syncAsset` returns silently on recoverable errors (the cache
+surfaces error state via its own API) so the editor stays usable.
+
+```ts
+private assetCache = new Map<string, AssetContainer>();
+
+async syncAsset(asset: AssetReference): Promise<void> {
+  if (this.assetCache.has(asset.id)) return;
+  try {
+    const container = await SceneLoader.LoadAssetContainerAsync(
+      "", asset.relative_path, this.scene,
+    );
+    this.assetCache.set(asset.id, container);
+  } catch (e) {
+    /* record in cache; do not throw */
+  }
+}
+```
+
+**Acceptance**: a `prefab_instance` referencing a real .glb appears in
+the viewport.
+
+### 7.5 Step 5 — `behaviorRegistry` + auto-rotate port
+
+The real `Behavior` interface (`src/runtime/three/behaviors/types.ts`):
+
+```ts
+interface Behavior<TParams = unknown> {
+  readonly definition: BehaviorDefinition;
+  install(object: EngineObject, params: TParams): BehaviorHandle;
+  tick(object: EngineObject, params: TParams, handle: BehaviorHandle, dt: number): void;
+  emit(varName: string, params: TParams, ctx: CodegenContext): string;
+}
+```
+
+Note the shape: `install` receives the engine object directly (not the
+`SceneNode`); `tick` receives the engine object **plus** the params
+**plus** the handle **plus** `dt`; `emit` returns a code block whose
+lines start at column 0 (the scene-codegen caller indents it). There
+is no `uninstall` method — per-binding teardown belongs to
+`BehaviorHandle.dispose?()`. Behaviors are stateless; per-binding state
+goes on the handle (Flyweight). Transform restoration on Stop is the
+viewport host's job (`transformSnapshots` in `ThreeViewport.tsx`), not
+the behavior's.
+
+Port `auto-rotate` to Babylon, keeping the parameter shape (`axis`,
+`speed`):
+
+```ts
+// src/runtime/babylon/behaviors/auto-rotate.ts
+import { Vector3, type TransformNode } from "@babylonjs/core";
+import { z } from "zod";
+
+import type { Behavior, BehaviorHandle } from "./types";
+import type { BehaviorDefinition, CodegenContext } from "@/runtime/adapter";
+
+const ParamsSchema = z.object({
+  axis: z.enum(["x", "y", "z"]),
+  speed: z.number(),
+});
+type Params = z.infer<typeof ParamsSchema>;
+
+const DEG2RAD = Math.PI / 180;
+
+export class AutoRotateBabylonBehavior implements Behavior<Params> {
+  readonly definition: BehaviorDefinition = {
+    type: "auto-rotate",
+    name: "Auto Rotate",
+    description: "Rotates the node around a local axis at a constant angular velocity.",
+    parameters_schema: ParamsSchema,
+  };
+
+  install(_object: TransformNode, _params: Params): BehaviorHandle {
+    return {};
+  }
+
+  tick(
+    object: TransformNode,
+    params: Params,
+    _handle: BehaviorHandle,
+    dt: number,
+  ): void {
+    const axis =
+      params.axis === "x"
+        ? Vector3.Right()
+        : params.axis === "y"
+          ? Vector3.Up()
+          : Vector3.Forward();
+    object.rotate(axis, params.speed * DEG2RAD * dt);
+  }
+
+  emit(varName: string, params: Params, _ctx: CodegenContext): string {
+    // Same shape as the Three.js emit: open-brace block + tickers.push.
+    // The Babylon main.js prolog has to declare `tickers = []` the same way.
+    return [
+      `{`,
+      `  const _omega = ${params.speed} * Math.PI / 180;`,
+      `  tickers.push((dt) => { ${varName}.rotate(BABYLON.Vector3.Up(), _omega * dt); });`,
+      `}`,
+    ].join("\n");
+  }
+}
+```
+
+Register the behavior with a Babylon-flavoured `behaviorRegistry`
+(parallel to `createThreeBehaviorRegistry()` in
+`src/runtime/three/behaviors/registry.ts`). The adapter's
+`installBehaviors(nodeId, bindings)` / `tickBehaviors(dt)` /
+`uninstallBehaviors(nodeId)` then look identical to the ThreeAdapter
+implementation modulo the engine type. **Acceptance**: clicking Play
+on a mesh with an auto-rotate binding rotates it in the Babylon viewport.
+
+### 7.6 Step 6 — Wire into `useUIStore` + `RuntimeTarget`
+
+Edit the project factory in `src/services/...` to allow
+`RuntimeTarget.kind === "babylon.js"` when creating new projects
+(currently the spec reserves it but the factory only emits `three.js`).
+Add a `BabylonExporter` and register it in the adapter's `EXPORTERS`
+map (the Three.js equivalent is the top-level constant in
+`src/runtime/three/adapter.ts` — not `src/runtime/three/export/`).
+Finally, change the viewport host (`ThreeViewport.tsx` or a sibling
+`BabylonViewport.tsx`) to construct the right adapter based on
+`project.metadata.target_runtime.kind`.
+
+**Acceptance**: creating a new project with
+`target_runtime.kind === "babylon.js"` boots the BabylonAdapter
+instead of ThreeAdapter; all earlier acceptance tests still pass.
+
+### Closing the loop
+
+Run the visual smoke matrix in `docs/scene-graph-spec.md` examples
+against your new adapter. Differences between adapters are expected
+(e.g. light intensity units, default fallback ambient); document them
+in a per-adapter README.
+
+## 8. ThreeAdapter reference
+
+A tour of `src/runtime/three/`:
+
+```
+src/runtime/three/
+├── adapter.ts                    # ThreeAdapter implements IRuntimeAdapter
+├── adapter.test.ts               # ThreeAdapter integration tests
+├── asset-cache.ts                # per-adapter Map<asset_id, parsed glTF template>
+├── index.ts                      # public re-exports
+├── node-builders/
+│   ├── index.ts                  # createBuilderRegistry + buildObject/updateObject dispatch
+│   ├── group.ts
+│   ├── mesh.ts                   # placeholder cube geometry + MeshStandardMaterial
+│   ├── light.ts                  # directional / point / spot / ambient
+│   ├── camera.ts                 # perspective / orthographic
+│   ├── helper.ts                 # GridHelper + AxesHelper; raycast no-op
+│   └── prefab-instance.ts        # AssetCache lookup + magenta placeholder
+├── behaviors/
+│   ├── index.ts                  # createThreeBehaviorRegistry export
+│   ├── registry.ts               # ThreeBehaviorRegistry: Map<type, Behavior>
+│   ├── registry.test.ts
+│   ├── types.ts                  # Behavior + BehaviorHandle interfaces
+│   ├── auto-rotate.ts            # reference Behavior implementation
+│   └── auto-rotate.test.ts
+└── export/
+    ├── scene-codegen.ts          # SceneProject → scene.js (TS-syntax-free)
+    ├── scene-codegen.test.ts     # includes the "no TS syntax" assertion suite
+    ├── vite-emitter.ts           # Vite project template
+    ├── standalone-esm-emitter.ts # importmap-based single-file viewer
+    └── emitters.test.ts
+```
+
+Note that `EXPORTERS` (the `ExportTarget → Exporter` dispatch table)
+lives at the top of `src/runtime/three/adapter.ts`, **not** in a
+separate `export/adapter.ts`. Adding a new target = one entry in that
+constant plus one `Exporter` implementation in `export/`.
+
+### 8.1 Key design decisions (with PR pointers)
+
+| Topic                                                                           | Where                                                | PR                                                     |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| Editor layout + viewport click coords + canvas display style                    | `EditorView`, `ThreeViewport.tsx`, `adapter.ts`      | [#5](https://github.com/longyi-xw/lowcode-3d/pull/5)   |
+| Bundle-chunking buckets (`vendor-three`, `vendor-three-addons`, `vendor-react`) | `vite.config.ts` `manualChunks`                      | [#9](https://github.com/longyi-xw/lowcode-3d/pull/9)   |
+| `OutlinePass` selection (color, edgeStrength, dragging-changed listener)        | `ThreeViewport.tsx`                                  | [#11](https://github.com/longyi-xw/lowcode-3d/pull/11) |
+| Helper raycast no-op (regression fix shipped alongside File menu PR)            | `node-builders/helper.ts`, `ThreeViewport.tsx`       | [#15](https://github.com/longyi-xw/lowcode-3d/pull/15) |
+| `isEffectivelyLocked` policy (helper lockedness derived from type)              | `src/core/scene/policy.ts`                           | [#16](https://github.com/longyi-xw/lowcode-3d/pull/16) |
+| `AssetCache` + content-hashed assets + hardlink persistence                     | `asset-cache.ts`, `prefab-instance.ts`, `src-tauri/` | [#17](https://github.com/longyi-xw/lowcode-3d/pull/17) |
+| `scene-codegen.ts` plain-JS-with-JSDoc rule + Vite/Standalone emitters          | `scene-codegen.ts`, `scene-codegen.test.ts`          | [#19](https://github.com/longyi-xw/lowcode-3d/pull/19) |
+| Behavior framework + ticker prolog/epilog in codegen (Stage A)                  | `behaviors/`, `scene-codegen.ts`                     | [#20](https://github.com/longyi-xw/lowcode-3d/pull/20) |
+| Play mode side effects (gizmo detach, outline clear, pickAt bypass) (Stage B)   | `ThreeViewport.tsx`                                  | [#21](https://github.com/longyi-xw/lowcode-3d/pull/21) |
+
+## 9. Testing your adapter
+
+### 9.1 Current coverage
+
+`src/runtime/three/adapter.test.ts` groups its assertions into the
+following `describe` blocks:
+
+- **`ThreeAdapter constructor`** — scene/camera defaults,
+  `defaultCamera` overrides, canonical target fallback.
+- **`ThreeAdapter.syncNode add path`** — group / child parenting /
+  transform application / visibility propagation / duplicate-id throw /
+  missing-parent throw / mesh / directional light / perspective camera /
+  grid helper.
+- **`ThreeAdapter.syncNode update path`** — transform re-apply,
+  in-place light intensity update, throw on unknown id.
+- **`ThreeAdapter.syncNode remove path`** — detach + free id, child
+  detach without touching root, idempotent remove, mesh
+  geometry/material dispose.
+- **`ThreeAdapter.syncNode unsupported paths`** — `custom` throws.
+- **`ThreeAdapter.pickAt`** — unset viewport degenerate case,
+  centre-of-viewport hit, empty-space null, ancestor walk-up for child
+  meshes, helper raycast skip regression test.
+- **`ThreeAdapter shell methods still pending`** — `getRuntimeObject`
+  undefined for unknown ids, `getSupportedBehaviors` non-empty,
+  `syncAsset` surfaces `no_project_path` error in non-Tauri envs.
+- **`ThreeAdapter prefab_instance + syncAsset`** — placeholder when
+  uncached, clone at build time when preloaded, placeholder rebuild
+  once `syncAsset` resolves.
+- **`ThreeAdapter.dispose`** — clears scene + object map.
+- **`ThreeAdapter behaviors`** — `getSupportedBehaviors` includes
+  auto-rotate, `generateBehaviorCode` for enabled / disabled / unknown
+  type / invalid params.
+- **`ThreeAdapter live behavior runtime`** — `installBehaviors` +
+  `tickBehaviors` advances rotation, `uninstallBehaviors` stops it,
+  disabled / unknown / invalid bindings skipped without throwing,
+  missing node is silent no-op, dispose releases handles.
+
+The last group's `"tick errors on one binding don't break others"`
+case is currently a placeholder — it only exercises uninstall today
+because `behaviorRegistry` is private. A real version requires a
+second stateful behavior to inject a throwing one (v0.5 Stage C work).
+
+### 9.2 Codegen syntax assertions
+
+`src/runtime/three/export/scene-codegen.test.ts` has an
+`"emits no TypeScript-only syntax in the body"` test that rejects
+emit containing the following patterns (each its own
+`expect(src).not.toMatch(...)`):
+
+- `\binterface\b` — no TS `interface` declarations
+- `:\s*THREE\.` — no `: THREE.Foo` type annotations
+- `\)\s+as\s+[A-Z]` — no `(expr) as Type` casts
+- `new Promise<[^>]+>` — no generic arguments at call sites
+
+The plain-JS-with-JSDoc guarantee is what lets the Standalone ESM
+emitter serve `scene.js` verbatim from the browser without a build
+step. If your codegen produces TS-only syntax these assertions fail.
+
+### 9.3 Planned: conformance suite
+
+A cross-adapter conformance suite is planned for **v1.0** alongside
+the Babylon.js adapter. It will load a fixture SceneGraph, run it
+through each adapter, and compare:
+
+- Selection / `pickAt` behavior on the same screen coordinates
+- Render-loop tick correctness for each built-in behavior
+- Exported code parity (snapshot the same scene against each adapter
+  and assert byte-equal `scene.js` modulo target-specific imports)
+
+Until then, treat ThreeAdapter as the de-facto baseline.
+
+## 10. Reserved & Future
+
+### 10.1 Reserved `RuntimeTarget` kinds
+
+- **`babylon.js`** — see the §7 walk-through. v1.0 work.
+- **`unity`** — high-level: export to a Unity project skeleton +
+  `.scene` file. Pre-spec.
+- **`react-three-fiber`** — declarative R3F project export. Pre-spec.
+
+The schema accepts all three (`docs/scene-graph-spec.md` §2.1 / §11),
+but no adapter currently implements them. The editor only lets the
+user create `three.js` projects in v0.1.
+
+### 10.2 Multi-adapter scope
+
+At runtime, exactly one adapter is mounted per editor session — the one
+matching `project.metadata.target_runtime.kind`. At export time the
+project is bound to its `target_runtime`; exporting cross-target is
+**not** on the roadmap. The v1.0 conformance suite (§9.3) is the limit
+of cross-adapter promises — same SceneGraph, parity in observable
+output, not cross-target re-export.
+
+### 10.3 AI Skill integration (v0.3)
+
+`getRuntimeObject(node_id)` is the **single entry point** an AI Skill
+will use to introspect the live engine state for "describe what's in
+the scene" prompts. Adapters should keep it cheap (return the cached
+`Object3D` / `AbstractMesh` directly; no subtree walk, no allocation).
+The Skill framework (v0.3, see `docs/roadmap.md`) wraps this call so
+the LLM sees a stable, engine-agnostic surface.
+
+### 10.4 Asset preload conformance
+
+A future addition to the `IRuntimeAdapter` contract:
+`preloadAssets(assets: AssetReference[]): Promise<void>` for batch
+parallel loading. Currently each `syncAsset` is serial and the
+viewport host orders them before the matching `syncNode("add")` calls
+(see §3 asset preload rule). Reserved for v0.2 work, when the asset
+browser lands and batch import becomes a common path.
