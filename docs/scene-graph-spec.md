@@ -458,6 +458,102 @@ fallback builder that emits an empty group plus a warning.
 | -------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------- |
 | 🟡 Round-trip preserved on disk; ThreeAdapter throws on render | 🟡      | No `custom_type` registered in v0.1; reserved as extension point for third-party adapters |
 
+## 5. AssetReference
+
+```ts
+interface AssetReference {
+  id: string; // UUID v4
+  content_hash: string; // sha256 of the file bytes (hex, lowercase)
+  kind: "geometry" | "texture" | "hdri" | "audio" | "video";
+  relative_path: string; // "assets/{content_hash}.{ext}", relative to project root
+  tags: string[];
+  description: string;
+  source: AssetSource;
+}
+
+type AssetSource =
+  | { kind: "builtin"; library_id: string }
+  | { kind: "user_upload"; original_filename: string }
+  | { kind: "online"; provider: string; url: string; license: string }
+  | { kind: "ai_generated"; model: string; prompt: string };
+```
+
+**Content-addressed storage**: the bytes for every asset live at
+`{project}/assets/{content_hash}.{ext}`. The hash is computed Rust-side
+during import (`src-tauri/src/assets.rs`, `sha256_hex`) and is the source
+of identity — re-importing identical bytes returns the existing
+`AssetReference` (no duplication). Cross-save persistence uses
+**hardlinks** (with byte-copy fallback) so the atomic-swap save flow
+doesn't orphan assets — see `src-tauri/src/project_io.rs`
+(`preserve_subdir`).
+
+**Original filename** is preserved in `source.original_filename` for
+`user_upload` so the editor can render a human-readable label even though
+the on-disk file is hash-named.
+
+The runtime `AssetCache` (a per-`ThreeAdapter` in-memory `Map<asset_id,
+THREE.Group>`) is not part of the spec — it belongs to adapter
+implementation, covered in `docs/adapter-guide.md` §4.6.
+
+## 6. BehaviorBinding
+
+```ts
+interface BehaviorBinding {
+  id: string; // UUID v4, unique within the node
+  behavior_type: string; // e.g. "auto-rotate"
+  enabled: boolean;
+  parameters: Record<string, unknown>; // schema is per behavior_type
+}
+```
+
+Behaviors are **semantic actions** that cross technology stacks. The
+spec only describes the binding shape; the parameter schema is owned by
+each `behavior_type`. Adapters implement (and emit code for) each
+behavior they support. Unknown `behavior_type`s on load are preserved
+verbatim and marked unknown at runtime — they are not dropped.
+
+### 6.1 Built-in behaviors (v0.1)
+
+| `behavior_type` | Parameters                                                    | Description                                                                                    |
+| --------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `auto-rotate`   | `{ axis: "x" \| "y" \| "z"; speed: number }` (speed in deg/s) | Rotates the node around a local axis at the given speed during Play mode and in exported code. |
+
+Source of truth: `src/runtime/three/behaviors/auto-rotate.ts`
+(`ParamsSchema`). The runtime tick multiplies `speed * (π / 180) * dt`
+each frame; the codegen emitter precomputes the same `Math.PI / 180`
+factor so exported standalone projects match Play-mode behaviour
+exactly.
+
+#### `auto-rotate` example
+
+```json
+{
+  "id": "b1",
+  "behavior_type": "auto-rotate",
+  "enabled": true,
+  "parameters": { "axis": "y", "speed": 30 }
+}
+```
+
+### 6.2 Adapter responsibilities
+
+For each supported `behavior_type`, an adapter must:
+
+1. Register a `Behavior` class with the adapter's `behaviorRegistry`
+2. Implement `install(node, params)` → `tick(handle, dt)` → `uninstall(handle)`
+3. Provide `generateCode(binding, ctx)` for the codegen pipeline (so
+   exported projects re-run the behavior in the standalone runtime)
+
+See `docs/adapter-guide.md` §5 for the full Behavior class contract.
+
+### 6.3 Forward-compat: unknown behaviors
+
+When loading a project, the editor preserves any `behavior_type` it
+doesn't recognise. The runtime marks the binding with `__unknown: true`
+and skips its `install`/`tick`/`generateCode` calls. Save round-trips
+without loss; the binding becomes active again if a future adapter ships
+support.
+
 ## 7. Settings
 
 ```ts
@@ -476,6 +572,155 @@ interface Settings {
   HDRI (`{ "kind": "hdri", "asset_id": "<uuid>" }`). HDRI requires the
   referenced asset to exist in `assets[]` and be `kind: "hdri"`.
 
-Sections §4 NodeData per kind, §5 AssetReference, §6 BehaviorBinding,
-§8 Serialization, §9 Versioning, §10 Validation, §11 Reserved are populated
-in subsequent commits within this PR.
+## 8. Serialization (on-disk)
+
+A SceneProject is stored as a **folder**, not a single file. This makes
+git diffs minimal when only one node changes.
+
+### 8.1 Folder layout
+
+```
+my-project.lowcode/
+├── project.json                 # SceneProject minus scene (kept in scene/)
+├── scene/
+│   ├── hierarchy.json           # root_node_ids + parent→children adjacency
+│   └── nodes/
+│       ├── cube-1.json          # one file per node, named by Node.id
+│       └── …
+├── assets/
+│   ├── {content_hash}.glb       # one file per asset, content-addressed
+│   └── …
+└── .lowcode/                    # local-only caches (thumbnails, indexes); gitignored
+```
+
+Implementation: `src/core/scene/persistence.ts` (pure, browser-side
+serializer) plus `src-tauri/src/project_io.rs` (atomic disk I/O).
+
+### 8.2 `project.json` (no scene field)
+
+The top-level `SceneProject` with the entire `scene` field **removed** —
+both the per-node objects and `scene.root_node_ids` live under `scene/`.
+The persisted shape is `Omit<SceneProject, "scene">`:
+
+```json
+{
+  "spec_version": "0.1.0",
+  "metadata": { "id": "…", "name": "single-cube", "...": "..." },
+  "assets": [],
+  "settings": { "...": "..." }
+}
+```
+
+### 8.3 `scene/hierarchy.json`
+
+A flat `root_node_ids` array plus a **sparse** `parent → child[]`
+adjacency map (entries for empty children lists are omitted). The
+loader derives each node's `parent_id` from this table:
+
+```json
+{
+  "root_node_ids": ["grid-helper", "models-group", "key-light", "fill-light"],
+  "children": {
+    "models-group": ["cube-1"]
+  }
+}
+```
+
+### 8.4 `scene/nodes/{id}.json`
+
+One file per node. The on-disk body is the `Node` object with **both
+`parent_id` and `children_ids` removed** (`Omit<SceneNode, "parent_id" |
+"children_ids">`) — those are owned by `hierarchy.json` so moving a node
+dirties only the hierarchy file, not the moved node's body or either
+parent's file.
+
+### 8.5 Folder naming
+
+Saving to `foo.lowcode/` (or `foo.project/`) implies project
+`metadata.name = "foo"`. The editor strips the `.lowcode` / `.project`
+suffix on save / open and refuses to author a different `metadata.name`
+than the basename.
+
+Node `id` values are also used as filenames, so they must be filesystem
+safe — `persistence.ts` rejects ids matching `[\\/:*?"<>|\s]` at
+serialize time.
+
+### 8.6 `.lowcode/` local caches
+
+Editor-side thumbnails and indexes live under `.lowcode/`. Project
+authors should `.gitignore` this folder — it's local-only and
+regenerable.
+
+### 8.7 Atomic save
+
+The save flow (`src-tauri/src/project_io.rs::save_folder`) writes a
+sibling `.{stem}.lowcode-tmp-{ts}/` directory, then renames it onto the
+target. If a previous version exists it is first moved to
+`.{stem}.lowcode-bak-{ts}/` for rollback, then removed once the new
+directory is in place. Assets under `assets/` are preserved across the
+swap by per-file hardlink (byte-copy fallback when the filesystem
+rejects hardlinks, e.g. cross-fs).
+
+## 9. Versioning & Migration
+
+The `spec_version` is **semver-shaped** but its bumps follow these rules:
+
+- **Patch bump (0.1.x)**: clarifications, new optional fields, new
+  enum members (additive). Loaders for an older patch must accept newer
+  patch files (forward-compat for additions).
+- **Minor bump (0.x.0)**: breaking field renames, removed enum members,
+  format changes that require migration. A migration function in
+  `src/core/migrations/{from}-to-{to}.ts` must exist before merge.
+- **Major bump (x.0.0)**: incompatible scope changes (e.g. a new
+  on-disk container format). Reserved for v1.0.
+
+Loading flow:
+
+1. Parse `project.json`
+2. Read `spec_version`
+3. If `spec_version` < current, run all chained migrations in
+   `src/core/migrations/`
+4. Validate against the current zod schema (§10)
+
+No migration is needed for v0.1.0 → v0.1.0; this section is the contract
+for v0.2+ work.
+
+## 10. Validation
+
+Runtime source of truth: `src/core/scene/schemas.ts` (zod schemas).
+
+| Schema                  | Validates                                                        |
+| ----------------------- | ---------------------------------------------------------------- |
+| `SceneProjectSchema`    | top-level + metadata + settings                                  |
+| `SceneGraphSchema`      | nodes graph + root_node_ids                                      |
+| `SceneNodeSchema`       | individual Node (after `hierarchy.json` reattachment)            |
+| `BehaviorBindingSchema` | each binding's `id` / `behavior_type` / `enabled` / `parameters` |
+| `AssetReferenceSchema`  | per-asset entry                                                  |
+
+Editors should validate on every save (refuse to write if the project
+doesn't round-trip) and on every load (refuse to open if the file is
+malformed). The loader returns a typed `PersistenceError` discriminated
+by `missing_file` / `json_syntax` / `hierarchy` / `schema` so the UI can
+surface actionable error messages.
+
+## 11. Reserved & Future
+
+The schema accepts but currently does nothing with:
+
+- `RuntimeTarget` kinds other than `three.js` (`babylon.js`, `unity`,
+  `react-three-fiber` — v1.0+ work).
+- `MeshData.material_overrides` (v0.2 — PBR material editor).
+- `BehaviorBinding.behavior_type` values beyond the v0.1 built-ins —
+  preserved round-trip (§6.3) and ready for v0.5 Stage C
+  (hover-highlight, click-trigger, event-emit, etc.).
+- `Node.user_data` — AI-annotation freezone; the editor does not
+  introspect.
+
+Anticipated v0.2+ fields:
+
+- `MaterialOverride` schema (PBR parameters per instance)
+- `CameraData.aperture` / `focus_distance` (depth of field)
+- `Settings.shadow_quality` / `Settings.tone_mapping`
+
+When these land, `spec_version` bumps per §9 and the section moves out
+of Reserved.
