@@ -1,4 +1,4 @@
-import type { SceneNode, Transform } from "../scene/types";
+import type { BehaviorBinding, SceneNode, Transform } from "../scene/types";
 
 /**
  * The minimal slice of editor state a scene-editing Command interacts with.
@@ -8,6 +8,14 @@ import type { SceneNode, Transform } from "../scene/types";
 export interface SceneEditorStore {
   getNode(id: string): SceneNode | undefined;
   setNodeTransform(id: string, transform: Transform): void;
+  addBehavior(nodeId: string, binding: BehaviorBinding): void;
+  removeBehavior(nodeId: string, bindingId: string): void;
+  setBehaviorEnabled(nodeId: string, bindingId: string, enabled: boolean): void;
+  setBehaviorParameters(
+    nodeId: string,
+    bindingId: string,
+    parameters: Record<string, unknown>,
+  ): void;
 }
 
 /**

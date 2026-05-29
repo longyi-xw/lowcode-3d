@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import type { Command, SceneEditorStore } from "@/core/command/types";
+import { useUIStore } from "@/services/ui/store";
 
 /**
  * Undo/redo history backed by the Phase 0 Command bus.
@@ -29,12 +30,12 @@ export const useCommandHistoryStore = create<CommandHistoryState>((set) => ({
   redoStack: [],
 
   execute: (command, editor) => {
+    if (useUIStore.getState().playState === "play") return;
     command.apply(editor);
     set((s) => {
       const top = s.undoStack[s.undoStack.length - 1];
       let nextUndoStack: Command[];
       if (top && top.canMergeWith(command)) {
-        // Replace top with merged so consecutive drags collapse to one entry.
         nextUndoStack = [...s.undoStack.slice(0, -1), top.mergeWith(command)];
       } else {
         nextUndoStack = [...s.undoStack, command];
@@ -46,7 +47,8 @@ export const useCommandHistoryStore = create<CommandHistoryState>((set) => ({
     });
   },
 
-  undo: (editor) =>
+  undo: (editor) => {
+    if (useUIStore.getState().playState === "play") return;
     set((s) => {
       const command = s.undoStack[s.undoStack.length - 1];
       if (!command) return s;
@@ -55,9 +57,11 @@ export const useCommandHistoryStore = create<CommandHistoryState>((set) => ({
         undoStack: s.undoStack.slice(0, -1),
         redoStack: [...s.redoStack, command],
       };
-    }),
+    });
+  },
 
-  redo: (editor) =>
+  redo: (editor) => {
+    if (useUIStore.getState().playState === "play") return;
     set((s) => {
       const command = s.redoStack[s.redoStack.length - 1];
       if (!command) return s;
@@ -66,7 +70,8 @@ export const useCommandHistoryStore = create<CommandHistoryState>((set) => ({
         undoStack: [...s.undoStack, command],
         redoStack: s.redoStack.slice(0, -1),
       };
-    }),
+    });
+  },
 
   clear: () => set({ undoStack: [], redoStack: [] }),
 }));

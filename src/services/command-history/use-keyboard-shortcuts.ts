@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+import { useUIStore } from "@/services/ui/store";
+
 import { redo, undo } from "./index";
 
 /**
@@ -24,6 +26,8 @@ export function useCommandHistoryShortcuts(): void {
           return;
         }
       }
+
+      if (useUIStore.getState().playState === "play") return;
 
       const key = e.key.toLowerCase();
       if (key === "z") {
