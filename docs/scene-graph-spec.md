@@ -189,6 +189,275 @@ Identity transform:
 { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] }
 ```
 
+## 4. NodeData per kind
+
+`Node.data` is a discriminated union keyed by `data.type`, which must
+match the parent `Node.type` (the zod schema enforces this with a
+`refine`). Each `NodeKind` has its own schema; below each subsection
+lists the schema, a JSON example, and the current ThreeAdapter support
+matrix.
+
+> **ThreeAdapter support matrix legend**: `Implemented` = builder exists
+> in `src/runtime/three/node-builders/`; `Codegen` = exported by
+> `scene-codegen.ts` to standalone code; `Limitations` = known current
+> gaps with file pointer where applicable.
+
+### 4.1 `group`
+
+```ts
+type GroupData = { type: "group" };
+```
+
+A pure organizational container. No render output; its `transform` still
+affects descendants.
+
+```json
+{
+  "id": "models-group",
+  "name": "Models",
+  "type": "group",
+  "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] },
+  "parent_id": null,
+  "children_ids": ["cube-1"],
+  "visible": true,
+  "locked": false,
+  "data": { "type": "group" },
+  "behaviors": [],
+  "user_data": {}
+}
+```
+
+| Implemented                 | Codegen | Limitations |
+| --------------------------- | ------- | ----------- |
+| ✅ `node-builders/group.ts` | ✅      | None        |
+
+### 4.2 `mesh`
+
+```ts
+interface MeshData {
+  type: "mesh";
+  asset_id: string; // references AssetReference (geometry kind)
+  material_overrides?: MaterialOverride[]; // applied slot-by-slot at render time
+}
+
+interface MaterialOverride {
+  slot: number; // material slot index (non-negative int)
+  color?: string; // #RRGGBB or #RRGGBBAA
+  metalness?: number; // 0..1
+  roughness?: number; // 0..1
+  opacity?: number; // 0..1
+  emissive?: string; // #RRGGBB or #RRGGBBAA
+  emissive_intensity?: number; // ≥ 0
+}
+```
+
+Renders the referenced geometry asset. `material_overrides` lets a node
+tweak PBR parameters on top of the cached material; the ThreeAdapter
+currently applies only the first entry (`[0]`). The v0.2 material editor
+will surface a full multi-slot UI.
+
+```json
+{
+  "id": "cube-1",
+  "name": "Cube",
+  "type": "mesh",
+  "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] },
+  "parent_id": null,
+  "children_ids": [],
+  "visible": true,
+  "locked": false,
+  "data": { "type": "mesh", "asset_id": "asset-cube" },
+  "behaviors": [],
+  "user_data": {}
+}
+```
+
+| Implemented                | Codegen | Limitations                                                                                                                                                                       |
+| -------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ✅ `node-builders/mesh.ts` | ✅      | Only `material_overrides[0]` applied (single-slot); full multi-slot PBR editor deferred to v0.2; builder ships placeholder `BoxGeometry` until `syncAsset` swaps in real geometry |
+
+### 4.3 `light`
+
+```ts
+interface LightData {
+  type: "light";
+  light_kind: "directional" | "point" | "spot" | "ambient";
+  color: string; // #RRGGBB or #RRGGBBAA
+  intensity: number; // ≥ 0; three.js Light intensity units
+  distance?: number; // point / spot only; ≥ 0 (0 = infinite)
+  decay?: number; // point / spot only; ≥ 0 (three.js default 2)
+  angle?: number; // spot only; radians
+  penumbra?: number; // spot only; 0..1
+  cast_shadow?: boolean; // applied to all kinds except ambient
+}
+```
+
+```json
+{
+  "id": "key-light",
+  "name": "Key Light",
+  "type": "light",
+  "transform": { "position": [3, 5, 3], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] },
+  "parent_id": null,
+  "children_ids": [],
+  "visible": true,
+  "locked": false,
+  "data": {
+    "type": "light",
+    "light_kind": "directional",
+    "color": "#ffffff",
+    "intensity": 1.2,
+    "cast_shadow": true
+  },
+  "behaviors": [],
+  "user_data": {}
+}
+```
+
+| Implemented                               | Codegen | Limitations                                                                                                |
+| ----------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| ✅ `node-builders/light.ts` (all 4 kinds) | ✅      | `cast_shadow` toggled but shadow map size / bias not yet authorable; no light-map / IES / area-light kinds |
+
+### 4.4 `camera`
+
+```ts
+interface CameraData {
+  type: "camera";
+  camera_kind: "perspective" | "orthographic";
+  fov?: number; // perspective, degrees
+  aspect?: number; // perspective, ratio
+  near: number; // > 0
+  far: number; // > 0
+  left?: number; // orthographic frustum
+  right?: number; // orthographic frustum
+  top?: number; // orthographic frustum
+  bottom?: number; // orthographic frustum
+}
+```
+
+```json
+{
+  "id": "main-camera",
+  "name": "Main Camera",
+  "type": "camera",
+  "transform": { "position": [4, 3, 4], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] },
+  "parent_id": null,
+  "children_ids": [],
+  "visible": true,
+  "locked": false,
+  "data": {
+    "type": "camera",
+    "camera_kind": "perspective",
+    "fov": 50,
+    "near": 0.1,
+    "far": 1000
+  },
+  "behaviors": [],
+  "user_data": {}
+}
+```
+
+| Implemented                               | Codegen | Limitations                                                                                                                                                              |
+| ----------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ✅ `node-builders/camera.ts` (both kinds) | ✅      | Editor viewport camera is separate; scene cameras are placeable but not yet switchable at runtime; no `aperture` / `focus_distance` (depth of field — reserved for v0.2) |
+
+### 4.5 `helper`
+
+```ts
+interface HelperData {
+  type: "helper";
+  helper_kind: string; // current: "grid" | "axes" (unknown kinds render as empty Object3D)
+}
+```
+
+Editor-only visual aids. **Helpers are always effectively locked and
+always raycast-unpickable**, regardless of the `Node.locked` field — see
+`src/core/scene/policy.ts` `isEffectivelyLocked()` (returns `true` for
+every `helper` node) and `src/runtime/three/node-builders/helper.ts`
+(stubs `raycast` to a no-op for the entire subtree). Helpers are filtered
+out by `scene-codegen.ts` so they don't leak into exported runtimes.
+
+```json
+{
+  "id": "grid-helper",
+  "name": "Grid",
+  "type": "helper",
+  "transform": { "position": [0, 0, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] },
+  "parent_id": null,
+  "children_ids": [],
+  "visible": true,
+  "locked": false,
+  "data": { "type": "helper", "helper_kind": "grid" },
+  "behaviors": [],
+  "user_data": {}
+}
+```
+
+| Implemented                                   | Codegen          | Limitations                                                                                                           |
+| --------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
+| ✅ `node-builders/helper.ts` (`grid`, `axes`) | ❌ (editor-only) | Unknown `helper_kind` values render as empty `Object3D` (not an error); helper-kind registry is not pluggable in v0.1 |
+
+### 4.6 `prefab_instance`
+
+```ts
+interface PrefabInstanceData {
+  type: "prefab_instance";
+  asset_id: string; // references an AssetReference with kind="geometry" (.glb)
+}
+```
+
+A leaf node in the SceneGraph that materialises a cached `.glb` subtree
+at runtime. The geometry subtree itself is **not** part of the
+SceneGraph — only the reference and the instance transform are. The
+ThreeAdapter clones the cached template (`AssetCache.cloneTemplate`,
+sharing geometry & materials) per instance; when the asset hasn't loaded
+yet the builder drops in a translucent magenta placeholder `BoxGeometry`
+and stamps `userData.assetId` so a later `syncAsset` call can swap in
+the real subtree. See `docs/adapter-guide.md` §4.6 for the runtime cache
+model.
+
+```json
+{
+  "id": "boombox-instance",
+  "name": "BoomBox",
+  "type": "prefab_instance",
+  "transform": { "position": [0, 1, 0], "rotation": [0, 0, 0, 1], "scale": [1, 1, 1] },
+  "parent_id": null,
+  "children_ids": [],
+  "visible": true,
+  "locked": false,
+  "data": { "type": "prefab_instance", "asset_id": "asset-boombox-sha256" },
+  "behaviors": [],
+  "user_data": {}
+}
+```
+
+| Implemented                           | Codegen | Limitations                                                                              |
+| ------------------------------------- | ------- | ---------------------------------------------------------------------------------------- |
+| ✅ `node-builders/prefab-instance.ts` | ✅      | No per-instance material overrides yet; no Unpack Prefab command (deferred to Prefab v2) |
+
+### 4.7 `custom`
+
+```ts
+interface CustomData {
+  type: "custom";
+  custom_type: string; // adapter-specific identifier
+  payload: unknown; // schema is the adapter's responsibility
+}
+```
+
+Extension point for adapter-specific nodes the schema doesn't model.
+Editors should round-trip `custom` nodes verbatim. The ThreeAdapter does
+**not** register a default builder: see
+`src/runtime/three/node-builders/index.ts`, where the dispatch throws
+`ThreeAdapter: "custom" node type "<custom_type>" has no registered builder`.
+Third-party adapters that want graceful degradation should register a
+fallback builder that emits an empty group plus a warning.
+
+| Implemented                                                    | Codegen | Limitations                                                                               |
+| -------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------- |
+| 🟡 Round-trip preserved on disk; ThreeAdapter throws on render | 🟡      | No `custom_type` registered in v0.1; reserved as extension point for third-party adapters |
+
 ## 7. Settings
 
 ```ts
