@@ -109,3 +109,38 @@ describe("useUIStore — Phase 3 Stage B", () => {
     expect(useUIStore.getState().playState).toBe("edit");
   });
 });
+
+describe("useUIStore — Phase 3 · 3.1", () => {
+  beforeEach(() => {
+    useUIStore.setState({
+      helpOpen: false,
+      pendingFocusNodeId: undefined,
+    });
+  });
+
+  it("helpOpen defaults to false", () => {
+    expect(useUIStore.getState().helpOpen).toBe(false);
+  });
+
+  it("setHelpOpen flips the flag", () => {
+    useUIStore.getState().setHelpOpen(true);
+    expect(useUIStore.getState().helpOpen).toBe(true);
+  });
+
+  it("pendingFocusNodeId defaults to undefined (no request)", () => {
+    expect(useUIStore.getState().pendingFocusNodeId).toBeUndefined();
+  });
+
+  it("requestFocus stores the requested id (or null for scene center)", () => {
+    useUIStore.getState().requestFocus("n1");
+    expect(useUIStore.getState().pendingFocusNodeId).toBe("n1");
+    useUIStore.getState().requestFocus(null);
+    expect(useUIStore.getState().pendingFocusNodeId).toBeNull();
+  });
+
+  it("consumeFocusRequest clears back to undefined", () => {
+    useUIStore.getState().requestFocus("n1");
+    useUIStore.getState().consumeFocusRequest();
+    expect(useUIStore.getState().pendingFocusNodeId).toBeUndefined();
+  });
+});
