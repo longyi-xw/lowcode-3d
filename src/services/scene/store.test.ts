@@ -265,4 +265,46 @@ describe("useSceneStore subtree mutators", () => {
     useSceneStore.getState().restoreNodeSubtree(snap);
     expect(useSceneStore.getState().project!.scene.root_node_ids).toEqual(["x", "y"]);
   });
+
+  it("duplicateNode appends newSubtree.root to parent.children_ids end", () => {
+    const root = seedTreeProject();
+    const sourceSnap = snapshotSubtree(useSceneStore.getState().project!.scene, "a");
+    // simulate caller computing a new-id snapshot
+    const cloned = {
+      ...sourceSnap,
+      root: {
+        ...sourceSnap.root,
+        id: "new-a",
+        name: "A Copy",
+        parent_id: root,
+        children_ids: ["new-a1"],
+        behaviors: [],
+      },
+      descendants: [
+        { ...sourceSnap.descendants[0]!, id: "new-a1", parent_id: "new-a" },
+      ],
+    };
+    useSceneStore.getState().duplicateNode("a", cloned);
+    const s = useSceneStore.getState();
+    expect(s.getNode("new-a")).toBeDefined();
+    expect(s.getNode("new-a1")).toBeDefined();
+    expect(s.getNode(root)!.children_ids).toEqual(["a", "b", "new-a"]);
+    // original still there
+    expect(s.getNode("a")).toBeDefined();
+  });
+
+  it("duplicateNode on root-level node appends to scene.root_node_ids", () => {
+    const project = freshProject();
+    project.scene.nodes["x"] = groupNode("x", null, []);
+    project.scene.root_node_ids = ["x"];
+    useSceneStore.setState({ project });
+    const sourceSnap = snapshotSubtree(useSceneStore.getState().project!.scene, "x");
+    const cloned = {
+      ...sourceSnap,
+      root: { ...sourceSnap.root, id: "x2", name: "X Copy" },
+      descendants: [],
+    };
+    useSceneStore.getState().duplicateNode("x", cloned);
+    expect(useSceneStore.getState().project!.scene.root_node_ids).toEqual(["x", "x2"]);
+  });
 });
