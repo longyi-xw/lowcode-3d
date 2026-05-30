@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createDefaultProject } from "@/core/scene/defaults";
+import { snapshotSubtree } from "@/core/scene/snapshot";
 import type { AssetReference, BehaviorBinding, SceneNode } from "@/core/scene/types";
 
 import { useSceneStore } from "./store";
@@ -180,5 +181,88 @@ describe("useSceneStore behavior mutators", () => {
     useSceneStore.getState().addBehavior("n1", sampleBinding);
     const after = useSceneStore.getState().getNode("n1");
     expect(after).not.toBe(before);
+  });
+});
+
+describe("useSceneStore subtree mutators", () => {
+  beforeEach(() => useSceneStore.setState({ project: null }));
+
+  function groupNode(
+    id: string,
+    parent: string | null,
+    children: string[] = [],
+  ): SceneNode {
+    return {
+      id,
+      name: id,
+      type: "group",
+      transform: IDENTITY,
+      parent_id: parent,
+      children_ids: children,
+      visible: true,
+      locked: false,
+      data: { type: "group" },
+      behaviors: [],
+      user_data: {},
+    };
+  }
+
+  function seedTreeProject() {
+    const project = freshProject();
+    // build root → a → a1 ; root → b
+    project.scene.nodes["root"] = groupNode("root", null, ["a", "b"]);
+    project.scene.nodes["a"] = groupNode("a", "root", ["a1"]);
+    project.scene.nodes["a1"] = groupNode("a1", "a", []);
+    project.scene.nodes["b"] = groupNode("b", "root", []);
+    project.scene.root_node_ids = ["root"];
+    useSceneStore.setState({ project });
+    return "root";
+  }
+
+  it("removeNodeSubtree removes the node + descendants + parent children_ids reference", () => {
+    const root = seedTreeProject();
+    useSceneStore.getState().removeNodeSubtree("a");
+    const s = useSceneStore.getState();
+    expect(s.getNode("a")).toBeUndefined();
+    expect(s.getNode("a1")).toBeUndefined();
+    expect(s.getNode("b")).toBeDefined();
+    expect(s.getNode(root)!.children_ids).toEqual(["b"]);
+  });
+
+  it("removeNodeSubtree on root-level node updates scene.root_node_ids", () => {
+    seedTreeProject();
+    const root = useSceneStore.getState().project!.scene.root_node_ids[0]!;
+    useSceneStore.getState().removeNodeSubtree(root);
+    expect(useSceneStore.getState().project!.scene.root_node_ids).toEqual([]);
+    expect(useSceneStore.getState().getNode(root)).toBeUndefined();
+  });
+
+  it("removeNodeSubtree on unknown id is silent no-op", () => {
+    seedTreeProject();
+    expect(() => useSceneStore.getState().removeNodeSubtree("nope")).not.toThrow();
+  });
+
+  it("restoreNodeSubtree puts the subtree back at insert_index with full fields", () => {
+    const root = seedTreeProject();
+    const snap = snapshotSubtree(useSceneStore.getState().project!.scene, "a");
+    useSceneStore.getState().removeNodeSubtree("a");
+    useSceneStore.getState().restoreNodeSubtree(snap);
+    const after = useSceneStore.getState();
+    expect(after.getNode("a")).toBeDefined();
+    expect(after.getNode("a1")).toBeDefined();
+    expect(after.getNode(root)!.children_ids).toEqual(["a", "b"]);
+  });
+
+  it("restoreNodeSubtree on a root-level node inserts back at the right index in root_node_ids", () => {
+    const project = freshProject();
+    project.scene.nodes["x"] = groupNode("x", null, []);
+    project.scene.nodes["y"] = groupNode("y", null, []);
+    project.scene.root_node_ids = ["x", "y"];
+    useSceneStore.setState({ project });
+    const snap = snapshotSubtree(useSceneStore.getState().project!.scene, "x");
+    useSceneStore.getState().removeNodeSubtree("x");
+    expect(useSceneStore.getState().project!.scene.root_node_ids).toEqual(["y"]);
+    useSceneStore.getState().restoreNodeSubtree(snap);
+    expect(useSceneStore.getState().project!.scene.root_node_ids).toEqual(["x", "y"]);
   });
 });

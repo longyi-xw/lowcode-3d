@@ -41,5 +41,14 @@ export function makeFakeEditor(node?: SceneNode): FakeEditor {
         bindingId,
         parameters,
       }),
+    removeNodeSubtree: () => {
+      throw new Error("removeNodeSubtree not implemented in this fake");
+    },
+    restoreNodeSubtree: () => {
+      throw new Error("restoreNodeSubtree not implemented in this fake");
+    },
+    duplicateNode: () => {
+      throw new Error("duplicateNode not implemented in this fake");
+    },
   };
 }
