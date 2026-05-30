@@ -30,5 +30,34 @@
     "play": "播放",
     "pause": "暂停"
   },
-  "close_project": "关闭项目"
+  "close_project": "关闭项目",
+  "help": {
+    "title": "键盘快捷键"
+  },
+  "shortcuts": {
+    "section": {
+      "project": "项目",
+      "edit": "编辑",
+      "transform": "变换",
+      "selection_view": "选择 / 视图",
+      "play": "播放",
+      "help": "帮助"
+    },
+    "new_project": "新建项目",
+    "open_project": "打开项目",
+    "save": "保存",
+    "save_as": "另存为",
+    "close_project": "关闭项目",
+    "undo": "撤销",
+    "redo": "重做",
+    "duplicate": "复制选中节点",
+    "delete": "删除选中节点",
+    "move_mode": "移动模式",
+    "rotate_mode": "旋转模式",
+    "scale_mode": "缩放模式",
+    "focus": "聚焦相机到选中节点",
+    "clear_selection": "清除选中",
+    "play_toggle": "Play / 暂停",
+    "help_open": "打开此对话框"
+  }
 }

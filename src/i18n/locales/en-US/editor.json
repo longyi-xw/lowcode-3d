@@ -30,5 +30,34 @@
     "play": "Play",
     "pause": "Pause"
   },
-  "close_project": "Close project"
+  "close_project": "Close project",
+  "help": {
+    "title": "Keyboard shortcuts"
+  },
+  "shortcuts": {
+    "section": {
+      "project": "Project",
+      "edit": "Edit",
+      "transform": "Transform",
+      "selection_view": "Selection / View",
+      "play": "Play",
+      "help": "Help"
+    },
+    "new_project": "New project",
+    "open_project": "Open project",
+    "save": "Save",
+    "save_as": "Save as",
+    "close_project": "Close project",
+    "undo": "Undo",
+    "redo": "Redo",
+    "duplicate": "Duplicate selection",
+    "delete": "Delete selection",
+    "move_mode": "Move mode",
+    "rotate_mode": "Rotate mode",
+    "scale_mode": "Scale mode",
+    "focus": "Focus camera on selection",
+    "clear_selection": "Clear selection",
+    "play_toggle": "Play / Pause",
+    "help_open": "Open this dialog"
+  }
 }
