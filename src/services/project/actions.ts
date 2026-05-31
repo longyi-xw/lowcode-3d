@@ -8,7 +8,7 @@ import type { ExportTarget } from "@/runtime/adapter";
 import { ThreeAdapter } from "@/runtime/three/adapter";
 import { useAppViewStore } from "@/services/app-view/store";
 import { useCommandHistoryStore } from "@/services/command-history";
-import { createDemoProject } from "@/services/scene/demo-project";
+import { PROJECT_TEMPLATES, type TemplateId } from "@/services/scene/templates";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 
@@ -75,11 +75,23 @@ function exclusive<T>(key: string, fn: () => Promise<T>): Promise<T | undefined>
   });
 }
 
-export async function newProject(): Promise<void> {
+/** Opens the template picker. Non-destructive — the actual load happens in
+ *  createProjectFromTemplate once the user picks a template. */
+export function newProject(): void {
+  useUIStore.getState().setNewProjectOpen(true);
+}
+
+/** Loads a fresh project from the chosen template (guarded by the dirty
+ *  check), then closes the picker. */
+export async function createProjectFromTemplate(id: TemplateId): Promise<void> {
   await exclusive("newProject", async () => {
-    if (!(await confirmDiscard("Start a new project and discard current changes?")))
+    const tpl = PROJECT_TEMPLATES.find((t) => t.id === id);
+    if (!tpl) return;
+    if (!(await confirmDiscard("Start a new project and discard current changes?"))) {
       return;
-    loadProjectIntoEditor(createDemoProject(), null);
+    }
+    loadProjectIntoEditor(tpl.create(), null);
+    useUIStore.getState().setNewProjectOpen(false);
   });
 }
 
@@ -436,10 +448,7 @@ async function confirmDiscard(message: string): Promise<boolean> {
   });
 }
 
-function loadProjectIntoEditor(
-  project: ReturnType<typeof createDemoProject>,
-  path: string | null,
-): void {
+function loadProjectIntoEditor(project: SceneProject, path: string | null): void {
   useSceneStore.getState().setProject(project);
   useUIStore.getState().setSelectedNodeId(null);
   useCommandHistoryStore.getState().clear();
