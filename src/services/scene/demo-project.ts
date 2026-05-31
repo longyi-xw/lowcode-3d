@@ -2,7 +2,7 @@ import { generateUUID } from "@/core/id/uuid";
 import { createDefaultProject } from "@/core/scene/defaults";
 import type { RuntimeTarget, SceneNode, SceneProject } from "@/core/scene/types";
 
-const TARGET: RuntimeTarget = {
+export const TARGET: RuntimeTarget = {
   kind: "three.js",
   version: "0.184.0",
   module_format: "esm",
@@ -21,8 +21,8 @@ const IDENTITY = {
  * group (`models-group` → `cube-1`) is intentional — Phase 1 B's hierarchy
  * tree needs at least one parent/child relationship to verify nesting.
  *
- * Used as the temporary "New project" payload until a real template picker
- * lands. Distinct from the example fixture in two ways:
+ * Backs the "Starter scene" template (id `starter`) in the New-project
+ * picker. Distinct from the example fixture in two ways:
  *   - The project id and timestamps are generated at call time so each run is
  *     a fresh project rather than a stale fixture.
  *   - Node ids are slugged ("cube-1", "models-group", …) rather than uuid-
