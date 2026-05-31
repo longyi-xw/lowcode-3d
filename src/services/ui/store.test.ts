@@ -144,3 +144,16 @@ describe("useUIStore — Phase 3 · 3.1", () => {
     expect(useUIStore.getState().pendingFocusNodeId).toBeUndefined();
   });
 });
+
+describe("useUIStore — newProjectOpen (3.2)", () => {
+  beforeEach(() => useUIStore.setState({ newProjectOpen: false }));
+
+  it("defaults to false", () => {
+    expect(useUIStore.getState().newProjectOpen).toBe(false);
+  });
+
+  it("setNewProjectOpen flips it", () => {
+    useUIStore.getState().setNewProjectOpen(true);
+    expect(useUIStore.getState().newProjectOpen).toBe(true);
+  });
+});

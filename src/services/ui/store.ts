@@ -38,6 +38,9 @@ interface UIState {
   /** Whether the keyboard-shortcuts help dialog is visible. */
   helpOpen: boolean;
   setHelpOpen: (open: boolean) => void;
+  /** Whether the New-project template picker dialog is visible. */
+  newProjectOpen: boolean;
+  setNewProjectOpen: (open: boolean) => void;
   /**
    * 3-state focus request channel:
    *   undefined  → no request pending
@@ -81,6 +84,8 @@ export const useUIStore = create<UIState>((set) => ({
   setPlayState: (playState) => set({ playState }),
   helpOpen: false,
   setHelpOpen: (helpOpen) => set({ helpOpen }),
+  newProjectOpen: false,
+  setNewProjectOpen: (newProjectOpen) => set({ newProjectOpen }),
   pendingFocusNodeId: undefined,
   requestFocus: (pendingFocusNodeId) => set({ pendingFocusNodeId }),
   consumeFocusRequest: () => set({ pendingFocusNodeId: undefined }),
