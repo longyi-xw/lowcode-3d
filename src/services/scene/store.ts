@@ -1,8 +1,10 @@
 import { create } from "zustand";
 
+import type { SceneNodeSnapshot } from "@/core/scene/snapshot";
 import type {
   AssetReference,
   BehaviorBinding,
+  SceneGraph,
   SceneNode,
   SceneProject,
   Transform,
@@ -47,6 +49,20 @@ interface SceneState {
     bindingId: string,
     parameters: Record<string, unknown>,
   ) => void;
+  /** Remove a node and every descendant; also drops the id from the parent's
+   *  children_ids (or from scene.root_node_ids when the node is a root).
+   *  Silent no-op when nodeId does not exist. Used by DeleteNodeCommand. */
+  removeNodeSubtree: (nodeId: string) => void;
+  /** Re-insert a previously captured subtree at snapshot.insert_index inside
+   *  its parent's children_ids (or scene.root_node_ids). The caller owns the
+   *  snapshot (typically taken just before removeNodeSubtree) so this is the
+   *  symmetric revert path of DeleteNodeCommand. */
+  restoreNodeSubtree: (snapshot: SceneNodeSnapshot) => void;
+  /** Append a precomputed new-id subtree to the source node's parent's
+   *  children_ids (or to scene.root_node_ids when source is a root). The
+   *  caller is responsible for generating the new ids + copy name so the
+   *  store stays a pure mutator. Used by DuplicateNodeCommand. */
+  duplicateNode: (sourceNodeId: string, newSubtree: SceneNodeSnapshot) => void;
 }
 
 /**
@@ -72,6 +88,28 @@ function mutateNode(
         ...s.project.scene,
         nodes: { ...s.project.scene.nodes, [nodeId]: nextNode },
       },
+    },
+  };
+}
+
+/**
+ * Like mutateNode but lets the caller rewrite the whole nodes map +
+ * root_node_ids atomically. Used by removeNodeSubtree / restoreNodeSubtree /
+ * duplicateNode where one logical operation touches multiple nodes.
+ */
+function mutateScene(
+  s: SceneState,
+  patch: (scene: SceneGraph) => SceneGraph,
+): Partial<SceneState> | SceneState {
+  if (!s.project) return s;
+  return {
+    project: {
+      ...s.project,
+      metadata: {
+        ...s.project.metadata,
+        updated_at: new Date().toISOString(),
+      },
+      scene: patch(s.project.scene),
     },
   };
 }
@@ -192,6 +230,98 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       const nextNode: SceneNode = { ...node, behaviors: next };
       return mutateNode(s, nodeId, nextNode);
     }),
+  removeNodeSubtree: (nodeId) =>
+    set((s) => {
+      if (!s.project) return s;
+      const root = s.project.scene.nodes[nodeId];
+      if (!root) return s;
+      // collect ids to remove via BFS
+      const idsToRemove = new Set<string>();
+      const queue: string[] = [nodeId];
+      while (queue.length) {
+        const id = queue.shift()!;
+        if (idsToRemove.has(id)) continue;
+        const n = s.project.scene.nodes[id];
+        if (!n) continue;
+        idsToRemove.add(id);
+        queue.push(...n.children_ids);
+      }
+      return mutateScene(s, (scene) => {
+        const nextNodes: Record<string, SceneNode> = {};
+        for (const [id, n] of Object.entries(scene.nodes)) {
+          if (idsToRemove.has(id)) continue;
+          // also rewrite children_ids of the surviving parent to drop nodeId
+          if (id === root.parent_id) {
+            nextNodes[id] = {
+              ...n,
+              children_ids: n.children_ids.filter((c) => c !== nodeId),
+            };
+          } else {
+            nextNodes[id] = n;
+          }
+        }
+        const nextRootIds =
+          root.parent_id === null
+            ? scene.root_node_ids.filter((c) => c !== nodeId)
+            : scene.root_node_ids;
+        return { ...scene, nodes: nextNodes, root_node_ids: nextRootIds };
+      });
+    }),
+  restoreNodeSubtree: (snapshot) =>
+    set((s) => {
+      if (!s.project) return s;
+      return mutateScene(s, (scene) => {
+        const nextNodes: Record<string, SceneNode> = { ...scene.nodes };
+        nextNodes[snapshot.root.id] = snapshot.root;
+        for (const d of snapshot.descendants) nextNodes[d.id] = d;
+        let nextRootIds = scene.root_node_ids;
+        if (snapshot.root.parent_id === null) {
+          nextRootIds = [
+            ...scene.root_node_ids.slice(0, snapshot.insert_index),
+            snapshot.root.id,
+            ...scene.root_node_ids.slice(snapshot.insert_index),
+          ];
+        } else {
+          const parent = nextNodes[snapshot.root.parent_id];
+          if (parent) {
+            const nextChildren = [
+              ...parent.children_ids.slice(0, snapshot.insert_index),
+              snapshot.root.id,
+              ...parent.children_ids.slice(snapshot.insert_index),
+            ];
+            nextNodes[snapshot.root.parent_id] = {
+              ...parent,
+              children_ids: nextChildren,
+            };
+          }
+        }
+        return { ...scene, nodes: nextNodes, root_node_ids: nextRootIds };
+      });
+    }),
+  duplicateNode: (sourceNodeId, newSubtree) =>
+    set((s) => {
+      if (!s.project) return s;
+      const source = s.project.scene.nodes[sourceNodeId];
+      if (!source) return s;
+      return mutateScene(s, (scene) => {
+        const nextNodes: Record<string, SceneNode> = { ...scene.nodes };
+        nextNodes[newSubtree.root.id] = newSubtree.root;
+        for (const d of newSubtree.descendants) nextNodes[d.id] = d;
+        let nextRootIds = scene.root_node_ids;
+        if (newSubtree.root.parent_id === null) {
+          nextRootIds = [...scene.root_node_ids, newSubtree.root.id];
+        } else {
+          const parent = nextNodes[newSubtree.root.parent_id];
+          if (parent) {
+            nextNodes[newSubtree.root.parent_id] = {
+              ...parent,
+              children_ids: [...parent.children_ids, newSubtree.root.id],
+            };
+          }
+        }
+        return { ...scene, nodes: nextNodes, root_node_ids: nextRootIds };
+      });
+    }),
 }));
 
 /**
@@ -212,5 +342,10 @@ export function getSceneEditorStore(): SceneEditorStore {
       useSceneStore.getState().setBehaviorEnabled(nodeId, bindingId, enabled),
     setBehaviorParameters: (nodeId, bindingId, parameters) =>
       useSceneStore.getState().setBehaviorParameters(nodeId, bindingId, parameters),
+    removeNodeSubtree: (nodeId) => useSceneStore.getState().removeNodeSubtree(nodeId),
+    restoreNodeSubtree: (snapshot) =>
+      useSceneStore.getState().restoreNodeSubtree(snapshot),
+    duplicateNode: (sourceNodeId, newSubtree) =>
+      useSceneStore.getState().duplicateNode(sourceNodeId, newSubtree),
   };
 }

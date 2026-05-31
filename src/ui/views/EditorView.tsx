@@ -12,8 +12,10 @@ import { isEffectivelyLocked } from "@/core/scene/policy";
 import type { AssetReference, SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { BehaviorsPanel } from "@/ui/editor/BehaviorsPanel";
+import { ShortcutsHelpDialog } from "@/ui/help/ShortcutsHelpDialog";
 import { PlayButton } from "@/ui/viewport/PlayButton";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
+import { useEditorShortcuts } from "@/ui/viewport/use-editor-shortcuts";
 import { useGizmoShortcuts } from "@/ui/viewport/use-gizmo-shortcuts";
 import { cn } from "@/lib/utils";
 import { HierarchyTree } from "./HierarchyTree";
@@ -39,6 +41,7 @@ export function EditorView() {
   const setRightPanelTab = useUIStore((s) => s.setRightPanelTab);
   const playState = useUIStore((s) => s.playState);
   useGizmoShortcuts();
+  useEditorShortcuts();
 
   const selectedNode =
     project && selectedNodeId ? project.scene.nodes[selectedNodeId] : undefined;
@@ -147,6 +150,8 @@ export function EditorView() {
           )}
         </div>
       </aside>
+
+      <ShortcutsHelpDialog />
     </section>
   );
 }

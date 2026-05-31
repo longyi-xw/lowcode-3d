@@ -35,6 +35,21 @@ interface UIState {
    *  via undo/redo / commands are swallowed by command-history. */
   playState: PlayState;
   setPlayState: (state: PlayState) => void;
+  /** Whether the keyboard-shortcuts help dialog is visible. */
+  helpOpen: boolean;
+  setHelpOpen: (open: boolean) => void;
+  /**
+   * 3-state focus request channel:
+   *   undefined  → no request pending
+   *   null       → focus the scene origin (no selection at request time)
+   *   string     → focus the node with this id
+   *
+   * ThreeViewport watches this field and calls consumeFocusRequest()
+   * after applying the focus.
+   */
+  pendingFocusNodeId: string | null | undefined;
+  requestFocus: (nodeId: string | null) => void;
+  consumeFocusRequest: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -64,4 +79,9 @@ export const useUIStore = create<UIState>((set) => ({
   setRightPanelTab: (rightPanelTab) => set({ rightPanelTab }),
   playState: "edit",
   setPlayState: (playState) => set({ playState }),
+  helpOpen: false,
+  setHelpOpen: (helpOpen) => set({ helpOpen }),
+  pendingFocusNodeId: undefined,
+  requestFocus: (pendingFocusNodeId) => set({ pendingFocusNodeId }),
+  consumeFocusRequest: () => set({ pendingFocusNodeId: undefined }),
 }));

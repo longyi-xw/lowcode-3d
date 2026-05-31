@@ -1,4 +1,5 @@
 import type { BehaviorBinding, SceneNode, Transform } from "@/core/scene/types";
+import type { SceneNodeSnapshot } from "@/core/scene/snapshot";
 
 import type { SceneEditorStore } from "../types";
 
@@ -17,7 +18,14 @@ type Call =
       bindingId: string;
       parameters: Record<string, unknown>;
     }
-  | { op: "setNodeTransform"; id: string; transform: Transform };
+  | { op: "setNodeTransform"; id: string; transform: Transform }
+  | { op: "removeNodeSubtree"; nodeId: string }
+  | { op: "restoreNodeSubtree"; snapshot: SceneNodeSnapshot }
+  | {
+      op: "duplicateNode";
+      sourceNodeId: string;
+      newSubtree: SceneNodeSnapshot;
+    };
 
 export type FakeEditor = SceneEditorStore & { calls: Call[] };
 
@@ -41,5 +49,10 @@ export function makeFakeEditor(node?: SceneNode): FakeEditor {
         bindingId,
         parameters,
       }),
+    removeNodeSubtree: (nodeId) => calls.push({ op: "removeNodeSubtree", nodeId }),
+    restoreNodeSubtree: (snapshot) =>
+      calls.push({ op: "restoreNodeSubtree", snapshot }),
+    duplicateNode: (sourceNodeId, newSubtree) =>
+      calls.push({ op: "duplicateNode", sourceNodeId, newSubtree }),
   };
 }

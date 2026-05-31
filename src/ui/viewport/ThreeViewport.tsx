@@ -23,6 +23,8 @@ import { useProjectStore } from "@/services/project/store";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 
+import { computeFocusTarget } from "./focus-helpers";
+
 /**
  * Three.js viewport — mounts a WebGL canvas into a host div and mirrors the
  * SceneProject from `useSceneStore` into a private ThreeAdapter instance.
@@ -47,8 +49,16 @@ import { useUIStore } from "@/services/ui/store";
  */
 export function ThreeViewport() {
   const containerRef = useRef<HTMLDivElement>(null);
+  // Mount-effect-owned handles surfaced as refs so cross-effect consumers
+  // (currently the focus watch effect) can reach the live OrbitControls +
+  // ThreeAdapter without forcing them to live as React state. Mutated only
+  // inside the mount effect (set on construct, cleared on cleanup).
+  const adapterRef = useRef<ThreeAdapter | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
   const projectId = useSceneStore((s) => s.project?.metadata.id ?? null);
   const setSelectedNodeId = useUIStore((s) => s.setSelectedNodeId);
+  const pendingFocusNodeId = useUIStore((s) => s.pendingFocusNodeId);
+  const consumeFocusRequest = useUIStore((s) => s.consumeFocusRequest);
 
   useEffect(() => {
     if (!projectId) return;
@@ -56,6 +66,7 @@ export function ThreeViewport() {
     if (!container) return;
 
     const adapter = new ThreeAdapter();
+    adapterRef.current = adapter;
     adapter.assetCache.setProjectPath(useProjectStore.getState().currentPath);
 
     const initial = useSceneStore.getState().project;
@@ -95,6 +106,7 @@ export function ThreeViewport() {
     composer.addPass(new OutputPass());
 
     const orbit = new OrbitControls(adapter.camera, canvas);
+    controlsRef.current = orbit;
     orbit.enableDamping = true;
     orbit.dampingFactor = 0.08;
 
@@ -319,8 +331,40 @@ export function ThreeViewport() {
         container.removeChild(canvas);
       }
       adapter.dispose();
+      adapterRef.current = null;
+      controlsRef.current = null;
     };
   }, [projectId, setSelectedNodeId]);
+
+  // Focus watch effect — listens for useUIStore.requestFocus calls and
+  // moves OrbitControls.target + camera position so the requested node
+  // (or the scene origin when id is null) sits centered at a fitting
+  // distance. Lives outside the mount effect so it stays subscribed
+  // across re-renders without rebuilding the renderer chain. Consumes
+  // the request (sets it back to undefined) so the same request never
+  // fires twice.
+  useEffect(() => {
+    if (pendingFocusNodeId === undefined) return;
+    const adapter = adapterRef.current;
+    const controls = controlsRef.current;
+    if (!adapter || !controls) {
+      consumeFocusRequest();
+      return;
+    }
+    const obj =
+      pendingFocusNodeId === null
+        ? null
+        : (adapter.getRuntimeObject(pendingFocusNodeId) ?? null);
+    const { target, distance } = computeFocusTarget(obj);
+    controls.target.copy(target);
+    // Move camera along the current view direction so the target sits at the
+    // new distance without changing the view angle.
+    const dir = new THREE.Vector3();
+    adapter.camera.getWorldDirection(dir).negate(); // direction from target to camera
+    adapter.camera.position.copy(target).add(dir.multiplyScalar(distance));
+    controls.update();
+    consumeFocusRequest();
+  }, [pendingFocusNodeId, consumeFocusRequest]);
 
   return <div ref={containerRef} className="relative h-full w-full overflow-hidden" />;
 }

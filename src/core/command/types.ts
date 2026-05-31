@@ -1,3 +1,4 @@
+import type { SceneNodeSnapshot } from "../scene/snapshot";
 import type { BehaviorBinding, SceneNode, Transform } from "../scene/types";
 
 /**
@@ -16,6 +17,10 @@ export interface SceneEditorStore {
     bindingId: string,
     parameters: Record<string, unknown>,
   ): void;
+  // ── new (Phase 3 · 3.1) ──
+  removeNodeSubtree(nodeId: string): void;
+  restoreNodeSubtree(snapshot: SceneNodeSnapshot): void;
+  duplicateNode(sourceNodeId: string, newSubtree: SceneNodeSnapshot): void;
 }
 
 /**

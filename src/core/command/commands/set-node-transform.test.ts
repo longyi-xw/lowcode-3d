@@ -55,6 +55,15 @@ function createTestStore(...nodes: SceneNode[]): TestStore {
     setBehaviorParameters: () => {
       throw new Error("setBehaviorParameters not implemented in this fake");
     },
+    removeNodeSubtree: () => {
+      throw new Error("removeNodeSubtree not implemented in this fake");
+    },
+    restoreNodeSubtree: () => {
+      throw new Error("restoreNodeSubtree not implemented in this fake");
+    },
+    duplicateNode: () => {
+      throw new Error("duplicateNode not implemented in this fake");
+    },
     currentTransform: (id) => map.get(id)?.transform,
   };
 }

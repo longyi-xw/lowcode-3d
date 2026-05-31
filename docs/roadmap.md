@@ -59,7 +59,7 @@
   - [x] Phase 1 渲染编辑 ([#1](https://github.com/longyi-xw/lowcode-3d/pull/1)–[#11](https://github.com/longyi-xw/lowcode-3d/pull/11))
   - [x] Phase 2 导入导出 ([#12](https://github.com/longyi-xw/lowcode-3d/pull/12)–[#19](https://github.com/longyi-xw/lowcode-3d/pull/19))
   - [ ] Phase 3 打磨发布
-    - [ ] 3.1 快捷键完整化（Delete / Cmd+D / F / Space / Esc + 帮助）
+    - [x] 3.1 快捷键完整化（Delete / Cmd+D / F / Space / Esc + 帮助）（[#23](https://github.com/longyi-xw/lowcode-3d/pull/23)）
     - [ ] 3.2 项目模板系统（接 `examples/empty-project` + `examples/single-cube` 到 New 流程的 picker）
     - [ ] 3.3 错误处理 polish（全局 ErrorBoundary + IO toast + 未捕获 Promise 兜底）
     - [ ] 3.4 文档补完（本 PR）
