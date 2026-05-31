@@ -7,12 +7,6 @@
     "clone_from_url": "从 URL 克隆",
     "import_glb": "导入 .glb 场景"
   },
-  "templates": {
-    "heading": "模板",
-    "three_vite": "Three.js + Vite 起步模板",
-    "r3f_next": "R3F + Next.js",
-    "soon_badge": "即将"
-  },
   "recent": {
     "heading": "最近项目",
     "empty": "尚无最近项目",

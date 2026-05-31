@@ -1,15 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  FileBox,
-  FilePlus,
-  FolderOpen,
-  GitBranch,
-  LayoutTemplate,
-  Link2,
-  Moon,
-  Sun,
-  SunMoon,
-} from "lucide-react";
+import { FileBox, FilePlus, FolderOpen, Link2, Moon, Sun, SunMoon } from "lucide-react";
 import { useAppViewStore, type LoadingTarget } from "@/services/app-view/store";
 import { SUPPORTED_LANGUAGES } from "@/i18n/config";
 import { useSettingsStore } from "@/services/settings/store";
@@ -118,21 +108,6 @@ export function StartupView() {
               icon={<FileBox className="h-4 w-4" />}
               label={t("startup:start.import_glb")}
               onClick={open("editor")}
-            />
-          </section>
-
-          <section>
-            <SectionHeading>{t("startup:templates.heading")}</SectionHeading>
-            <RailAction
-              icon={<LayoutTemplate className="h-4 w-4" />}
-              label={t("startup:templates.three_vite")}
-              onClick={open("editor", t("startup:templates.three_vite"))}
-            />
-            <RailAction
-              icon={<GitBranch className="h-4 w-4" />}
-              label={t("startup:templates.r3f_next")}
-              badge={t("startup:templates.soon_badge")}
-              disabled
             />
           </section>
         </aside>

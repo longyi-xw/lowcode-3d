@@ -36,7 +36,7 @@ export function NewProjectDialog() {
                   <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
                   <span className="flex-1">
                     <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      {t(tpl.nameKey)}
+                      {t(tpl.nameKey, { defaultValue: tpl.nameKey })}
                       {tpl.recommended && (
                         <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-primary">
                           {t("recommended_badge")}
@@ -44,7 +44,7 @@ export function NewProjectDialog() {
                       )}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {t(tpl.descriptionKey)}
+                      {t(tpl.descriptionKey, { defaultValue: tpl.descriptionKey })}
                     </span>
                   </span>
                 </button>
