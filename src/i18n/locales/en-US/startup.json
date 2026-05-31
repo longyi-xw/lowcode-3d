@@ -7,12 +7,6 @@
     "clone_from_url": "Clone from URL",
     "import_glb": "Import .glb scene"
   },
-  "templates": {
-    "heading": "TEMPLATES",
-    "three_vite": "Three.js + Vite starter",
-    "r3f_next": "R3F + Next.js",
-    "soon_badge": "SOON"
-  },
   "recent": {
     "heading": "RECENT PROJECTS",
     "empty": "No recent projects yet",

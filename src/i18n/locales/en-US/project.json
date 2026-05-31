@@ -1,0 +1,21 @@
+{
+  "new_dialog": {
+    "title": "New project",
+    "description": "Choose a starting point for your scene."
+  },
+  "templates": {
+    "starter": {
+      "name": "Starter scene",
+      "description": "Grid, a cube in a group, key + ambient lights. Good for jumping in."
+    },
+    "single_cube": {
+      "name": "Single cube",
+      "description": "One cube, a directional light, and a camera."
+    },
+    "empty": {
+      "name": "Empty project",
+      "description": "A blank scene. Build from scratch."
+    }
+  },
+  "recommended_badge": "Recommended"
+}

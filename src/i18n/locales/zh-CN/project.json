@@ -1,0 +1,21 @@
+{
+  "new_dialog": {
+    "title": "新建项目",
+    "description": "为你的场景选择一个起点。"
+  },
+  "templates": {
+    "starter": {
+      "name": "起步场景",
+      "description": "网格、组内一个立方体、主光 + 环境光。适合直接上手。"
+    },
+    "single_cube": {
+      "name": "单个立方体",
+      "description": "一个立方体、一束方向光、一个相机。"
+    },
+    "empty": {
+      "name": "空项目",
+      "description": "空白场景，从零开始搭。"
+    }
+  },
+  "recommended_badge": "推荐"
+}
