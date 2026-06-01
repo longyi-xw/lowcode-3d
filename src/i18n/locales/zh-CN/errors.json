@@ -7,5 +7,18 @@
     "migration_not_implemented": "迁移工具将在 v0.2 提供",
     "try_again": "重试",
     "report_issue": "反馈问题 → github.com/longyi-xw/lowcode-3d/issues"
-  }
+  },
+  "crash": {
+    "title": "应用出错了",
+    "message_hint": "应用遇到未预期的错误，重载即可恢复。",
+    "reload": "重载应用",
+    "copy": "复制错误"
+  },
+  "toast": {
+    "saved": "已保存",
+    "opened": "已打开 {{name}}",
+    "imported": "已导入 {{name}}",
+    "exported": "已导出到 {{path}}"
+  },
+  "uncaught": "发生了未预期的错误"
 }
