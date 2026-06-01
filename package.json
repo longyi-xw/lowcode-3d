@@ -1,6 +1,6 @@
 {
   "name": "lowcode-3d",
-  "version": "0.0.1-scaffold",
+  "version": "0.1.0",
   "private": true,
   "description": "AI-assisted low-code platform for the Web 3D stack.",
   "license": "MIT",

@@ -1,6 +1,6 @@
 [package]
 name = "lowcode-3d"
-version = "0.0.1"
+version = "0.1.0"
 description = "AI-assisted low-code platform for the Web 3D stack."
 authors = ["lowcode-3d contributors"]
 edition = "2021"
