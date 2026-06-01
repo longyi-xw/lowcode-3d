@@ -16,12 +16,13 @@ describe("ErrorBoundary", () => {
   });
 
   it("renders children when no error", () => {
+    const safe = "safe content";
     render(
       <ErrorBoundary>
-        <p>safe content</p>
+        <p>{safe}</p>
       </ErrorBoundary>,
     );
-    expect(screen.getByText("safe content")).toBeInTheDocument();
+    expect(screen.getByText(safe)).toBeInTheDocument();
   });
 
   it("renders CrashFallback when a child throws", () => {

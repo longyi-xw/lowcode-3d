@@ -1,4 +1,5 @@
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
+import { toast } from "sonner";
 
 import { commands } from "@/bindings/tauri";
 import { generateUUID } from "@/core/id/uuid";
@@ -11,6 +12,7 @@ import { useCommandHistoryStore } from "@/services/command-history";
 import { PROJECT_TEMPLATES, type TemplateId } from "@/services/scene/templates";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
+import i18n from "@/i18n";
 
 import {
   formatProjectIoError,
@@ -119,6 +121,7 @@ export async function openProject(): Promise<void> {
     }
     const renamed = renameProject(result.value, deriveProjectNameFromPath(selected));
     loadProjectIntoEditor(renamed, selected);
+    toast.success(i18n.t("errors:toast.opened", { name: renamed.metadata.name }));
   });
 }
 
@@ -186,6 +189,7 @@ async function saveProjectInner(opts: { forceDialog: boolean }): Promise<void> {
     }
     useProjectStore.getState().setCurrentPath(targetPath);
     useProjectStore.getState().markClean();
+    toast.success(i18n.t("errors:toast.saved"));
   } finally {
     useProjectStore.getState().setSaving(false);
   }
@@ -292,6 +296,7 @@ async function importGlbInner(): Promise<void> {
   useSceneStore.getState().addNode(newNode);
   useUIStore.getState().setSelectedNodeId(newNode.id);
   useProjectStore.getState().markDirty();
+  toast.success(i18n.t("errors:toast.imported", { name: nodeName }));
 }
 
 function stemFromFilename(name: string): string {
@@ -395,19 +400,10 @@ async function exportProjectInner(target: ExportTarget): Promise<void> {
   }
   const summary = writeResult.data;
 
-  const warnLine =
-    result.warnings.length > 0
-      ? `\n\nNotes:\n${result.warnings.map((w) => `• ${w}`).join("\n")}`
-      : "";
-  await ask(
-    `Wrote ${summary.text_file_count} files + ${summary.asset_file_count} assets to ${summary.destination_path}.${warnLine}`,
-    {
-      title: target === "vite" ? "Vite project exported" : "Standalone export ready",
-      kind: "info",
-      okLabel: "OK",
-      cancelLabel: "OK",
-    },
-  );
+  if (result.warnings.length > 0) {
+    console.warn("[export] warnings:", result.warnings);
+  }
+  toast.success(i18n.t("errors:toast.exported", { path: summary.destination_path }));
 }
 
 function defaultExportPath(projectName: string, target: ExportTarget): string {
@@ -465,16 +461,8 @@ async function reportError(error: ProjectIoError): Promise<void> {
 }
 
 async function reportRawError(message: string): Promise<void> {
-  if (!isTauri()) {
-    console.error(message);
-    return;
-  }
-  await ask(message, {
-    title: "Project I/O error",
-    kind: "error",
-    okLabel: "Dismiss",
-    cancelLabel: "Dismiss",
-  });
+  console.error(message);
+  toast.error(message, { duration: Infinity });
 }
 
 function formatThrown(e: unknown): string {
