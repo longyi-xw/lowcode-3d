@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./ui/error/ErrorBoundary";
 import "./i18n";
 import "./styles/globals.css";
 import "./ui/dev/dev-tools";
+import "./services/error/global-handlers";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("root element not found");
