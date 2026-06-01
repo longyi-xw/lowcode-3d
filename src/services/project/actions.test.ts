@@ -6,6 +6,8 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   save: vi.fn(),
 }));
 
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
 import { useAppViewStore } from "@/services/app-view/store";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";

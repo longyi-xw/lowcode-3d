@@ -7,5 +7,18 @@
     "migration_not_implemented": "Migration tooling lands in v0.2",
     "try_again": "Try again",
     "report_issue": "report issue → github.com/longyi-xw/lowcode-3d/issues"
-  }
+  },
+  "crash": {
+    "title": "Something went wrong",
+    "message_hint": "The app hit an unexpected error. Reload to recover.",
+    "reload": "Reload app",
+    "copy": "Copy error"
+  },
+  "toast": {
+    "saved": "Saved",
+    "opened": "Opened {{name}}",
+    "imported": "Imported {{name}}",
+    "exported": "Exported to {{path}}"
+  },
+  "uncaught": "An unexpected error occurred"
 }

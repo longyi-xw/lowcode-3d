@@ -8,12 +8,15 @@ import { LoadingView } from "@/ui/views/LoadingView";
 import { EditorView } from "@/ui/views/EditorView";
 import { ErrorView } from "@/ui/views/ErrorView";
 import { NewProjectDialog } from "@/ui/project/NewProjectDialog";
+import { Toaster } from "sonner";
+import { useSettingsStore } from "@/services/settings/store";
 
 function App() {
   const view = useAppViewStore((s) => s.view);
   useCommandHistoryShortcuts();
   useProjectMenu();
   useWindowTitle();
+  const theme = useSettingsStore((s) => s.theme);
 
   return (
     <>
@@ -23,6 +26,7 @@ function App() {
       {view === "editor" && <EditorView />}
       {view === "error" && <ErrorView />}
       <NewProjectDialog />
+      <Toaster richColors position="bottom-right" theme={theme} />
     </>
   );
 }
