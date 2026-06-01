@@ -58,12 +58,12 @@
   - [x] Phase 0 地基 ([#1](https://github.com/longyi-xw/lowcode-3d/pull/1)–[#11](https://github.com/longyi-xw/lowcode-3d/pull/11))
   - [x] Phase 1 渲染编辑 ([#1](https://github.com/longyi-xw/lowcode-3d/pull/1)–[#11](https://github.com/longyi-xw/lowcode-3d/pull/11))
   - [x] Phase 2 导入导出 ([#12](https://github.com/longyi-xw/lowcode-3d/pull/12)–[#19](https://github.com/longyi-xw/lowcode-3d/pull/19))
-  - [ ] Phase 3 打磨发布
+  - [x] Phase 3 打磨发布
     - [x] 3.1 快捷键完整化（Delete / Cmd+D / F / Space / Esc + 帮助）（[#23](https://github.com/longyi-xw/lowcode-3d/pull/23)）
     - [x] 3.2 项目模板系统（接 `examples/empty-project` + `examples/single-cube` 到 New 流程的 picker）（[#24](https://github.com/longyi-xw/lowcode-3d/pull/24)）
     - [x] 3.3 错误处理 polish（全局 ErrorBoundary + IO toast + 未捕获 Promise 兜底）（[#25](https://github.com/longyi-xw/lowcode-3d/pull/25)）
     - [x] 3.4 文档补完（[#22](https://github.com/longyi-xw/lowcode-3d/pull/22)）
-    - [ ] 3.5 发布流程（CHANGELOG + tag v0.1.0 + GitHub Release）
+    - [x] 3.5 发布流程（CHANGELOG + tag v0.1.0 + GitHub Release）（[#26](https://github.com/longyi-xw/lowcode-3d/pull/26)）
 
 ### v0.5 — Partially shipped ahead of schedule
 
