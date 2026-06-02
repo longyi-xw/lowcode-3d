@@ -1,5 +1,6 @@
 import { AutoRotateBehavior } from "./auto-rotate";
 import { BobBehavior } from "./bob";
+import { HoverHighlightBehavior } from "./hover-highlight";
 import { ThreeBehaviorRegistry } from "./registry";
 
 export { ThreeBehaviorRegistry } from "./registry";
@@ -16,5 +17,6 @@ export function createThreeBehaviorRegistry(): ThreeBehaviorRegistry {
   const r = new ThreeBehaviorRegistry();
   r.register(new AutoRotateBehavior());
   r.register(new BobBehavior());
+  r.register(new HoverHighlightBehavior());
   return r;
 }

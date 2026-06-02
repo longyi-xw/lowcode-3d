@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { BehaviorDefinition, CodegenContext } from "@/runtime/adapter";
 
-import type { Behavior, BehaviorContext } from "./types";
+import type { Behavior, BehaviorContext, BehaviorHandle } from "./types";
 
 const ParamsSchema = z.object({
   axis: z.enum(["x", "y", "z"]),
@@ -14,7 +14,7 @@ type Params = z.infer<typeof ParamsSchema>;
 
 /** Per-binding state: the position the node sat at when Play started, plus
  *  accumulated time. */
-interface BobHandle {
+interface BobHandle extends BehaviorHandle {
   base: number;
   elapsed: number;
 }
