@@ -65,19 +65,19 @@
     - [x] 3.4 文档补完（[#22](https://github.com/longyi-xw/lowcode-3d/pull/22)）
     - [x] 3.5 发布流程（CHANGELOG + tag v0.1.0 + GitHub Release）（[#26](https://github.com/longyi-xw/lowcode-3d/pull/26)）
 
-### v0.5 — Partially shipped ahead of schedule
+### v0.5 — Shipped (behaviors framework + 3 behaviors)
 
 - **Goals**: 行为系统（架构 §7 v0.5），让用户在不写代码的情况下为节点添加 "自动旋转 / 悬停高亮 / 点击触发动画" 等语义动作；行为既在编辑器 Play 模式可预览，也作为 `// behavior(<binding-id>)` 嵌入导出的运行时代码。
 - **Target user**: 同 v0.1，重点是无代码定义运行时交互的设计师与原型师。
 - **Success criteria**:
-  - 至少 3 个内置 behavior 可用（当前仅 1 个 auto-rotate）
+  - 至少 3 个内置 behavior 可用（✅ auto-rotate + bob + hover-highlight）
   - UI 能添加 / 编辑 / 删除 binding，所有改动可撤销
   - Play 模式按 binding 顺序 tick；Stop 恢复 transform
   - 导出代码（Vite / Standalone）内嵌 behaviors，外部可运行
 - **Sub-stages**:
   - [x] v0.5 Stage A: framework + auto-rotate runtime + scene-codegen ([#20](https://github.com/longyi-xw/lowcode-3d/pull/20))
   - [x] v0.5 Stage B: UI Tab + 4 commands + Play/Pause toggle ([#21](https://github.com/longyi-xw/lowcode-3d/pull/21))
-  - [ ] v0.5 Stage C: 多 behavior 补完（hover-highlight / click-trigger / event-emit 等）
+  - [x] v0.5 Stage C: 事件驱动框架 + hover-highlight + bob（达成 ≥3 内置 behavior；click-trigger / event-emit 延后）（[#28](https://github.com/longyi-xw/lowcode-3d/pull/28)）
 
 ### v0.2 — Planned
 
