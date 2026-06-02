@@ -1,4 +1,5 @@
 import { AutoRotateBehavior } from "./auto-rotate";
+import { BobBehavior } from "./bob";
 import { ThreeBehaviorRegistry } from "./registry";
 
 export { ThreeBehaviorRegistry } from "./registry";
@@ -14,5 +15,6 @@ export type { Behavior, BehaviorHandle } from "./types";
 export function createThreeBehaviorRegistry(): ThreeBehaviorRegistry {
   const r = new ThreeBehaviorRegistry();
   r.register(new AutoRotateBehavior());
+  r.register(new BobBehavior());
   return r;
 }
