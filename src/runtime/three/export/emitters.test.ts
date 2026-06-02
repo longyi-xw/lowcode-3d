@@ -54,6 +54,9 @@ describe("viteEmitter", () => {
     expect(main.content).toMatch(/new OrbitControls\(built\.camera, canvas\)/);
     expect(main.content).toMatch(/controls\.update\(\);/);
     expect(main.content).toMatch(/new THREE\.AmbientLight\(0xffffff, 0\.3\)/);
+    expect(main.content).toContain(
+      "for (const setup of built.interactions) setup({ camera: built.camera, domElement: canvas });",
+    );
   });
 
   it("drives tickers from a THREE.Clock RAF loop in main.js", () => {
@@ -123,6 +126,9 @@ describe("standaloneEsmEmitter", () => {
     expect(main.content).toMatch(/new OrbitControls\(built\.camera, canvas\)/);
     expect(main.content).toMatch(/controls\.update\(\);/);
     expect(main.content).toMatch(/new THREE\.AmbientLight\(0xffffff, 0\.3\)/);
+    expect(main.content).toContain(
+      "for (const setup of built.interactions) setup({ camera: built.camera, domElement: canvas });",
+    );
   });
 
   it("drives tickers from a THREE.Clock RAF loop in main.js", () => {

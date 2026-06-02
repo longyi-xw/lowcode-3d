@@ -122,6 +122,14 @@ function mainJs(project: SceneProject, includeDevComments: boolean): string {
   lines.push(`controls.enableDamping = true;`);
   lines.push(`controls.dampingFactor = 0.08;`);
   lines.push(``);
+  lines.push(`// Event-driven behaviors (hover-highlight): set up once now that the`);
+  lines.push(
+    `// renderer + camera + canvas exist. Each setup binds its own listeners.`,
+  );
+  lines.push(
+    `for (const setup of built.interactions) setup({ camera: built.camera, domElement: canvas });`,
+  );
+  lines.push(``);
   lines.push(`function resize() {`);
   lines.push(`  const w = canvas.clientWidth;`);
   lines.push(`  const h = canvas.clientHeight;`);

@@ -140,6 +140,7 @@ function emitProlog(ctx: EmitContext): void {
   push(ctx, ` * @property {THREE.Camera} camera`);
   push(ctx, ` * @property {Map<string, THREE.Group>} templates`);
   push(ctx, ` * @property {Array<(dt: number) => void>} tickers`);
+  push(ctx, ` * @property {Array<Function>} interactions`);
   push(ctx, ` */`);
   push(ctx, ``);
   push(ctx, `/** @returns {Promise<BuiltScene>} */`);
@@ -151,6 +152,7 @@ function emitProlog(ctx: EmitContext): void {
   push(ctx, `camera.lookAt(0, 0, 0);`);
   push(ctx, `const templates = new Map();`);
   push(ctx, `const tickers = [];`);
+  push(ctx, `const interactions = [];`);
   push(ctx, `const loader = new GLTFLoader();`);
   push(ctx, ``);
   push(ctx, `async function loadAsset(id, url) {`);
@@ -171,7 +173,7 @@ function emitProlog(ctx: EmitContext): void {
 
 function emitEpilog(ctx: EmitContext): void {
   push(ctx, ``);
-  push(ctx, `return { scene, camera, templates, tickers };`);
+  push(ctx, `return { scene, camera, templates, tickers, interactions };`);
   ctx.indent = 0;
   push(ctx, `}`);
 }
