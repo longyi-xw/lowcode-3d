@@ -1,6 +1,8 @@
 import type { ComponentType } from "react";
 
 import { AutoRotateForm } from "./AutoRotateForm";
+import { BobForm } from "./BobForm";
+import { HoverHighlightForm } from "./HoverHighlightForm";
 
 export interface BehaviorFormProps {
   value: Record<string, unknown>;
@@ -25,4 +27,6 @@ export const BEHAVIOR_FORM_REGISTRY: Record<
   ComponentType<BehaviorFormProps>
 > = {
   "auto-rotate": AutoRotateForm as unknown as ComponentType<BehaviorFormProps>,
+  "hover-highlight": HoverHighlightForm as unknown as ComponentType<BehaviorFormProps>,
+  bob: BobForm as unknown as ComponentType<BehaviorFormProps>,
 };
