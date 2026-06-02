@@ -73,6 +73,18 @@ describe("NodeDataSchema", () => {
     });
   });
 
+  it("accepts legacy mesh without geometry (optional; readers default to box)", () => {
+    const parsed = NodeDataSchema.parse({ type: "mesh", asset_id: "abc" });
+    expect(parsed).toMatchObject({ type: "mesh", asset_id: "abc" });
+    expect((parsed as { geometry?: unknown }).geometry).toBeUndefined();
+  });
+
+  it("accepts mesh with a geometry descriptor and no asset_id", () => {
+    expect(
+      NodeDataSchema.parse({ type: "mesh", geometry: { kind: "sphere" } }),
+    ).toMatchObject({ type: "mesh", geometry: { kind: "sphere" } });
+  });
+
   it("rejects light data without intensity", () => {
     expect(() =>
       NodeDataSchema.parse({
