@@ -24,7 +24,16 @@
     "speed": "Speed",
     "speed_unit": "deg/s",
     "auto_rotate_name": "Auto Rotate",
-    "auto_rotate_desc": "Rotates the node around a local axis."
+    "auto_rotate_desc": "Rotates the node around a local axis.",
+    "intensity": "Intensity",
+    "color": "Color",
+    "amplitude": "Amplitude",
+    "frequency": "Frequency",
+    "frequency_unit": "Hz",
+    "hover_highlight_name": "Hover Highlight",
+    "hover_highlight_desc": "Highlights the node while the pointer hovers it.",
+    "bob_name": "Bob",
+    "bob_desc": "Floats the node up and down along an axis."
   },
   "play": {
     "play": "Play",

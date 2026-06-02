@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 
 import { AutoRotateBehavior } from "./auto-rotate";
+import type { BehaviorContext } from "./types";
+
+const ctx: BehaviorContext = {
+  scene: new THREE.Scene(),
+  camera: new THREE.PerspectiveCamera(),
+  domElement: null,
+  raycaster: new THREE.Raycaster(),
+};
 
 describe("AutoRotateBehavior", () => {
   const b = new AutoRotateBehavior();
@@ -31,7 +39,7 @@ describe("AutoRotateBehavior", () => {
 
   it("install returns an empty handle (auto-rotate is stateless)", () => {
     const obj = new THREE.Object3D();
-    const h = b.install(obj, { axis: "y", speed: 30 });
+    const h = b.install(obj, { axis: "y", speed: 30 }, ctx);
     expect(h).toEqual({});
     expect(h.dispose).toBeUndefined();
   });
@@ -39,8 +47,8 @@ describe("AutoRotateBehavior", () => {
   it("tick advances rotation around the chosen axis by speed * deg2rad * dt", () => {
     const obj = new THREE.Object3D();
     const params = { axis: "y" as const, speed: 30 };
-    const h = b.install(obj, params);
-    b.tick(obj, params, h, 1);
+    const h = b.install(obj, params, ctx);
+    b.tick!(obj, params, h, 1);
     expect(obj.rotation.y).toBeCloseTo((30 * Math.PI) / 180, 6);
     expect(obj.rotation.x).toBe(0);
     expect(obj.rotation.z).toBe(0);
@@ -49,15 +57,12 @@ describe("AutoRotateBehavior", () => {
   it("tick supports negative speed", () => {
     const obj = new THREE.Object3D();
     const params = { axis: "x" as const, speed: -90 };
-    const h = b.install(obj, params);
-    b.tick(obj, params, h, 0.5);
+    const h = b.install(obj, params, ctx);
+    b.tick!(obj, params, h, 0.5);
     expect(obj.rotation.x).toBeCloseTo(((-90 * Math.PI) / 180) * 0.5, 6);
   });
 
   it("emit returns code referencing tickers + varName", () => {
-    // `currentNodeVar` lands on CodegenContext in task A5; until then we
-    // cast through `as never` so the test compiles against today's
-    // CodegenContext (which only has project + warnings).
     const code = b.emit("n_abc", { axis: "y", speed: 30 }, {
       project: { metadata: {}, scene: {}, assets: [], settings: {} } as never,
       warnings: [],
@@ -70,13 +75,12 @@ describe("AutoRotateBehavior", () => {
   });
 
   it("emit output, when evaluated, produces the same rotation as tick", () => {
-    // Equivalence: run emitted ticker for 1s vs tick-driven rotation for 1s.
     const obj1 = new THREE.Object3D();
     const obj2 = new THREE.Object3D();
     const params = { axis: "y" as const, speed: 30 };
 
-    const h = b.install(obj1, params);
-    b.tick(obj1, params, h, 1);
+    const h = b.install(obj1, params, ctx);
+    b.tick!(obj1, params, h, 1);
 
     const tickers: ((dt: number) => void)[] = [];
     const code = b.emit("target", params, {

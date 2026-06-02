@@ -24,7 +24,16 @@
     "speed": "速度",
     "speed_unit": "度/秒",
     "auto_rotate_name": "自动旋转",
-    "auto_rotate_desc": "让节点绕一个本地轴匀速旋转。"
+    "auto_rotate_desc": "让节点绕一个本地轴匀速旋转。",
+    "intensity": "强度",
+    "color": "颜色",
+    "amplitude": "幅度",
+    "frequency": "频率",
+    "frequency_unit": "Hz",
+    "hover_highlight_name": "悬停高亮",
+    "hover_highlight_desc": "指针悬停时高亮节点。",
+    "bob_name": "浮动",
+    "bob_desc": "让节点沿某轴上下浮动。"
   },
   "play": {
     "play": "播放",

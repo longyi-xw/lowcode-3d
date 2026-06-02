@@ -100,6 +100,12 @@ export class ThreeAdapter implements IRuntimeAdapter {
 
   private readonly builders: BuilderRegistry;
   private readonly behaviorRegistry: ThreeBehaviorRegistry;
+  /** Canvas injected by ThreeViewport so event-driven behaviors can bind
+   *  pointer listeners. null outside a live viewport (tests / headless). */
+  private behaviorDomElement: HTMLElement | null = null;
+  /** Dedicated raycaster for behavior hover/click hit-testing (kept separate
+   *  from pickAt's so the two don't clobber each other's ray state). */
+  private readonly behaviorRaycaster = new THREE.Raycaster();
 
   /** SceneNode.id → Three.js Object3D mirror. Populated by syncNode. */
   protected readonly objects = new Map<string, THREE.Object3D>();
@@ -312,6 +318,18 @@ export class ThreeAdapter implements IRuntimeAdapter {
     return this.behaviorRegistry.list().map((b) => b.definition);
   }
 
+  /** Inject the canvas so event-driven behaviors can bind pointer listeners.
+   *  Called by ThreeViewport at mount (and with null on teardown). */
+  setBehaviorDomElement(el: HTMLElement | null): void {
+    this.behaviorDomElement = el;
+  }
+
+  /** Register an extra behavior (forward-compat for custom behaviors; used by
+   *  tests to inject fakes). */
+  registerBehavior(b: Behavior): void {
+    this.behaviorRegistry.register(b);
+  }
+
   generateBehaviorCode(binding: BehaviorBinding, ctx: CodegenContext): string {
     if (!binding.enabled) return "";
     const b = this.behaviorRegistry.get(binding.behavior_type);
@@ -350,7 +368,12 @@ export class ThreeAdapter implements IRuntimeAdapter {
         continue;
       }
       try {
-        const handle = b.install(object, parsed.data);
+        const handle = b.install(object, parsed.data, {
+          scene: this.scene,
+          camera: this.camera,
+          domElement: this.behaviorDomElement,
+          raycaster: this.behaviorRaycaster,
+        });
         perNode.set(binding.id, {
           behavior: b,
           params: parsed.data,
@@ -382,7 +405,7 @@ export class ThreeAdapter implements IRuntimeAdapter {
       if (!object) continue;
       for (const entry of perNode.values()) {
         try {
-          entry.behavior.tick(object, entry.params, entry.handle, dt);
+          entry.behavior.tick?.(object, entry.params, entry.handle, dt);
         } catch (e) {
           console.error(`tickBehaviors: tick threw on node ${nodeId}`, e);
         }

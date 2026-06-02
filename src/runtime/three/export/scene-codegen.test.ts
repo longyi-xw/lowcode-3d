@@ -55,8 +55,9 @@ describe("generateSceneModule", () => {
     const out = generateSceneModule({ project: emptyProject() });
     expect(out.sceneModuleSource).toMatch(/import \* as THREE from "three";/);
     expect(out.sceneModuleSource).toMatch(/export async function buildScene\(\)/);
+    expect(out.sceneModuleSource).toContain("const interactions = [];");
     expect(out.sceneModuleSource).toMatch(
-      /return \{ scene, camera, templates, tickers \};/,
+      /return \{ scene, camera, templates, tickers, interactions \};/,
     );
     expect(out.warnings).toEqual([]);
     expect(out.referencedAssets).toEqual([]);
@@ -280,7 +281,7 @@ describe("scene-codegen behaviors integration", () => {
     });
     expect(out.sceneModuleSource).toContain("const tickers = [];");
     expect(out.sceneModuleSource).toContain(
-      "return { scene, camera, templates, tickers };",
+      "return { scene, camera, templates, tickers, interactions };",
     );
   });
 

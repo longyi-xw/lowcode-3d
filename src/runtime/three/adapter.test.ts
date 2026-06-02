@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
+import { z } from "zod";
 
 import type { RuntimeTarget, SceneNode, Transform } from "@/core/scene/types";
 import { ThreeAdapter } from "./adapter";
@@ -775,26 +776,74 @@ describe("ThreeAdapter live behavior runtime", () => {
     expect(() => adapter.tickBehaviors(1)).not.toThrow();
   });
 
-  it("tick errors on one binding don't break others", async () => {
-    // Use vi.spyOn to silence console.error during the test
+  it("tick errors on one binding don't break others", () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     const adapter = new ThreeAdapter(target);
     adapter.syncNode(makeMeshNode("n1"), "add");
 
-    // Inject a throwing behavior into the adapter's registry by going
-    // through the public registry via a fake binding type that doesn't
-    // exist — instead, register a throwing behavior manually using a
-    // private accessor. Since behaviorRegistry is private, use a different
-    // approach: install both auto-rotate and rely on the auto-rotate path
-    // alone for now (this case is exercised by other behaviors landing
-    // later). For Stage A we assert that uninstall errors are also
-    // swallowed.
+    let goodTicks = 0;
+    adapter.registerBehavior({
+      definition: {
+        type: "throw-tick",
+        name: "throw",
+        description: "",
+        parameters_schema: z.object({}),
+      },
+      install: () => ({}),
+      tick: () => {
+        throw new Error("boom");
+      },
+      emit: () => "",
+    });
+    adapter.registerBehavior({
+      definition: {
+        type: "count-tick",
+        name: "count",
+        description: "",
+        parameters_schema: z.object({}),
+      },
+      install: () => ({}),
+      tick: () => {
+        goodTicks++;
+      },
+      emit: () => "",
+    });
 
-    adapter.installBehaviors("n1", makeAutoRotateBindings());
-    expect(() => adapter.uninstallBehaviors("n1")).not.toThrow();
+    adapter.installBehaviors("n1", [
+      { id: "b1", behavior_type: "throw-tick", enabled: true, parameters: {} },
+      { id: "b2", behavior_type: "count-tick", enabled: true, parameters: {} },
+    ]);
+    // The throwing tick must not stop the other binding from ticking.
+    expect(() => adapter.tickBehaviors(1)).not.toThrow();
+    expect(goodTicks).toBe(1);
 
     errSpy.mockRestore();
+  });
+
+  it("threads BehaviorContext.domElement through to install", () => {
+    const adapter = new ThreeAdapter(target);
+    const el = document.createElement("div");
+    adapter.setBehaviorDomElement(el);
+    adapter.syncNode(makeMeshNode("n1"), "add");
+
+    let seen: HTMLElement | null | undefined;
+    adapter.registerBehavior({
+      definition: {
+        type: "ctx-probe",
+        name: "probe",
+        description: "",
+        parameters_schema: z.object({}),
+      },
+      install: (_o, _p, ctx) => {
+        seen = ctx.domElement;
+        return {};
+      },
+      emit: () => "",
+    });
+    adapter.installBehaviors("n1", [
+      { id: "b1", behavior_type: "ctx-probe", enabled: true, parameters: {} },
+    ]);
+    expect(seen).toBe(el);
   });
 
   it("dispose releases all behavior handles", () => {
