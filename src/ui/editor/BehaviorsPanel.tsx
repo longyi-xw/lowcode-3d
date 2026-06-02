@@ -13,10 +13,14 @@ import { useUIStore } from "@/services/ui/store";
 
 import { BehaviorRow } from "./BehaviorRow";
 
-const SUPPORTED_BEHAVIORS: Array<{
+export const SUPPORTED_BEHAVIORS: Array<{
   type: string;
   defaultParams: Record<string, unknown>;
-}> = [{ type: "auto-rotate", defaultParams: { axis: "y", speed: 30 } }];
+}> = [
+  { type: "auto-rotate", defaultParams: { axis: "y", speed: 30 } },
+  { type: "hover-highlight", defaultParams: { color: "#ffaa00", intensity: 1 } },
+  { type: "bob", defaultParams: { axis: "y", amplitude: 0.5, frequency: 1 } },
+];
 
 export function BehaviorsPanel() {
   const { t } = useTranslation("editor");

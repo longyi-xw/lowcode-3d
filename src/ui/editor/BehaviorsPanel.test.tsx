@@ -7,7 +7,9 @@ import { useCommandHistoryStore } from "@/services/command-history/store";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 
-import { BehaviorsPanel } from "./BehaviorsPanel";
+import { createThreeBehaviorRegistry } from "@/runtime/three/behaviors";
+
+import { BehaviorsPanel, SUPPORTED_BEHAVIORS } from "./BehaviorsPanel";
 
 const IDENTITY = {
   position: [0, 0, 0] as [number, number, number],
@@ -126,5 +128,14 @@ describe("BehaviorsPanel", () => {
     expect(screen.getByText(/unknown behavior/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/remove/i)).toBeInTheDocument();
     expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+  });
+
+  it("offers every registered behavior in the add picker (no drift)", () => {
+    const registered = createThreeBehaviorRegistry()
+      .list()
+      .map((b) => b.definition.type)
+      .sort();
+    const offered = SUPPORTED_BEHAVIORS.map((s) => s.type).sort();
+    expect(offered).toEqual(registered);
   });
 });
