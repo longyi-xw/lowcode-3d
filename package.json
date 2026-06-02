@@ -20,7 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "bindings": "cargo run --manifest-path src-tauri/Cargo.toml --bin generate_bindings --quiet",
+    "bindings": "cargo run --manifest-path src-tauri/Cargo.toml --example generate_bindings --quiet",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "husky"
