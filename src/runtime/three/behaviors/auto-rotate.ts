@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { BehaviorDefinition, CodegenContext } from "@/runtime/adapter";
 
-import type { Behavior, BehaviorHandle } from "./types";
+import type { Behavior, BehaviorContext, BehaviorHandle } from "./types";
 
 const AxisSchema = z.enum(["x", "y", "z"]);
 const ParamsSchema = z.object({
@@ -23,7 +23,11 @@ export class AutoRotateBehavior implements Behavior<Params> {
     parameters_schema: ParamsSchema,
   };
 
-  install(_object: THREE.Object3D, _params: Params): BehaviorHandle {
+  install(
+    _object: THREE.Object3D,
+    _params: Params,
+    _ctx: BehaviorContext,
+  ): BehaviorHandle {
     return {};
   }
 

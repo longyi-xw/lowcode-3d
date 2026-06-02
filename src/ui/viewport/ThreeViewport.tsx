@@ -81,6 +81,7 @@ export function ThreeViewport() {
     canvas.style.width = "100%";
     canvas.style.height = "100%";
     container.appendChild(canvas);
+    adapter.setBehaviorDomElement(canvas);
 
     // Post-processing chain so we can stack an OutlinePass for selection
     // highlighting on top of the regular render. Render order: RenderPass
