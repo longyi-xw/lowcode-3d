@@ -57,6 +57,13 @@ describe("createThreeBehaviorRegistry", () => {
     expect(ar?.definition.type).toBe("auto-rotate");
   });
 
+  it("includes the v0.5 Stage C behaviors (bob, hover-highlight)", () => {
+    const r = createThreeBehaviorRegistry();
+    expect(r.get("bob")?.definition.type).toBe("bob");
+    expect(r.get("hover-highlight")?.definition.type).toBe("hover-highlight");
+    expect(r.list().length).toBe(3);
+  });
+
   it("each call returns a fresh registry instance", () => {
     const a = createThreeBehaviorRegistry();
     const b = createThreeBehaviorRegistry();
