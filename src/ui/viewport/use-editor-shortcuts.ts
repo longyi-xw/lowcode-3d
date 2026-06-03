@@ -142,6 +142,14 @@ export function useEditorShortcuts(): void {
         e.preventDefault();
         return;
       }
+
+      // ── Cmd/Ctrl+J (toggle asset library drawer) ───────────────
+      if (isMod && key.toLowerCase() === "j") {
+        const ui = useUIStore.getState();
+        ui.setLibraryOpen(!ui.libraryOpen);
+        e.preventDefault();
+        return;
+      }
     };
 
     window.addEventListener("keydown", onKeyDown);

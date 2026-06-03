@@ -41,6 +41,10 @@ interface UIState {
   /** Whether the New-project template picker dialog is visible. */
   newProjectOpen: boolean;
   setNewProjectOpen: (open: boolean) => void;
+  /** Whether the bottom asset-library drawer is expanded. Toggled by Cmd/Ctrl+J
+   *  and the drawer's chevron. Starts collapsed. */
+  libraryOpen: boolean;
+  setLibraryOpen: (open: boolean) => void;
   /**
    * 3-state focus request channel:
    *   undefined  → no request pending
@@ -86,6 +90,8 @@ export const useUIStore = create<UIState>((set) => ({
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   newProjectOpen: false,
   setNewProjectOpen: (newProjectOpen) => set({ newProjectOpen }),
+  libraryOpen: false,
+  setLibraryOpen: (libraryOpen) => set({ libraryOpen }),
   pendingFocusNodeId: undefined,
   requestFocus: (pendingFocusNodeId) => set({ pendingFocusNodeId }),
   consumeFocusRequest: () => set({ pendingFocusNodeId: undefined }),

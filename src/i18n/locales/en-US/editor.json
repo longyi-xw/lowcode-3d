@@ -66,6 +66,7 @@
     "scale_mode": "Scale mode",
     "focus": "Focus camera on selection",
     "clear_selection": "Clear selection",
+    "toggle_library": "Toggle asset library",
     "play_toggle": "Play / Pause",
     "help_open": "Open this dialog"
   }

@@ -157,3 +157,16 @@ describe("useUIStore — newProjectOpen (3.2)", () => {
     expect(useUIStore.getState().newProjectOpen).toBe(true);
   });
 });
+
+describe("useUIStore — libraryOpen (v0.2)", () => {
+  beforeEach(() => useUIStore.setState({ libraryOpen: false }));
+
+  it("defaults to false (library starts collapsed)", () => {
+    expect(useUIStore.getState().libraryOpen).toBe(false);
+  });
+
+  it("setLibraryOpen flips it", () => {
+    useUIStore.getState().setLibraryOpen(true);
+    expect(useUIStore.getState().libraryOpen).toBe(true);
+  });
+});

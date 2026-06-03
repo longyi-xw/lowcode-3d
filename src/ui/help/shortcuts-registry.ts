@@ -44,6 +44,7 @@ export const KEYBOARD_SHORTCUTS: ShortcutSection[] = [
     items: [
       { keys: ["F"], i18nKey: "shortcuts.focus" },
       { keys: ["Esc"], i18nKey: "shortcuts.clear_selection" },
+      { keys: ["⌘", "J"], i18nKey: "shortcuts.toggle_library" },
     ],
   },
   {
