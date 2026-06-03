@@ -9,6 +9,7 @@ import type {
   SceneProject,
   Transform,
 } from "@/core/scene/types";
+import type { MaterialOverride } from "@/core/scene/material";
 import type { SceneEditorStore } from "@/core/command/types";
 
 /**
@@ -49,6 +50,10 @@ interface SceneState {
     bindingId: string,
     parameters: Record<string, unknown>,
   ) => void;
+  /** Replace a mesh node's material override (slot 0). `undefined` clears it.
+   *  No-op when the node is missing or not a mesh. Used by
+   *  SetMaterialOverrideCommand. */
+  setMeshMaterial: (nodeId: string, override: MaterialOverride | undefined) => void;
   /** Remove a node and every descendant; also drops the id from the parent's
    *  children_ids (or from scene.root_node_ids when the node is a root).
    *  Silent no-op when nodeId does not exist. Used by DeleteNodeCommand. */
@@ -230,6 +235,20 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       const nextNode: SceneNode = { ...node, behaviors: next };
       return mutateNode(s, nodeId, nextNode);
     }),
+  setMeshMaterial: (nodeId, override) =>
+    set((s) => {
+      if (!s.project) return s;
+      const node = s.project.scene.nodes[nodeId];
+      if (!node || node.data.type !== "mesh") return s;
+      const nextNode: SceneNode = {
+        ...node,
+        data: {
+          ...node.data,
+          material_overrides: override ? [override] : undefined,
+        },
+      };
+      return mutateNode(s, nodeId, nextNode);
+    }),
   removeNodeSubtree: (nodeId) =>
     set((s) => {
       if (!s.project) return s;
@@ -343,6 +362,8 @@ export function getSceneEditorStore(): SceneEditorStore {
     setBehaviorParameters: (nodeId, bindingId, parameters) =>
       useSceneStore.getState().setBehaviorParameters(nodeId, bindingId, parameters),
     addNode: (node) => useSceneStore.getState().addNode(node),
+    setMeshMaterial: (nodeId, override) =>
+      useSceneStore.getState().setMeshMaterial(nodeId, override),
     removeNodeSubtree: (nodeId) => useSceneStore.getState().removeNodeSubtree(nodeId),
     restoreNodeSubtree: (snapshot) =>
       useSceneStore.getState().restoreNodeSubtree(snapshot),
