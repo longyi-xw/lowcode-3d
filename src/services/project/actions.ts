@@ -299,6 +299,78 @@ async function importGlbInner(): Promise<void> {
   toast.success(i18n.t("errors:toast.imported", { name: nodeName }));
 }
 
+/**
+ * Like importGlb, but adds the .glb to the project's asset library *without*
+ * placing a node in the scene. The user later drops it from the LibraryPanel
+ * (which mints a prefab_instance via AddNodeCommand). Shares importGlb's
+ * mutual-exclusion key so the two can't open file dialogs concurrently.
+ */
+export async function uploadGlbToLibrary(): Promise<void> {
+  await exclusive("importGlb", async () => {
+    if (!isTauri()) {
+      console.warn("uploadGlbToLibrary called outside Tauri runtime");
+      return;
+    }
+    if (!useSceneStore.getState().project) return;
+
+    let currentPath = useProjectStore.getState().currentPath;
+    if (!currentPath) {
+      const shouldSave = await ask(
+        "Save the project to a folder first — uploaded assets live next to project.json. Save now?",
+        {
+          title: "Save project first",
+          kind: "info",
+          okLabel: "Save…",
+          cancelLabel: "Cancel",
+        },
+      );
+      if (!shouldSave) return;
+      await saveProject({ forceDialog: true });
+      currentPath = useProjectStore.getState().currentPath;
+      if (!currentPath) return;
+    }
+
+    let selected: string | string[] | null;
+    try {
+      selected = await open({
+        multiple: false,
+        filters: [{ name: "glTF binary", extensions: ["glb", "gltf"] }],
+      });
+    } catch (e) {
+      console.error("dialog.open(glb) failed", e);
+      await reportRawError(`Couldn't open file picker: ${formatThrown(e)}`);
+      return;
+    }
+    if (typeof selected !== "string") return;
+
+    const importResult = await commands.importGlbIntoProject(selected, currentPath);
+    if (importResult.status === "error") {
+      await reportError({ kind: "folder", error: importResult.error });
+      return;
+    }
+    const imported = importResult.data;
+
+    const asset: AssetReference = {
+      id: `asset-${imported.content_hash.slice(0, 12)}`,
+      content_hash: imported.content_hash,
+      kind: "geometry",
+      relative_path: imported.relative_path,
+      tags: [],
+      description: imported.original_filename,
+      source: {
+        kind: "user_upload",
+        original_filename: imported.original_filename,
+      },
+    };
+    // addAsset is content-addressed: re-uploading the same bytes is a no-op.
+    useSceneStore.getState().addAsset(asset);
+    useProjectStore.getState().markDirty();
+    toast.success(
+      i18n.t("errors:toast.uploaded", { name: imported.original_filename }),
+    );
+  });
+}
+
 function stemFromFilename(name: string): string {
   const dot = name.lastIndexOf(".");
   if (dot <= 0) return name;
