@@ -113,6 +113,15 @@
 - **Goals**: 更多运行时（react-three-fiber、Unity）。
 - **Depends on**: v1.0 release
 
+## Backlog（显式延后项 — 记录避免遗忘 / 后期幻觉）
+
+从已完成 sub-stage 中刻意拆出的功能点，尚未排期到具体 release：
+
+- **材质贴图 pipeline**（从 v0.2 材质编辑拆出）：normalMap / map / roughnessMap / metalnessMap / aoMap 等。需 `MaterialOverrideSchema` 加贴图字段（引用 `kind:"texture"` 的 `AssetReference`）+ texture 资源上传入库 + runtime `TextureLoader`（`mesh.ts applyOverrides` 加贴图通道）+ codegen emit `TextureLoader().load("./assets/…")` + UI 贴图选择器。独立子系统，单独 spec→plan→实现。
+- **资源拖拽入视口 + 落点**（从 v0.2 资源库拆出）：当前资源库为**双击**加节点到默认位置（几何抬 `y=0.5`）。延后：从库卡片**拖拽**到视口，以 raycast 命中地面/物体的点作为新节点 `position`。
+- **多源资源上传**（从 v0.2 资源库拆出）：`AssetSourceSchema` 已含 `builtin/user_upload/online/ai_generated` 且 catalog 来源无关；目前只实装 `builtin`（几何/灯光预设）+ `user_upload`（.glb）。延后：`online`（在线模型/材质库浏览+下载入库）、`ai_generated`（AI 生成模型/贴图）。
+- **多材质槽**（从 v0.2 材质编辑拆出）：本期材质编辑只支持 slot 0；prefab/glTF 多材质对象的 slot 1+ 延后。
+
 ## Tracking conventions
 
 - **Sub-stage 完成时**：在对应 release 的 sub-stages checkbox 勾选，行末加 PR 链接（`([#NN](...))`）。
