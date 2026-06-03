@@ -13,6 +13,7 @@ import type { AssetReference, SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { BehaviorsPanel } from "@/ui/editor/BehaviorsPanel";
 import { ShortcutsHelpDialog } from "@/ui/help/ShortcutsHelpDialog";
+import { LibraryPanel } from "@/ui/library/LibraryPanel";
 import { PlayButton } from "@/ui/viewport/PlayButton";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
 import { useEditorShortcuts } from "@/ui/viewport/use-editor-shortcuts";
@@ -47,112 +48,116 @@ export function EditorView() {
     project && selectedNodeId ? project.scene.nodes[selectedNodeId] : undefined;
 
   return (
-    <section className="grid h-screen w-screen grid-cols-[240px_1fr_320px] overflow-hidden bg-background text-foreground">
-      {/* Hierarchy */}
-      <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border">
-        <header className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
-          <div className="flex items-center gap-2">
-            <Box className="h-3.5 w-3.5 text-primary" />
-            <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-              {t("editor:hierarchy.title")}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void closeProject()}
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
-            title={t("editor:close_project")}
-          >
-            <X className="h-3 w-3" />
-            <span>{t("editor:close_project")}</span>
-          </button>
-        </header>
-        <div className="min-h-0 flex-1 overflow-auto p-2">
-          {project && project.scene.root_node_ids.length > 0 ? (
-            <HierarchyTree
-              project={project}
-              selectedNodeId={selectedNodeId}
-              expandedNodes={expandedNodes}
-              onSelect={setSelectedNodeId}
-              onToggleExpand={toggleNodeExpanded}
-            />
-          ) : (
-            <p className="px-1 text-xs text-muted-foreground">
-              {t("editor:hierarchy.empty")}
-            </p>
-          )}
-        </div>
-      </aside>
-
-      {/* Viewport */}
-      <main className="relative h-full min-w-0 overflow-hidden">
-        {project ? (
-          <>
-            <ThreeViewport />
-            <GizmoModeToolbar
-              mode={gizmoMode}
-              disabled={selectedNodeId === null}
-              onChange={setGizmoMode}
-            />
-            <div className="absolute right-3 top-3 z-10">
-              <PlayButton />
-            </div>
-          </>
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <p className="font-mono text-sm text-muted-foreground">
-                {t("editor:viewport.empty")}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground/70">
-                {t("editor:viewport.empty_hint")}
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
+      <section className="grid min-h-0 flex-1 grid-cols-[240px_1fr_320px] overflow-hidden">
+        {/* Hierarchy */}
+        <aside className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border">
+          <header className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Box className="h-3.5 w-3.5 text-primary" />
+              <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("editor:hierarchy.title")}
               </p>
             </div>
-          </div>
-        )}
-      </main>
-
-      {/* Properties / Behaviors */}
-      <aside className="flex h-full min-h-0 flex-col overflow-hidden border-l border-border">
-        <div className="flex shrink-0 border-b border-border">
-          {(["properties", "behaviors"] as RightPanelTab[]).map((tab) => (
             <button
-              key={tab}
               type="button"
-              onClick={() => setRightPanelTab(tab)}
-              className={cn(
-                "flex-1 px-3 py-2 font-mono text-[11px] uppercase tracking-wider",
-                rightPanelTab === tab
-                  ? "border-b-2 border-primary text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              onClick={() => void closeProject()}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              title={t("editor:close_project")}
             >
-              {tab === "properties"
-                ? t("editor:behaviors.properties_tab_title")
-                : t("editor:behaviors.tab_title")}
+              <X className="h-3 w-3" />
+              <span>{t("editor:close_project")}</span>
             </button>
-          ))}
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto text-xs">
-          {rightPanelTab === "properties" ? (
-            <fieldset
-              disabled={playState === "play"}
-              className="border-0 p-3 disabled:opacity-60"
-            >
-              {selectedNode ? (
-                <NodeProperties node={selectedNode} />
-              ) : (
-                <p className="text-muted-foreground">{t("editor:properties.empty")}</p>
-              )}
-            </fieldset>
-          ) : (
-            <BehaviorsPanel />
-          )}
-        </div>
-      </aside>
+          </header>
+          <div className="min-h-0 flex-1 overflow-auto p-2">
+            {project && project.scene.root_node_ids.length > 0 ? (
+              <HierarchyTree
+                project={project}
+                selectedNodeId={selectedNodeId}
+                expandedNodes={expandedNodes}
+                onSelect={setSelectedNodeId}
+                onToggleExpand={toggleNodeExpanded}
+              />
+            ) : (
+              <p className="px-1 text-xs text-muted-foreground">
+                {t("editor:hierarchy.empty")}
+              </p>
+            )}
+          </div>
+        </aside>
 
+        {/* Viewport */}
+        <main className="relative h-full min-w-0 overflow-hidden">
+          {project ? (
+            <>
+              <ThreeViewport />
+              <GizmoModeToolbar
+                mode={gizmoMode}
+                disabled={selectedNodeId === null}
+                onChange={setGizmoMode}
+              />
+              <div className="absolute right-3 top-3 z-10">
+                <PlayButton />
+              </div>
+            </>
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <p className="font-mono text-sm text-muted-foreground">
+                  {t("editor:viewport.empty")}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                  {t("editor:viewport.empty_hint")}
+                </p>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* Properties / Behaviors */}
+        <aside className="flex h-full min-h-0 flex-col overflow-hidden border-l border-border">
+          <div className="flex shrink-0 border-b border-border">
+            {(["properties", "behaviors"] as RightPanelTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setRightPanelTab(tab)}
+                className={cn(
+                  "flex-1 px-3 py-2 font-mono text-[11px] uppercase tracking-wider",
+                  rightPanelTab === tab
+                    ? "border-b-2 border-primary text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab === "properties"
+                  ? t("editor:behaviors.properties_tab_title")
+                  : t("editor:behaviors.tab_title")}
+              </button>
+            ))}
+          </div>
+          <div className="min-h-0 flex-1 overflow-auto text-xs">
+            {rightPanelTab === "properties" ? (
+              <fieldset
+                disabled={playState === "play"}
+                className="border-0 p-3 disabled:opacity-60"
+              >
+                {selectedNode ? (
+                  <NodeProperties node={selectedNode} />
+                ) : (
+                  <p className="text-muted-foreground">
+                    {t("editor:properties.empty")}
+                  </p>
+                )}
+              </fieldset>
+            ) : (
+              <BehaviorsPanel />
+            )}
+          </div>
+        </aside>
+      </section>
+      <LibraryPanel />
       <ShortcutsHelpDialog />
-    </section>
+    </div>
   );
 }
 

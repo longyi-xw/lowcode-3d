@@ -69,5 +69,27 @@
     "toggle_library": "切换资源库",
     "play_toggle": "Play / 暂停",
     "help_open": "打开此对话框"
+  },
+  "library": {
+    "title": "资源库",
+    "tab": {
+      "geometry": "几何体",
+      "light": "灯光",
+      "upload": "上传"
+    },
+    "item": {
+      "box": "立方体",
+      "sphere": "球体",
+      "plane": "平面",
+      "cylinder": "圆柱体",
+      "directional": "平行光",
+      "point": "点光源",
+      "spot": "聚光灯",
+      "ambient": "环境光"
+    },
+    "search": "搜索…",
+    "upload": "上传 .glb",
+    "add_hint": "双击添加",
+    "empty_uploads": "暂无上传——点击「上传 .glb」添加模型。"
   }
 }
