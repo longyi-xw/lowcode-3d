@@ -18,6 +18,9 @@ describe("library catalog", () => {
     expect(n1.id).not.toBe(n2.id);
     expect(n1.type).toBe("mesh");
     expect(n1.data).toMatchObject({ type: "mesh", geometry: { kind: "sphere" } });
+    // Lifted half a unit so the primitive sits *on* the ground grid (y=0)
+    // instead of being half-buried under it.
+    expect(n1.transform.position).toEqual([0, 0.5, 0]);
   });
 
   it("light makeNode produces a light node with the right light_kind", () => {

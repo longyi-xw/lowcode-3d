@@ -36,12 +36,16 @@ const IDENTITY = {
   scale: [1, 1, 1] as [number, number, number],
 };
 
-function baseNode(name: string, data: NodeData): SceneNode {
+function baseNode(
+  name: string,
+  data: NodeData,
+  position: [number, number, number] = [0, 0, 0],
+): SceneNode {
   return {
     id: generateUUID(),
     name,
     type: data.type,
-    transform: IDENTITY,
+    transform: { ...IDENTITY, position },
     parent_id: null,
     children_ids: [],
     visible: true,
@@ -63,7 +67,9 @@ function geo(
     category: "geometry",
     nameKey: `library.item.${kind}`,
     icon,
-    makeNode: () => baseNode(name, { type: "mesh", geometry: { kind } }),
+    // Lift by half the primitive's height so it rests on the ground grid (y=0)
+    // rather than being half-buried under it.
+    makeNode: () => baseNode(name, { type: "mesh", geometry: { kind } }, [0, 0.5, 0]),
   };
 }
 
@@ -74,6 +80,7 @@ function light(
   name: string,
   icon: LucideIcon,
   id: string,
+  position: [number, number, number],
   extra: Partial<LightData> = {},
 ): LibraryItem {
   return {
@@ -82,13 +89,17 @@ function light(
     nameKey: `library.item.${light_kind}`,
     icon,
     makeNode: () =>
-      baseNode(name, {
-        type: "light",
-        light_kind,
-        color: "#ffffff",
-        intensity: 1,
-        ...extra,
-      }),
+      baseNode(
+        name,
+        {
+          type: "light",
+          light_kind,
+          color: "#ffffff",
+          intensity: 1,
+          ...extra,
+        },
+        position,
+      ),
   };
 }
 
@@ -97,16 +108,16 @@ export const BUILTIN_LIBRARY_ITEMS: LibraryItem[] = [
   geo("sphere", "Sphere", Circle, "geo-sphere"),
   geo("plane", "Plane", Square, "geo-plane"),
   geo("cylinder", "Cylinder", Cylinder, "geo-cylinder"),
-  light("directional", "Directional Light", Sun, "light-directional", {
+  light("directional", "Directional Light", Sun, "light-directional", [3, 5, 3], {
     intensity: 1.2,
     cast_shadow: true,
   }),
-  light("point", "Point Light", Lightbulb, "light-point"),
-  light("spot", "Spot Light", FlashlightIcon, "light-spot", {
+  light("point", "Point Light", Lightbulb, "light-point", [0, 3, 0]),
+  light("spot", "Spot Light", FlashlightIcon, "light-spot", [0, 4, 0], {
     angle: Math.PI / 6,
     penumbra: 0.2,
   }),
-  light("ambient", "Ambient Light", Sparkles, "light-ambient", {
+  light("ambient", "Ambient Light", Sparkles, "light-ambient", [0, 3, 0], {
     color: "#404040",
     intensity: 0.6,
   }),

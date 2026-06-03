@@ -86,33 +86,38 @@ export function EditorView() {
           </div>
         </aside>
 
-        {/* Viewport */}
-        <main className="relative h-full min-w-0 overflow-hidden">
-          {project ? (
-            <>
-              <ThreeViewport />
-              <GizmoModeToolbar
-                mode={gizmoMode}
-                disabled={selectedNodeId === null}
-                onChange={setGizmoMode}
-              />
-              <div className="absolute right-3 top-3 z-10">
-                <PlayButton />
+        {/* Center column: viewport + bottom asset-library drawer. The drawer
+            stays under the viewport only, and the 1fr column auto-widens if the
+            side asides ever collapse. */}
+        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <main className="relative min-h-0 flex-1 overflow-hidden">
+            {project ? (
+              <>
+                <ThreeViewport />
+                <GizmoModeToolbar
+                  mode={gizmoMode}
+                  disabled={selectedNodeId === null}
+                  onChange={setGizmoMode}
+                />
+                <div className="absolute right-3 top-3 z-10">
+                  <PlayButton />
+                </div>
+              </>
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center">
+                  <p className="font-mono text-sm text-muted-foreground">
+                    {t("editor:viewport.empty")}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground/70">
+                    {t("editor:viewport.empty_hint")}
+                  </p>
+                </div>
               </div>
-            </>
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center">
-                <p className="font-mono text-sm text-muted-foreground">
-                  {t("editor:viewport.empty")}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground/70">
-                  {t("editor:viewport.empty_hint")}
-                </p>
-              </div>
-            </div>
-          )}
-        </main>
+            )}
+          </main>
+          <LibraryPanel />
+        </div>
 
         {/* Properties / Behaviors */}
         <aside className="flex h-full min-h-0 flex-col overflow-hidden border-l border-border">
@@ -155,7 +160,6 @@ export function EditorView() {
           </div>
         </aside>
       </section>
-      <LibraryPanel />
       <ShortcutsHelpDialog />
     </div>
   );
