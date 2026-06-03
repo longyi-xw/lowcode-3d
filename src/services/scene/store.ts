@@ -342,6 +342,7 @@ export function getSceneEditorStore(): SceneEditorStore {
       useSceneStore.getState().setBehaviorEnabled(nodeId, bindingId, enabled),
     setBehaviorParameters: (nodeId, bindingId, parameters) =>
       useSceneStore.getState().setBehaviorParameters(nodeId, bindingId, parameters),
+    addNode: (node) => useSceneStore.getState().addNode(node),
     removeNodeSubtree: (nodeId) => useSceneStore.getState().removeNodeSubtree(nodeId),
     restoreNodeSubtree: (snapshot) =>
       useSceneStore.getState().restoreNodeSubtree(snapshot),
