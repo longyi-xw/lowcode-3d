@@ -236,22 +236,42 @@ function emitGroup(ctx: EmitContext, varName: string, node: SceneNode): void {
   push(ctx, `${varName}.name = ${JSON.stringify(node.name)};`);
 }
 
+/** JS source for a primitive geometry constructor — mirrors the editor's
+ *  `geometryFor` (same default sizes) so a save → export round-trip renders
+ *  identically on screen. */
+function geometryExpr(kind: "box" | "sphere" | "plane" | "cylinder"): string {
+  switch (kind) {
+    case "sphere":
+      return "new THREE.SphereGeometry(0.5, 32, 16)";
+    case "plane":
+      return "new THREE.PlaneGeometry(1, 1)";
+    case "cylinder":
+      return "new THREE.CylinderGeometry(0.5, 0.5, 1, 32)";
+    case "box":
+    default:
+      return "new THREE.BoxGeometry(1, 1, 1)";
+  }
+}
+
 function emitMesh(ctx: EmitContext, varName: string, node: SceneNode): void {
   if (node.data.type !== "mesh") return;
-  // v1 echoes the editor's placeholder cube (1×1 box, MeshStandardMaterial).
-  // Mesh nodes referencing real geometry currently route through
-  // prefab_instance instead — keep this branch faithful to what the editor
-  // renders today so a save → export round-trip looks identical on screen.
-  push(ctx, `const ${varName}_geom = new THREE.BoxGeometry(1, 1, 1);`);
+  const data = node.data;
+  const kind = data.geometry?.kind ?? "box";
+  push(ctx, `const ${varName}_geom = ${geometryExpr(kind)};`);
   push(
     ctx,
     `const ${varName}_mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0, roughness: 0.7 });`,
   );
   push(ctx, `const ${varName} = new THREE.Mesh(${varName}_geom, ${varName}_mat);`);
   push(ctx, `${varName}.name = ${JSON.stringify(node.name)};`);
-  ctx.warnings.push(
-    `mesh "${node.name}" exported as a placeholder cube — hand-authored geometry export is not implemented in v1`,
-  );
+  // Primitive geometry is exported faithfully. A mesh that references a glTF
+  // asset still renders as a `kind` placeholder here — its real geometry export
+  // is not implemented in v1, so warn only in that case.
+  if (data.asset_id) {
+    ctx.warnings.push(
+      `mesh "${node.name}" references asset "${data.asset_id}" — exported as a ${kind} placeholder; glTF geometry export is not implemented in v1`,
+    );
+  }
 }
 
 function emitLight(ctx: EmitContext, varName: string, node: SceneNode): void {

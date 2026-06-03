@@ -18,6 +18,7 @@
     "saved": "已保存",
     "opened": "已打开 {{name}}",
     "imported": "已导入 {{name}}",
+    "uploaded": "已添加 {{name}} 到资源库",
     "exported": "已导出到 {{path}}"
   },
   "uncaught": "发生了未预期的错误"

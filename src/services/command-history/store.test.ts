@@ -48,6 +48,9 @@ function makeEditor(initial: SceneNode): SceneEditorStore {
     setBehaviorParameters: () => {
       throw new Error("setBehaviorParameters not implemented in this fake");
     },
+    addNode: () => {
+      throw new Error("addNode not implemented in this fake");
+    },
     removeNodeSubtree: () => {
       throw new Error("removeNodeSubtree not implemented in this fake");
     },

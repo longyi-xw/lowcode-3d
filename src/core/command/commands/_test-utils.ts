@@ -19,6 +19,7 @@ type Call =
       parameters: Record<string, unknown>;
     }
   | { op: "setNodeTransform"; id: string; transform: Transform }
+  | { op: "addNode"; node: SceneNode }
   | { op: "removeNodeSubtree"; nodeId: string }
   | { op: "restoreNodeSubtree"; snapshot: SceneNodeSnapshot }
   | {
@@ -49,6 +50,7 @@ export function makeFakeEditor(node?: SceneNode): FakeEditor {
         bindingId,
         parameters,
       }),
+    addNode: (node) => calls.push({ op: "addNode", node }),
     removeNodeSubtree: (nodeId) => calls.push({ op: "removeNodeSubtree", nodeId }),
     restoreNodeSubtree: (snapshot) =>
       calls.push({ op: "restoreNodeSubtree", snapshot }),

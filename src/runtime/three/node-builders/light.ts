@@ -14,6 +14,12 @@ export function build(node: SceneNode): THREE.Object3D {
   const data = requireLightData(node);
   const light = create(data);
   light.name = node.name;
+  // Editor-only marker so the light is visible in the viewport (a bare
+  // THREE.Light renders nothing). It's a child of the light, so it tracks the
+  // light's transform and — via findNodeId walking up to the light's tagged
+  // nodeId — a click on it selects the light. Export ignores it (codegen emits
+  // from the SceneNode, never from Three children).
+  light.add(createMarker(data.color));
   return light;
 }
 
@@ -22,6 +28,12 @@ export function update(object: THREE.Object3D, node: SceneNode): void {
   const data = requireLightData(node);
   object.color.set(data.color);
   object.intensity = data.intensity;
+  const marker = object.children.find(
+    (c): c is THREE.Mesh => c.userData?.lightMarker === true,
+  );
+  if (marker && marker.material instanceof THREE.MeshBasicMaterial) {
+    marker.material.color.set(data.color);
+  }
   if (object instanceof THREE.PointLight || object instanceof THREE.SpotLight) {
     if (data.distance !== undefined) object.distance = data.distance;
     if (data.decay !== undefined) object.decay = data.decay;
@@ -33,6 +45,19 @@ export function update(object: THREE.Object3D, node: SceneNode): void {
   if (data.cast_shadow !== undefined) {
     object.castShadow = data.cast_shadow;
   }
+}
+
+/** Small unlit dot drawn in the light's color, marking the light's position in
+ *  the editor viewport. Per-marker geometry (cheap) so disposeSubtree on one
+ *  light never frees another's shared buffer. */
+function createMarker(color: string): THREE.Mesh {
+  const marker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 12, 8),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(color) }),
+  );
+  marker.name = "__light_marker";
+  marker.userData.lightMarker = true;
+  return marker;
 }
 
 function create(data: LightData): THREE.Light {

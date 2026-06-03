@@ -242,6 +242,43 @@ describe("generateSceneModule", () => {
   });
 });
 
+describe("scene-codegen mesh geometry", () => {
+  function meshGeomNode(kind?: "box" | "sphere" | "plane" | "cylinder"): SceneNode {
+    return {
+      id: "m1",
+      name: "M1",
+      type: "mesh",
+      transform: IDENTITY,
+      parent_id: null,
+      children_ids: [],
+      visible: true,
+      locked: false,
+      data: kind
+        ? { type: "mesh", geometry: { kind } }
+        : { type: "mesh", asset_id: "x" },
+      behaviors: [],
+      user_data: {},
+    };
+  }
+
+  it.each([
+    ["box", /new THREE\.BoxGeometry\(/],
+    ["sphere", /new THREE\.SphereGeometry\(/],
+    ["plane", /new THREE\.PlaneGeometry\(/],
+    ["cylinder", /new THREE\.CylinderGeometry\(/],
+  ] as const)("emits %s geometry", (kind, re) => {
+    const p = withNodes(emptyProject(), [meshGeomNode(kind)], ["m1"]);
+    expect(generateSceneModule({ project: p }).sceneModuleSource).toMatch(re);
+  });
+
+  it("emits a box for a legacy mesh without a geometry descriptor", () => {
+    const p = withNodes(emptyProject(), [meshGeomNode()], ["m1"]);
+    expect(generateSceneModule({ project: p }).sceneModuleSource).toMatch(
+      /new THREE\.BoxGeometry\(/,
+    );
+  });
+});
+
 function meshNodeWith(id: string, behaviors: BehaviorBinding[]): SceneNode {
   return {
     id,

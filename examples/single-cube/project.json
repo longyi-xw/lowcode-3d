@@ -28,6 +28,7 @@
         "locked": false,
         "data": {
           "type": "mesh",
+          "geometry": { "kind": "box" },
           "asset_id": "asset-cube"
         },
         "behaviors": [],

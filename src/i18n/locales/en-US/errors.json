@@ -18,6 +18,7 @@
     "saved": "Saved",
     "opened": "Opened {{name}}",
     "imported": "Imported {{name}}",
+    "uploaded": "Added {{name}} to the library",
     "exported": "Exported to {{path}}"
   },
   "uncaught": "An unexpected error occurred"

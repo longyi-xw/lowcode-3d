@@ -156,6 +156,15 @@ describe("useEditorShortcuts", () => {
     expect(useUIStore.getState().helpOpen).toBe(true);
   });
 
+  it("Cmd+J toggles the asset library", () => {
+    useUIStore.setState({ libraryOpen: false });
+    renderHook(() => useEditorShortcuts());
+    fire("j", { metaKey: true });
+    expect(useUIStore.getState().libraryOpen).toBe(true);
+    fire("j", { metaKey: true });
+    expect(useUIStore.getState().libraryOpen).toBe(false);
+  });
+
   it("skips Delete when focus is in an INPUT", () => {
     const input = document.createElement("input");
     document.body.appendChild(input);

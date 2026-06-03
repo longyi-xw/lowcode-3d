@@ -65,11 +65,16 @@ const MaterialOverrideSchema = z.object({
   emissive_intensity: z.number().nonnegative().optional(),
 });
 
+export const GeometryDescriptorSchema = z.object({
+  kind: z.enum(["box", "sphere", "plane", "cylinder"]),
+});
+
 export const NodeDataSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("group") }),
   z.object({
     type: z.literal("mesh"),
-    asset_id: z.string(),
+    geometry: GeometryDescriptorSchema.optional(),
+    asset_id: z.string().optional(),
     material_overrides: z.array(MaterialOverrideSchema).optional(),
   }),
   z.object({

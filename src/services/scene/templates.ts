@@ -48,7 +48,7 @@ export function createSingleCubeProject(name = "Untitled project"): SceneProject
       children_ids: [],
       visible: true,
       locked: false,
-      data: { type: "mesh", asset_id: "asset-cube" },
+      data: { type: "mesh", geometry: { kind: "box" }, asset_id: "asset-cube" },
       behaviors: [],
       user_data: {},
     },

@@ -18,6 +18,7 @@ export interface SceneEditorStore {
     parameters: Record<string, unknown>,
   ): void;
   // ── new (Phase 3 · 3.1) ──
+  addNode(node: SceneNode): void;
   removeNodeSubtree(nodeId: string): void;
   restoreNodeSubtree(snapshot: SceneNodeSnapshot): void;
   duplicateNode(sourceNodeId: string, newSubtree: SceneNodeSnapshot): void;
