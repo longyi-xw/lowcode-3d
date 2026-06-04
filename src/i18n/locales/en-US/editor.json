@@ -8,7 +8,16 @@
   "properties": {
     "title": "Properties",
     "empty": "Select a node to inspect",
-    "prefab_section": "prefab asset"
+    "prefab_section": "prefab asset",
+    "material": {
+      "section": "material",
+      "base_color": "Base Color",
+      "metalness": "Metalness",
+      "roughness": "Roughness",
+      "emissive": "Emissive",
+      "emissive_intensity": "Emissive Int.",
+      "opacity": "Opacity"
+    }
   },
   "viewport": {
     "empty": "Empty scene",

@@ -8,7 +8,16 @@
   "properties": {
     "title": "属性",
     "empty": "选中节点以查看属性",
-    "prefab_section": "预制体资源"
+    "prefab_section": "预制体资源",
+    "material": {
+      "section": "材质",
+      "base_color": "基础色",
+      "metalness": "金属度",
+      "roughness": "粗糙度",
+      "emissive": "自发光",
+      "emissive_intensity": "自发光强度",
+      "opacity": "不透明度"
+    }
   },
   "viewport": {
     "empty": "空场景",
