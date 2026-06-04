@@ -12,6 +12,7 @@ import { isEffectivelyLocked } from "@/core/scene/policy";
 import type { AssetReference, SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { BehaviorsPanel } from "@/ui/editor/BehaviorsPanel";
+import { MaterialSection } from "@/ui/editor/MaterialSection";
 import { ShortcutsHelpDialog } from "@/ui/help/ShortcutsHelpDialog";
 import { LibraryPanel } from "@/ui/library/LibraryPanel";
 import { PlayButton } from "@/ui/viewport/PlayButton";
@@ -211,6 +212,7 @@ function NodeProperties({ node }: { node: SceneNode }) {
       {node.data.type === "prefab_instance" && (
         <PrefabInfo assetId={node.data.asset_id} />
       )}
+      {node.data.type === "mesh" && <MaterialSection node={node} />}
     </dl>
   );
 }
