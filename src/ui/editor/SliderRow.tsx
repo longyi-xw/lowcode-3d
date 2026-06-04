@@ -25,6 +25,7 @@ export function SliderRow({
     const n = Number.parseFloat(raw);
     if (Number.isFinite(n)) onChange(n);
   };
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return (
     <div className="grid grid-cols-[80px_1fr_56px] items-center gap-2">
       <span className="text-muted-foreground">{label}</span>
@@ -37,7 +38,14 @@ export function SliderRow({
         step={step}
         disabled={disabled}
         onChange={(e) => emit(e.target.value)}
-        className={cn("w-full", disabled && "opacity-50")}
+        style={{
+          background: `linear-gradient(to right, hsl(var(--primary)) ${pct}%, hsl(var(--muted)) ${pct}%)`,
+        }}
+        className={cn(
+          "h-1.5 w-full cursor-pointer appearance-none rounded-full",
+          "[&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-primary",
+          disabled && "opacity-50",
+        )}
       />
       <input
         type="number"

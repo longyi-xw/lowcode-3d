@@ -90,4 +90,13 @@ describe("mesh builder material", () => {
     const mat = mesh.material as THREE.MeshStandardMaterial;
     expect(`#${mat.color.getHexString()}`).toBe(DEFAULT_MESH_MATERIAL.color);
   });
+
+  it("turns transparent on via update when opacity drops below 1", () => {
+    const mesh = build(meshWithMaterial()) as THREE.Mesh; // opaque default
+    expect((mesh.material as THREE.MeshStandardMaterial).transparent).toBe(false);
+    update(mesh, meshWithMaterial({ slot: 0, opacity: 0.5 }));
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    expect(mat.transparent).toBe(true);
+    expect(mat.opacity).toBe(0.5);
+  });
 });

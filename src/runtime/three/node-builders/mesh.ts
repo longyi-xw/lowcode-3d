@@ -77,5 +77,11 @@ function applyResolvedMaterial(
   material.emissive.set(m.emissive);
   material.emissiveIntensity = m.emissive_intensity;
   material.opacity = m.opacity;
-  material.transparent = m.opacity < 1;
+  const transparent = m.opacity < 1;
+  if (material.transparent !== transparent) {
+    // Toggling `transparent` switches the render pipeline — without a shader
+    // recompile the new opacity is ignored (mesh stays fully opaque).
+    material.transparent = transparent;
+    material.needsUpdate = true;
+  }
 }
