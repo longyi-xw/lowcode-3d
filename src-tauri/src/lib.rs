@@ -5,6 +5,7 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuild
 use tauri::Emitter;
 use tauri_specta::{collect_commands, Builder};
 
+mod ai;
 mod assets;
 mod export;
 mod project_io;
