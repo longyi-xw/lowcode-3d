@@ -8,6 +8,7 @@ import { LoadingView } from "@/ui/views/LoadingView";
 import { EditorView } from "@/ui/views/EditorView";
 import { ErrorView } from "@/ui/views/ErrorView";
 import { NewProjectDialog } from "@/ui/project/NewProjectDialog";
+import { SettingsDialog } from "@/ui/settings/SettingsDialog";
 import { Toaster } from "sonner";
 import { useSettingsStore } from "@/services/settings/store";
 
@@ -26,6 +27,7 @@ function App() {
       {view === "editor" && <EditorView />}
       {view === "error" && <ErrorView />}
       <NewProjectDialog />
+      <SettingsDialog />
       <Toaster richColors position="bottom-right" theme={theme} />
     </>
   );

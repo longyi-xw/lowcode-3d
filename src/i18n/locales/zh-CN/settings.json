@@ -1,5 +1,8 @@
 {
   "title": "设置",
+  "nav": {
+    "ai_providers": "AI 服务商"
+  },
   "language": {
     "label": "语言",
     "description": "整个应用的显示语言",

@@ -1,5 +1,8 @@
 {
   "title": "Settings",
+  "nav": {
+    "ai_providers": "AI providers"
+  },
   "language": {
     "label": "Language",
     "description": "Display language for the entire application",

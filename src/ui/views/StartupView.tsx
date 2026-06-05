@@ -1,8 +1,18 @@
 import { useTranslation } from "react-i18next";
-import { FileBox, FilePlus, FolderOpen, Link2, Moon, Sun, SunMoon } from "lucide-react";
+import {
+  FileBox,
+  FilePlus,
+  FolderOpen,
+  Link2,
+  Moon,
+  Settings,
+  Sun,
+  SunMoon,
+} from "lucide-react";
 import { useAppViewStore, type LoadingTarget } from "@/services/app-view/store";
 import { SUPPORTED_LANGUAGES } from "@/i18n/config";
 import { useSettingsStore } from "@/services/settings/store";
+import { useUIStore } from "@/services/ui/store";
 import { useSceneStore } from "@/services/scene/store";
 import { createDemoProject } from "@/services/scene/demo-project";
 import { newProject, openProject } from "@/services/project/actions";
@@ -13,6 +23,7 @@ export function StartupView() {
   const startLoading = useAppViewStore((s) => s.startLoading);
   const setProject = useSceneStore((s) => s.setProject);
   const { setLanguage, theme, setTheme } = useSettingsStore();
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
 
   // Most project actions stage a demo project before the loading view, so the
   // editor lands on something visible. Clone-from-URL deliberately routes to
@@ -79,6 +90,15 @@ export function StartupView() {
             aria-label={`theme: ${theme}`}
           >
             <ThemeIcon className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            title={t("settings:title")}
+            aria-label={t("settings:title")}
+          >
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </header>
