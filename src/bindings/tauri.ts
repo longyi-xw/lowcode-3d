@@ -19,9 +19,45 @@ export const commands = {
 	 */
 	readProjectAsset: (projectPath: string, relativePath: string) => typedError<string, FolderError>(__TAURI_INVOKE("read_project_asset", { projectPath, relativePath })),
 	writeExportFiles: (payload: ExportPayload) => typedError<ExportSummary, FolderError>(__TAURI_INVOKE("write_export_files", { payload })),
+	setAiKey: (provider: AiProvider, key: string) => typedError<null, AiError>(__TAURI_INVOKE("set_ai_key", { provider, key })),
+	hasAiKey: (provider: AiProvider) => typedError<boolean, AiError>(__TAURI_INVOKE("has_ai_key", { provider })),
+	clearAiKey: (provider: AiProvider) => typedError<null, AiError>(__TAURI_INVOKE("clear_ai_key", { provider })),
+	aiComplete: (req: AiCompleteRequest) => typedError<AiCompleteResponse, AiError>(__TAURI_INVOKE("ai_complete", { req })),
+	testAiProvider: (provider: AiProvider, model: string) => typedError<null, AiError>(__TAURI_INVOKE("test_ai_provider", { provider, model })),
 };
 
 /* Types */
+export type AiCompleteRequest = {
+	provider: AiProvider,
+	model: string,
+	system: string,
+	user: string,
+	/**
+	 *  JSON Schema as a string (frontend JSON.stringify). `serde_json::Value`
+	 *  can't be exported to TS by specta, so JSON crosses the IPC boundary as
+	 *  a string — same rationale as base64-for-bytes in assets.rs.
+	 */
+	json_schema: string | null,
+};
+
+export type AiCompleteResponse = {
+	text: string | null,
+	/**  Structured output as a JSON string (frontend JSON.parse). */
+	json: string | null,
+};
+
+/**  与 FolderError 同款 specta 形状: { code, data? }。 */
+export type AiError = { code: "no_key" } | { code: "network"; data: string } | { code: "api_error"; data: {
+	status: number,
+	message: string,
+} } | { code: "parse"; data: string } | { code: "keychain"; data: string };
+
+/**
+ *  本期仅 Anthropic;加 provider = 加 enum 分支 + match 分支。
+ *  lowercase 序列化 → "anthropic"，与前端 settings.aiProvider + keychain account 一致。
+ */
+export type AiProvider = "anthropic";
+
 export type ExportPayload = {
 	source_project_path: string,
 	destination_path: string,

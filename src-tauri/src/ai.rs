@@ -16,13 +16,17 @@ pub struct AiCompleteRequest {
     pub model: String,
     pub system: String,
     pub user: String,
-    pub json_schema: Option<Value>,
+    /// JSON Schema as a string (frontend JSON.stringify). `serde_json::Value`
+    /// can't be exported to TS by specta, so JSON crosses the IPC boundary as
+    /// a string — same rationale as base64-for-bytes in assets.rs.
+    pub json_schema: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
 pub struct AiCompleteResponse {
     pub text: Option<String>,
-    pub json: Option<Value>,
+    /// Structured output as a JSON string (frontend JSON.parse).
+    pub json: Option<String>,
 }
 
 /// 与 FolderError 同款 specta 形状: { code, data? }。
@@ -78,7 +82,7 @@ pub fn parse_anthropic_response(body: &Value) -> Result<AiCompleteResponse, AiEr
                 .get("input")
                 .cloned()
                 .ok_or_else(|| AiError::Parse("tool_use without input".into()))?;
-            return Ok(AiCompleteResponse { text: None, json: Some(input) });
+            return Ok(AiCompleteResponse { text: None, json: Some(input.to_string()) });
         }
     }
 
@@ -142,8 +146,11 @@ async fn anthropic_complete(
     key: &str,
     req: &AiCompleteRequest,
 ) -> Result<AiCompleteResponse, AiError> {
-    let body =
-        build_anthropic_body(&req.model, &req.system, &req.user, req.json_schema.as_ref());
+    let schema: Option<Value> = match &req.json_schema {
+        Some(s) => Some(serde_json::from_str(s).map_err(|e| AiError::Parse(e.to_string()))?),
+        None => None,
+    };
+    let body = build_anthropic_body(&req.model, &req.system, &req.user, schema.as_ref());
     let resp = reqwest::Client::new()
         .post(ANTHROPIC_URL)
         .header("x-api-key", key)
@@ -234,7 +241,9 @@ mod tests {
             "content": [{ "type": "tool_use", "name": "emit_result", "input": { "x": 1 } }]
         }))
         .unwrap();
-        assert_eq!(r.json, Some(json!({ "x": 1 })));
+        // json is a JSON string now — parse it back to compare structurally.
+        let parsed: Value = serde_json::from_str(r.json.as_ref().unwrap()).unwrap();
+        assert_eq!(parsed, json!({ "x": 1 }));
         assert!(r.text.is_none());
     }
 
