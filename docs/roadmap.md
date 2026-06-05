@@ -23,7 +23,7 @@
 | Phase 2 导入导出          | .glb 导入 + 资源管线 + Vite/Standalone 代码导出            | #12–#19       | ✅         |
 | Phase 3 打磨发布          | 快捷键完整化 / 项目模板 / 错误处理 / 文档 / GitHub Release | (in progress) | 🟡         |
 | v0.5 行为系统（提前部分） | Behavior framework + auto-rotate + UI + Play/Pause         | #20, #21      | 🟡 partial |
-| v0.2 资源库 + 材质编辑    | 内置库 + 用户上传 + 材质参数                               | #29           | 🟡 partial |
+| v0.2 资源库 + 材质编辑    | 内置库 + 用户上传 + 材质参数                               | #29, #30      | ✅         |
 | v0.3 AI Skill 框架        | Skill 接口 + AI proxy + 自然语言操作                       | —             | ⏳         |
 | v0.4 空间吸附             | Socket 系统 + 几何约束                                     | —             | ⏳         |
 | v1.0 多适配器             | Babylon.js 适配器                                          | —             | ⏳         |
@@ -79,18 +79,18 @@
   - [x] v0.5 Stage B: UI Tab + 4 commands + Play/Pause toggle ([#21](https://github.com/longyi-xw/lowcode-3d/pull/21))
   - [x] v0.5 Stage C: 事件驱动框架 + hover-highlight + bob（达成 ≥3 内置 behavior；click-trigger / event-emit 延后）（[#28](https://github.com/longyi-xw/lowcode-3d/pull/28)）
 
-### v0.2 — In progress（拆为 2 个 sub-stage）
+### v0.2 — Shipped（资源库 #29 + 材质编辑 #30）
 
 - **Goals**: 资源库与材质编辑（架构 §7 v0.2）。内置基础几何 / 灯光 / HDRI 资源库 + 用户上传管理（取代当前 "拖 .glb 进视口" 单一入口）+ 属性面板加 PBR 材质参数（baseColor / metalness / roughness / emissive / normalMap）。
 - **Target user**: 不想从头建几何或找模型的设计师；想精修 PBR 材质的开发者。
 - **Sub-stages**:
   - [x] **资源库**（#29）：`MeshData.geometry` 描述符（box/sphere/plane/cylinder）+ builder/codegen 按 kind 建几何；底部可收缩抽屉（Cmd/Ctrl+J + chevron）、分类 tab（几何/灯光/上传）、搜索、卡片双击加节点（`AddNodeCommand` 可撤销）；`uploadGlbToLibrary` 上传入库（来源无关 catalog）；灯光视口标记。
-  - [ ] **材质编辑**：属性面板 PBR 参数（baseColor / metalness / roughness / emissive / normalMap）编辑 mesh 节点 + `material_overrides` codegen。
+  - [x] **材质编辑**（#30）：属性面板 PBR 参数（baseColor / metalness / roughness / emissive / emissive_intensity / opacity，slot 0）编辑 mesh 节点 + `SetMaterialOverrideCommand` 可撤销（拖动合并）+ `emitMesh` 经 `resolveMaterial` 导出材质字段。normalMap / 材质贴图见 [Backlog](#backlog显式延后项--记录避免遗忘--后期幻觉)。
 - **Success criteria**:
   - [x] 资源库面板能浏览 / 搜索 / 加入视口（双击加节点）
   - [x] 上传后的资源出现在库里且 save/open 后保留
-  - [ ] 属性面板的材质参数能编辑 mesh 节点，撤销/重做有效
-  - [ ] 导出代码包含正确的材质字段
+  - [x] 属性面板的材质参数能编辑 mesh 节点，撤销/重做有效
+  - [x] 导出代码包含正确的材质字段
 - **Depends on**: v0.1 release（Phase 3 全部 5 个 sub-stage 完成）
 
 ### v0.3 — Planned
