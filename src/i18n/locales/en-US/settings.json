@@ -3,6 +3,23 @@
   "nav": {
     "ai_providers": "AI providers"
   },
+  "ai": {
+    "title": "AI providers",
+    "byok_note": "Bring your own key. Calls are proxied through the Tauri Rust process — the renderer never sees the key.",
+    "provider": {
+      "anthropic": "Anthropic"
+    },
+    "model": "Model",
+    "api_key": "API key",
+    "key_placeholder": "sk-ant-…",
+    "configured": "configured",
+    "not_configured": "not configured",
+    "save": "Save",
+    "clear": "Clear",
+    "test": "Test connection",
+    "test_ok": "Connection OK",
+    "test_fail": "Connection failed: {{message}}"
+  },
   "language": {
     "label": "Language",
     "description": "Display language for the entire application",

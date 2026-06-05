@@ -3,6 +3,23 @@
   "nav": {
     "ai_providers": "AI 服务商"
   },
+  "ai": {
+    "title": "AI 服务商",
+    "byok_note": "自带 key。调用经 Tauri Rust 进程代理——渲染层永不接触 key。",
+    "provider": {
+      "anthropic": "Anthropic"
+    },
+    "model": "模型",
+    "api_key": "API 密钥",
+    "key_placeholder": "sk-ant-…",
+    "configured": "已配置",
+    "not_configured": "未配置",
+    "save": "保存",
+    "clear": "清除",
+    "test": "测试连接",
+    "test_ok": "连接正常",
+    "test_fail": "连接失败：{{message}}"
+  },
   "language": {
     "label": "语言",
     "description": "整个应用的显示语言",
