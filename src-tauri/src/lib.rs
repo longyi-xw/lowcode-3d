@@ -11,6 +11,7 @@ mod export;
 mod project_io;
 mod project_state;
 
+use ai::{ai_complete, clear_ai_key, has_ai_key, set_ai_key, test_ai_provider};
 use assets::{import_glb_into_project, read_project_asset};
 use export::write_export_files;
 use project_io::{open_project_folder, save_project_folder};
@@ -25,6 +26,11 @@ fn specta_builder() -> Builder<tauri::Wry> {
         import_glb_into_project,
         read_project_asset,
         write_export_files,
+        set_ai_key,
+        has_ai_key,
+        clear_ai_key,
+        ai_complete,
+        test_ai_provider,
     ])
 }
 

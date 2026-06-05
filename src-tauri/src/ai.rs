@@ -96,6 +96,103 @@ pub fn parse_anthropic_response(body: &Value) -> Result<AiCompleteResponse, AiEr
     Ok(AiCompleteResponse { text: Some(text), json: None })
 }
 
+use keyring::{Entry, Error as KeyringError};
+
+const KEYCHAIN_SERVICE: &str = "lowcode3d-ai";
+
+fn provider_account(p: AiProvider) -> &'static str {
+    match p {
+        AiProvider::Anthropic => "anthropic",
+    }
+}
+
+fn key_entry(p: AiProvider) -> Result<Entry, AiError> {
+    Entry::new(KEYCHAIN_SERVICE, provider_account(p))
+        .map_err(|e| AiError::Keychain(e.to_string()))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_ai_key(provider: AiProvider, key: String) -> Result<(), AiError> {
+    key_entry(provider)?
+        .set_password(&key)
+        .map_err(|e| AiError::Keychain(e.to_string()))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn has_ai_key(provider: AiProvider) -> Result<bool, AiError> {
+    match key_entry(provider)?.get_password() {
+        Ok(_) => Ok(true),
+        Err(KeyringError::NoEntry) => Ok(false),
+        Err(e) => Err(AiError::Keychain(e.to_string())),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn clear_ai_key(provider: AiProvider) -> Result<(), AiError> {
+    match key_entry(provider)?.delete_credential() {
+        Ok(()) | Err(KeyringError::NoEntry) => Ok(()),
+        Err(e) => Err(AiError::Keychain(e.to_string())),
+    }
+}
+
+async fn anthropic_complete(
+    key: &str,
+    req: &AiCompleteRequest,
+) -> Result<AiCompleteResponse, AiError> {
+    let body =
+        build_anthropic_body(&req.model, &req.system, &req.user, req.json_schema.as_ref());
+    let resp = reqwest::Client::new()
+        .post(ANTHROPIC_URL)
+        .header("x-api-key", key)
+        .header("anthropic-version", ANTHROPIC_VERSION)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| AiError::Network(e.to_string()))?;
+    let status = resp.status();
+    let val: Value = resp
+        .json()
+        .await
+        .map_err(|e| AiError::Parse(e.to_string()))?;
+    if !status.is_success() {
+        let message = val["error"]["message"]
+            .as_str()
+            .unwrap_or("unknown error")
+            .to_string();
+        return Err(AiError::ApiError { status: status.as_u16(), message });
+    }
+    parse_anthropic_response(&val)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn ai_complete(req: AiCompleteRequest) -> Result<AiCompleteResponse, AiError> {
+    let key = match key_entry(req.provider)?.get_password() {
+        Ok(k) => k,
+        Err(KeyringError::NoEntry) => return Err(AiError::NoKey),
+        Err(e) => return Err(AiError::Keychain(e.to_string())),
+    };
+    match req.provider {
+        AiProvider::Anthropic => anthropic_complete(&key, &req).await,
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn test_ai_provider(provider: AiProvider, model: String) -> Result<(), AiError> {
+    let req = AiCompleteRequest {
+        provider,
+        model,
+        system: String::new(),
+        user: "ping".into(),
+        json_schema: None,
+    };
+    ai_complete(req).await.map(|_| ())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
