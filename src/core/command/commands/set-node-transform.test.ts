@@ -58,6 +58,9 @@ function createTestStore(...nodes: SceneNode[]): TestStore {
     addNode: () => {
       throw new Error("addNode not implemented in this fake");
     },
+    setMeshMaterial: () => {
+      throw new Error("setMeshMaterial not implemented in this fake");
+    },
     removeNodeSubtree: () => {
       throw new Error("removeNodeSubtree not implemented in this fake");
     },

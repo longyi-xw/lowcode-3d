@@ -279,6 +279,62 @@ describe("scene-codegen mesh geometry", () => {
   });
 });
 
+describe("scene-codegen mesh material", () => {
+  function meshMatNode(override?: {
+    slot: number;
+    color?: string;
+    metalness?: number;
+    opacity?: number;
+  }): SceneNode {
+    return {
+      id: "m1",
+      name: "M1",
+      type: "mesh",
+      transform: IDENTITY,
+      parent_id: null,
+      children_ids: [],
+      visible: true,
+      locked: false,
+      data: {
+        type: "mesh",
+        geometry: { kind: "box" },
+        material_overrides: override ? [override] : undefined,
+      },
+      behaviors: [],
+      user_data: {},
+    };
+  }
+
+  it("emits override color + metalness", () => {
+    const p = withNodes(
+      emptyProject(),
+      [meshMatNode({ slot: 0, color: "#ff0000", metalness: 0.8 })],
+      ["m1"],
+    );
+    const src = generateSceneModule({ project: p }).sceneModuleSource;
+    expect(src).toMatch(/color: "#ff0000"/);
+    expect(src).toMatch(/metalness: 0\.8/);
+  });
+
+  it("emits transparent: true when opacity < 1", () => {
+    const p = withNodes(
+      emptyProject(),
+      [meshMatNode({ slot: 0, opacity: 0.5 })],
+      ["m1"],
+    );
+    const src = generateSceneModule({ project: p }).sceneModuleSource;
+    expect(src).toMatch(/opacity: 0\.5/);
+    expect(src).toMatch(/transparent: true/);
+  });
+
+  it("emits the default material (opaque) when there is no override", () => {
+    const p = withNodes(emptyProject(), [meshMatNode()], ["m1"]);
+    const src = generateSceneModule({ project: p }).sceneModuleSource;
+    expect(src).toMatch(/color: "#cccccc"/);
+    expect(src).toMatch(/transparent: false/);
+  });
+});
+
 function meshNodeWith(id: string, behaviors: BehaviorBinding[]): SceneNode {
   return {
     id,

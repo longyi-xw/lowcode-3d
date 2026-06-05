@@ -1,3 +1,4 @@
+import type { MaterialOverride } from "@/core/scene/material";
 import type { BehaviorBinding, SceneNode, Transform } from "@/core/scene/types";
 import type { SceneNodeSnapshot } from "@/core/scene/snapshot";
 
@@ -20,6 +21,7 @@ type Call =
     }
   | { op: "setNodeTransform"; id: string; transform: Transform }
   | { op: "addNode"; node: SceneNode }
+  | { op: "setMeshMaterial"; nodeId: string; override: MaterialOverride | undefined }
   | { op: "removeNodeSubtree"; nodeId: string }
   | { op: "restoreNodeSubtree"; snapshot: SceneNodeSnapshot }
   | {
@@ -51,6 +53,8 @@ export function makeFakeEditor(node?: SceneNode): FakeEditor {
         parameters,
       }),
     addNode: (node) => calls.push({ op: "addNode", node }),
+    setMeshMaterial: (nodeId, override) =>
+      calls.push({ op: "setMeshMaterial", nodeId, override }),
     removeNodeSubtree: (nodeId) => calls.push({ op: "removeNodeSubtree", nodeId }),
     restoreNodeSubtree: (snapshot) =>
       calls.push({ op: "restoreNodeSubtree", snapshot }),

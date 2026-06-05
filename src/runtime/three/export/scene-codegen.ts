@@ -1,3 +1,4 @@
+import { resolveMaterial } from "@/core/scene/material";
 import type {
   AssetReference,
   BehaviorBinding,
@@ -258,9 +259,14 @@ function emitMesh(ctx: EmitContext, varName: string, node: SceneNode): void {
   const data = node.data;
   const kind = data.geometry?.kind ?? "box";
   push(ctx, `const ${varName}_geom = ${geometryExpr(kind)};`);
+  const m = resolveMaterial(data.material_overrides?.[0]);
   push(
     ctx,
-    `const ${varName}_mat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0, roughness: 0.7 });`,
+    `const ${varName}_mat = new THREE.MeshStandardMaterial({ ` +
+      `color: ${JSON.stringify(m.color)}, metalness: ${m.metalness}, ` +
+      `roughness: ${m.roughness}, emissive: ${JSON.stringify(m.emissive)}, ` +
+      `emissiveIntensity: ${m.emissive_intensity}, opacity: ${m.opacity}, ` +
+      `transparent: ${m.opacity < 1} });`,
   );
   push(ctx, `const ${varName} = new THREE.Mesh(${varName}_geom, ${varName}_mat);`);
   push(ctx, `${varName}.name = ${JSON.stringify(node.name)};`);

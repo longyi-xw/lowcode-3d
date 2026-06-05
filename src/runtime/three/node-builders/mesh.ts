@@ -1,8 +1,9 @@
 import * as THREE from "three";
+
+import { resolveMaterial, type ResolvedMaterial } from "@/core/scene/material";
 import type { NodeData, SceneNode } from "@/core/scene/types";
 
 type MeshData = Extract<NodeData, { type: "mesh" }>;
-type MaterialOverride = NonNullable<MeshData["material_overrides"]>[number];
 type GeometryKind = NonNullable<MeshData["geometry"]>["kind"];
 
 function requireMeshData(node: SceneNode): MeshData {
@@ -36,16 +37,12 @@ export function build(node: SceneNode): THREE.Object3D {
   const data = requireMeshData(node);
   const kind = data.geometry?.kind ?? "box";
   const geometry = geometryFor(kind);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xcccccc,
-    metalness: 0,
-    roughness: 0.7,
-  });
+  const material = new THREE.MeshStandardMaterial();
+  applyResolvedMaterial(material, resolveMaterial(data.material_overrides?.[0]));
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = node.name;
   mesh.userData.assetId = data.asset_id;
   mesh.userData.geometryKind = kind;
-  applyOverrides(material, data.material_overrides?.[0]);
   return mesh;
 }
 
@@ -60,24 +57,31 @@ export function update(object: THREE.Object3D, node: SceneNode): void {
     object.userData.geometryKind = kind;
   }
   if (object.material instanceof THREE.MeshStandardMaterial) {
-    applyOverrides(object.material, data.material_overrides?.[0]);
+    applyResolvedMaterial(
+      object.material,
+      resolveMaterial(data.material_overrides?.[0]),
+    );
   }
 }
 
-function applyOverrides(
+/** Full-set a material from a resolved (default ⊕ override) descriptor. Sets
+ *  every field unconditionally so clearing an override resets to default
+ *  (an if-set-only pass would leave stale values behind). */
+function applyResolvedMaterial(
   material: THREE.MeshStandardMaterial,
-  override: MaterialOverride | undefined,
+  m: ResolvedMaterial,
 ): void {
-  if (!override) return;
-  if (override.color) material.color.set(override.color);
-  if (override.metalness !== undefined) material.metalness = override.metalness;
-  if (override.roughness !== undefined) material.roughness = override.roughness;
-  if (override.opacity !== undefined) {
-    material.opacity = override.opacity;
-    material.transparent = override.opacity < 1;
-  }
-  if (override.emissive) material.emissive.set(override.emissive);
-  if (override.emissive_intensity !== undefined) {
-    material.emissiveIntensity = override.emissive_intensity;
+  material.color.set(m.color);
+  material.metalness = m.metalness;
+  material.roughness = m.roughness;
+  material.emissive.set(m.emissive);
+  material.emissiveIntensity = m.emissive_intensity;
+  material.opacity = m.opacity;
+  const transparent = m.opacity < 1;
+  if (material.transparent !== transparent) {
+    // Toggling `transparent` switches the render pipeline — without a shader
+    // recompile the new opacity is ignored (mesh stays fully opaque).
+    material.transparent = transparent;
+    material.needsUpdate = true;
   }
 }

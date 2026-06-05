@@ -308,3 +308,72 @@ describe("useSceneStore subtree mutators", () => {
     expect(useSceneStore.getState().project!.scene.root_node_ids).toEqual(["x", "x2"]);
   });
 });
+
+describe("useSceneStore.setMeshMaterial", () => {
+  function seedMesh() {
+    useSceneStore.setState({
+      project: {
+        spec_version: "0.1.0",
+        metadata: {
+          id: "p",
+          name: "t",
+          created_at: "",
+          updated_at: "",
+          target_runtime: {
+            kind: "three.js",
+            version: "0.184.0",
+            module_format: "esm",
+          },
+        },
+        scene: {
+          root_node_ids: ["m"],
+          nodes: {
+            m: {
+              id: "m",
+              name: "M",
+              type: "mesh",
+              transform: {
+                position: [0, 0, 0],
+                rotation: [0, 0, 0, 1],
+                scale: [1, 1, 1],
+              },
+              parent_id: null,
+              children_ids: [],
+              visible: true,
+              locked: false,
+              data: { type: "mesh", geometry: { kind: "box" } },
+              behaviors: [],
+              user_data: {},
+            },
+          },
+        },
+        assets: [],
+        settings: {
+          units: "meters",
+          up_axis: "y",
+          background: { kind: "color", color: "#000" },
+        },
+      },
+    });
+  }
+
+  it("writes material_overrides[0] on a mesh node", () => {
+    seedMesh();
+    useSceneStore.getState().setMeshMaterial("m", { slot: 0, color: "#ff0000" });
+    const node = useSceneStore.getState().getNode("m");
+    expect(node?.data).toMatchObject({
+      type: "mesh",
+      material_overrides: [{ slot: 0, color: "#ff0000" }],
+    });
+  });
+
+  it("clears material_overrides when override is undefined", () => {
+    seedMesh();
+    useSceneStore.getState().setMeshMaterial("m", { slot: 0, color: "#ff0000" });
+    useSceneStore.getState().setMeshMaterial("m", undefined);
+    expect(
+      (useSceneStore.getState().getNode("m")?.data as { material_overrides?: unknown })
+        .material_overrides,
+    ).toBeUndefined();
+  });
+});
