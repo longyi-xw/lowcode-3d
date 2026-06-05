@@ -56,7 +56,9 @@ export type AiError = { code: "no_key" } | { code: "network"; data: string } | {
  *  本期仅 Anthropic;加 provider = 加 enum 分支 + match 分支。
  *  lowercase 序列化 → "anthropic"，与前端 settings.aiProvider + keychain account 一致。
  */
-export type AiProvider = "anthropic";
+export type AiProvider = "anthropic" | 
+/**  OpenAI-compatible chat/completions (https://api.deepseek.com). */
+"deepseek";
 
 export type ExportPayload = {
 	source_project_path: string,
