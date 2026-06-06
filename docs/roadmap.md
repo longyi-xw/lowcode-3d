@@ -127,6 +127,8 @@
 - **资源拖拽入视口 + 落点**（从 v0.2 资源库拆出）：当前资源库为**双击**加节点到默认位置（几何抬 `y=0.5`）。延后：从库卡片**拖拽**到视口，以 raycast 命中地面/物体的点作为新节点 `position`。
 - **多源资源上传**（从 v0.2 资源库拆出）：`AssetSourceSchema` 已含 `builtin/user_upload/online/ai_generated` 且 catalog 来源无关；目前只实装 `builtin`（几何/灯光预设）+ `user_upload`（.glb）。延后：`online`（在线模型/材质库浏览+下载入库）、`ai_generated`（AI 生成模型/贴图）。
 - **多材质槽**（从 v0.2 材质编辑拆出）：本期材质编辑只支持 slot 0；prefab/glTF 多材质对象的 slot 1+ 延后。
+- **agentic 多轮 Skill 执行**（从 v0.3 sub-stage B 拆出）：本期 Skill 是**单轮结构化输出**（NL→LLM 一次返回 operations→Command）。延后：架构 §4.3 的 `call_tool` / `allowed_tools` 多轮 agent 循环（LLM 多轮调工具、读场景、迭代纠错）+ `SkillContext.memory`（`MemoryStore` 项目暂无实现）。用户明确「多轮后续肯定要完善」。
+- **更多 Skill + skill routing**（从 v0.3 sub-stage B 拆出）：本期只 `scene-edit`（op 仅 `add_light`）。延后：scene-edit 更多 op（加几何/改材质/移动等）、asset-tagging / code-explain / local-fast skill、skill→provider+model 路由（prototype `img_5` 的 skill routing；本期 `runSkill` 用 settings 的 active provider）。
 
 ## Tracking conventions
 
