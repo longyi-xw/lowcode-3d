@@ -100,5 +100,15 @@
     "upload": "Upload .glb",
     "add_hint": "Double-click to add",
     "empty_uploads": "No uploads yet — use Upload .glb to add models."
+  },
+  "ai_command": {
+    "placeholder": "Describe what you want…",
+    "send": "Send",
+    "thinking": "Thinking…",
+    "done": "Applied {{count}} change(s)",
+    "no_changes": "No changes",
+    "no_target": "Select a node first to add a behavior",
+    "didnt_understand": "Couldn't understand that request",
+    "llm_error": "AI error: {{message}}"
   }
 }

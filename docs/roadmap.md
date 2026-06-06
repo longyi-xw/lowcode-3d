@@ -24,7 +24,7 @@
 | Phase 3 打磨发布          | 快捷键完整化 / 项目模板 / 错误处理 / 文档 / GitHub Release | (in progress) | 🟡         |
 | v0.5 行为系统（提前部分） | Behavior framework + auto-rotate + UI + Play/Pause         | #20, #21      | 🟡 partial |
 | v0.2 资源库 + 材质编辑    | 内置库 + 用户上传 + 材质参数                               | #29, #30      | ✅         |
-| v0.3 AI Skill 框架        | Skill 接口 + AI proxy + 自然语言操作                       | #31           | 🟡 partial |
+| v0.3 AI Skill 框架        | Skill 接口 + AI proxy + 自然语言操作                       | #31, #32      | ✅         |
 | v0.4 空间吸附             | Socket 系统 + 几何约束                                     | —             | ⏳         |
 | v1.0 多适配器             | Babylon.js 适配器                                          | —             | ⏳         |
 | v1.x                      | R3F、Unity                                                 | —             | ⏳         |
@@ -93,15 +93,15 @@
   - [x] 导出代码包含正确的材质字段
 - **Depends on**: v0.1 release（Phase 3 全部 5 个 sub-stage 完成）
 
-### v0.3 — In progress（拆为 2 个 sub-stage）
+### v0.3 — Shipped（AI proxy #31 + Skill 框架 #32）
 
 - **Goals**: AI Skill 框架（架构 §4.3 + §7 v0.3）。Skill 接口 + Rust 端 AI proxy（防止 API key 漏到前端）+ 首个自然语言操作（"添加一盏从右上方照射的暖白色定向光"）。
 - **Sub-stages**:
   - [x] **A · AI proxy + BYO-key + provider 配置**（#31）：Rust `ai.rs` proxy（**Anthropic + DeepSeek**，OpenAI 兼容抽象）+ OS keychain（keyring）存 key + Settings Dialog「AI providers」多卡 UI（per-provider key/model/测试连接，radio 选 active）。`ai_complete`（text + 结构化 via tool-use/function-calling）为 B 铺路；key 不进 renderer。
-  - [ ] **B · Skill 框架 + scene-edit + 自然语言 UI**：`Skill` 接口 + 注册表 + 执行循环（input→proxy→结构化输出→tool→Command）+ scene-edit skill（加灯）+ 自然语言输入框 + 填 `docs/skill-guide.md`。
+  - [x] **B · Skill 框架 + scene-edit + 自然语言 UI**（#32）：精简 `Skill` 接口 + `SKILLS` 注册表 + 单轮 `runSkill`（input→proxy 结构化输出→zod 校验→Command）+ `scene-edit` skill（`add_light` 加灯 / `add_behavior` 给选中节点加行为如 auto-rotate）+ 常驻 `AiCommandBar` + 填 `docs/skill-guide.md`。color 名→hex 归一化。用 DeepSeek 验证。
 - **Success criteria**:
   - [x] AI proxy 能调通 LLM（Anthropic / DeepSeek），key 安全存 keychain 不泄漏到前端
-  - [ ] 自然语言指令（"加一盏右上暖白定向光"）实际在场景生成对应灯节点，可撤销
+  - [x] 自然语言指令（"加一盏右上暖白定向光" / "给选中节点加绕 Y 轴旋转"）实际在场景生成对应节点/行为，可撤销
 - **Depends on**: v0.2 release
 
 ### v0.4 — Planned
@@ -127,6 +127,8 @@
 - **资源拖拽入视口 + 落点**（从 v0.2 资源库拆出）：当前资源库为**双击**加节点到默认位置（几何抬 `y=0.5`）。延后：从库卡片**拖拽**到视口，以 raycast 命中地面/物体的点作为新节点 `position`。
 - **多源资源上传**（从 v0.2 资源库拆出）：`AssetSourceSchema` 已含 `builtin/user_upload/online/ai_generated` 且 catalog 来源无关；目前只实装 `builtin`（几何/灯光预设）+ `user_upload`（.glb）。延后：`online`（在线模型/材质库浏览+下载入库）、`ai_generated`（AI 生成模型/贴图）。
 - **多材质槽**（从 v0.2 材质编辑拆出）：本期材质编辑只支持 slot 0；prefab/glTF 多材质对象的 slot 1+ 延后。
+- **agentic 多轮 Skill 执行**（从 v0.3 sub-stage B 拆出）：本期 Skill 是**单轮结构化输出**（NL→LLM 一次返回 operations→Command）。延后：架构 §4.3 的 `call_tool` / `allowed_tools` 多轮 agent 循环（LLM 多轮调工具、读场景、迭代纠错）+ `SkillContext.memory`（`MemoryStore` 项目暂无实现）。用户明确「多轮后续肯定要完善」。
+- **更多 Skill + skill routing**（从 v0.3 sub-stage B 拆出）：本期只 `scene-edit`（op 仅 `add_light`）。延后：scene-edit 更多 op（加几何/改材质/移动等）、asset-tagging / code-explain / local-fast skill、skill→provider+model 路由（prototype `img_5` 的 skill routing；本期 `runSkill` 用 settings 的 active provider）。
 
 ## Tracking conventions
 
