@@ -160,18 +160,17 @@ export function ThreeViewport() {
     });
 
     // Grid snap: hold Ctrl/Cmd while dragging to snap the translate gizmo to
-    // the grid. Tracked via a closure flag because objectChange carries no
-    // modifier-key info.
+    // the grid. Read the live modifier from pointer events (capture phase, so
+    // it updates before TransformControls moves the object + fires
+    // objectChange). Tracking via keydown/keyup is fragile — a missed keyup
+    // (Cmd+Tab / Cmd+Z) leaves the flag stuck "down" and everything snaps;
+    // pointer events carry the true current modifier every move.
     let snapModifierDown = false;
-    const onSnapKey = (e: KeyboardEvent) => {
-      snapModifierDown = e.metaKey || e.ctrlKey;
+    const onSnapPointer = (e: PointerEvent) => {
+      snapModifierDown = e.ctrlKey || e.metaKey;
     };
-    const onSnapBlur = () => {
-      snapModifierDown = false;
-    };
-    window.addEventListener("keydown", onSnapKey);
-    window.addEventListener("keyup", onSnapKey);
-    window.addEventListener("blur", onSnapBlur);
+    window.addEventListener("pointermove", onSnapPointer, true);
+    window.addEventListener("pointerdown", onSnapPointer, true);
 
     gizmo.addEventListener("objectChange", () => {
       const obj = gizmo.object;
@@ -354,9 +353,8 @@ export function ThreeViewport() {
       unsubscribeUI();
       canvas.removeEventListener("click", onClick);
       canvas.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onSnapKey);
-      window.removeEventListener("keyup", onSnapKey);
-      window.removeEventListener("blur", onSnapBlur);
+      window.removeEventListener("pointermove", onSnapPointer, true);
+      window.removeEventListener("pointerdown", onSnapPointer, true);
       ro.disconnect();
       gizmo.detach();
       gizmo.dispose();
