@@ -30,7 +30,13 @@ export function AiCommandBar() {
       setInput("");
     } catch (e) {
       if (e instanceof SkillError) {
-        toast.error(t("ai_command.didnt_understand"));
+        toast.error(
+          t(
+            e.code === "no_target"
+              ? "ai_command.no_target"
+              : "ai_command.didnt_understand",
+          ),
+        );
       } else {
         const message =
           (e as { data?: { message?: string } })?.data?.message ??

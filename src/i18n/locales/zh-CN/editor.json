@@ -107,6 +107,7 @@
     "thinking": "思考中…",
     "done": "已应用 {{count}} 处改动",
     "no_changes": "无改动",
+    "no_target": "请先选中一个节点再加行为",
     "didnt_understand": "未能理解该指令",
     "llm_error": "AI 错误：{{message}}"
   }

@@ -107,6 +107,7 @@
     "thinking": "Thinking…",
     "done": "Applied {{count}} change(s)",
     "no_changes": "No changes",
+    "no_target": "Select a node first to add a behavior",
     "didnt_understand": "Couldn't understand that request",
     "llm_error": "AI error: {{message}}"
   }

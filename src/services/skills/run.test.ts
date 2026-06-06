@@ -5,6 +5,7 @@ vi.mock("@/services/command-history", () => ({ executeCommand: vi.fn() }));
 
 import { aiComplete } from "@/services/ai/proxy";
 import { executeCommand } from "@/services/command-history";
+import { useUIStore } from "@/services/ui/store";
 
 import { runSkill } from "./run";
 import { SkillError } from "./types";
@@ -55,5 +56,17 @@ describe("runSkill", () => {
     await expect(runSkill("scene-edit", "hi")).rejects.toMatchObject({
       code: "no_key",
     });
+  });
+
+  it("throws SkillError(no_target) for add_behavior with no selected node", async () => {
+    useUIStore.setState({ selectedNodeId: null });
+    vi.mocked(aiComplete).mockResolvedValue({
+      text: null,
+      json: '{"operations":[{"op":"add_behavior","behavior_type":"auto-rotate"}]}',
+    });
+    await expect(runSkill("scene-edit", "spin it")).rejects.toMatchObject({
+      code: "no_target",
+    });
+    expect(executeCommand).not.toHaveBeenCalled();
   });
 });
