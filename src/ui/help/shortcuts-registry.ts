@@ -37,6 +37,7 @@ export const KEYBOARD_SHORTCUTS: ShortcutSection[] = [
       { keys: ["G"], i18nKey: "shortcuts.move_mode" },
       { keys: ["R"], i18nKey: "shortcuts.rotate_mode" },
       { keys: ["S"], i18nKey: "shortcuts.scale_mode" },
+      { keys: ["⌘", "Drag"], i18nKey: "shortcuts.snap_grid" },
     ],
   },
   {

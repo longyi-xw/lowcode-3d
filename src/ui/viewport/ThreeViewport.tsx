@@ -8,6 +8,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
+import { snapTranslation } from "@/core/snap/grid";
 import { isEffectivelyLocked } from "@/core/scene/policy";
 import { ThreeAdapter } from "@/runtime/three/adapter";
 import { describeTemplate } from "@/runtime/three/asset-cache";
@@ -156,6 +157,36 @@ export function ThreeViewport() {
           prev_transform: start,
         }),
       );
+    });
+
+    // Grid snap: hold Ctrl/Cmd while dragging to snap the translate gizmo to
+    // the grid. Read the live modifier from pointer events (capture phase, so
+    // it updates before TransformControls moves the object + fires
+    // objectChange). Tracking via keydown/keyup is fragile — a missed keyup
+    // (Cmd+Tab / Cmd+Z) leaves the flag stuck "down" and everything snaps;
+    // pointer events carry the true current modifier every move.
+    let snapModifierDown = false;
+    const onSnapPointer = (e: PointerEvent) => {
+      snapModifierDown = e.ctrlKey || e.metaKey;
+    };
+    window.addEventListener("pointermove", onSnapPointer, true);
+    window.addEventListener("pointerdown", onSnapPointer, true);
+
+    gizmo.addEventListener("objectChange", () => {
+      const obj = gizmo.object;
+      if (
+        !obj ||
+        useUIStore.getState().gizmoMode !== "translate" ||
+        !snapModifierDown
+      ) {
+        return;
+      }
+      const [x, y, z] = snapTranslation([
+        obj.position.x,
+        obj.position.y,
+        obj.position.z,
+      ]);
+      obj.position.set(x, y, z);
     });
 
     const syncSelection = (id: string | null) => {
@@ -322,6 +353,8 @@ export function ThreeViewport() {
       unsubscribeUI();
       canvas.removeEventListener("click", onClick);
       canvas.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onSnapPointer, true);
+      window.removeEventListener("pointerdown", onSnapPointer, true);
       ro.disconnect();
       gizmo.detach();
       gizmo.dispose();
