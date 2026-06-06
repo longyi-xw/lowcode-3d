@@ -73,6 +73,7 @@
     "move_mode": "移动模式",
     "rotate_mode": "旋转模式",
     "scale_mode": "缩放模式",
+    "snap_grid": "拖拽时按住：吸附网格",
     "focus": "聚焦相机到选中节点",
     "clear_selection": "清除选中",
     "toggle_library": "切换资源库",

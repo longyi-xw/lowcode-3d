@@ -73,6 +73,7 @@
     "move_mode": "Move mode",
     "rotate_mode": "Rotate mode",
     "scale_mode": "Scale mode",
+    "snap_grid": "Hold while dragging: snap to grid",
     "focus": "Focus camera on selection",
     "clear_selection": "Clear selection",
     "toggle_library": "Toggle asset library",
