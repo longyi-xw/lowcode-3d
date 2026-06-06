@@ -9,6 +9,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import { snapTranslation } from "@/core/snap/grid";
+import { SNAP_PIXELS, snapToNodes, type SnapPoint } from "@/core/snap/nodes";
 import { isEffectivelyLocked } from "@/core/scene/policy";
 import { ThreeAdapter } from "@/runtime/three/adapter";
 import { describeTemplate } from "@/runtime/three/asset-cache";
@@ -120,6 +121,7 @@ export function ThreeViewport() {
     gizmo.setMode(useUIStore.getState().gizmoMode);
 
     let dragStart: Transform | null = null;
+    let cachedTargets: SnapPoint[] = [];
 
     gizmo.addEventListener("dragging-changed", (event) => {
       const dragging = event.value as unknown as boolean;
@@ -140,6 +142,21 @@ export function ThreeViewport() {
       const obj = gizmo.object;
       if (!obj) return;
       dragStart = captureTransform(obj);
+      // Cache snap targets (other nodes' bbox features, projected to screen).
+      // The camera is frozen during the drag (orbit disabled), so the screen
+      // coords stay valid for the whole gesture.
+      const draggedId = obj.userData.nodeId as string | undefined;
+      const nodes = useSceneStore.getState().project?.scene.nodes ?? {};
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      cachedTargets = [];
+      for (const id of Object.keys(nodes)) {
+        const n = nodes[id];
+        if (id === draggedId || !n || !n.visible || n.type === "helper") continue;
+        const tobj = adapter.getRuntimeObject(id);
+        if (!tobj) continue;
+        cachedTargets.push(...featureSnapPoints(tobj, adapter.camera, w, h));
+      }
     });
     gizmo.addEventListener("mouseUp", () => {
       const obj = gizmo.object;
@@ -181,6 +198,23 @@ export function ThreeViewport() {
       ) {
         return;
       }
+      // Node-align snap first (bbox features → nearest other-node feature).
+      const draggedPts = featureSnapPoints(
+        obj,
+        adapter.camera,
+        canvas.clientWidth,
+        canvas.clientHeight,
+      );
+      const offset = snapToNodes(draggedPts, cachedTargets, SNAP_PIXELS);
+      if (offset) {
+        obj.position.set(
+          obj.position.x + offset[0],
+          obj.position.y + offset[1],
+          obj.position.z + offset[2],
+        );
+        return;
+      }
+      // Grid fallback (sub-stage A).
       const [x, y, z] = snapTranslation([
         obj.position.x,
         obj.position.y,
@@ -401,6 +435,50 @@ export function ThreeViewport() {
   }, [pendingFocusNodeId, consumeFocusRequest]);
 
   return <div ref={containerRef} className="relative h-full w-full overflow-hidden" />;
+}
+
+/** 9 个 bbox 特征（中心 + 8 角）的世界坐标；无几何（bbox 空）返回 []。 */
+function bboxFeatures(obj: THREE.Object3D): THREE.Vector3[] {
+  const box = new THREE.Box3().setFromObject(obj);
+  if (box.isEmpty()) return [];
+  const c = new THREE.Vector3();
+  box.getCenter(c);
+  const { min, max } = box;
+  return [
+    c,
+    new THREE.Vector3(min.x, min.y, min.z),
+    new THREE.Vector3(min.x, min.y, max.z),
+    new THREE.Vector3(min.x, max.y, min.z),
+    new THREE.Vector3(min.x, max.y, max.z),
+    new THREE.Vector3(max.x, min.y, min.z),
+    new THREE.Vector3(max.x, min.y, max.z),
+    new THREE.Vector3(max.x, max.y, min.z),
+    new THREE.Vector3(max.x, max.y, max.z),
+  ];
+}
+
+/** 世界坐标 → 屏幕像素（用 canvas 尺寸）。 */
+function toScreen(
+  v: THREE.Vector3,
+  camera: THREE.Camera,
+  w: number,
+  h: number,
+): [number, number] {
+  const ndc = v.clone().project(camera);
+  return [((ndc.x + 1) / 2) * w, ((1 - ndc.y) / 2) * h];
+}
+
+/** 一个 Object3D 的 bbox 特征 → SnapPoint[]（屏幕 + 世界）。 */
+function featureSnapPoints(
+  obj: THREE.Object3D,
+  camera: THREE.Camera,
+  w: number,
+  h: number,
+): SnapPoint[] {
+  return bboxFeatures(obj).map((v) => ({
+    screen: toScreen(v, camera, w, h),
+    world: [v.x, v.y, v.z] as [number, number, number],
+  }));
 }
 
 function captureTransform(obj: THREE.Object3D): Transform {
