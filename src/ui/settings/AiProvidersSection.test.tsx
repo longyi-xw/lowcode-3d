@@ -15,19 +15,23 @@ import { AiProvidersSection } from "./AiProvidersSection";
 describe("AiProvidersSection", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders the Anthropic card + BYOK note", async () => {
+  it("renders a card per provider (Anthropic + DeepSeek) + BYOK note", async () => {
     render(<AiProvidersSection />);
     expect(screen.getByText("Anthropic")).toBeInTheDocument();
+    expect(screen.getByText("DeepSeek")).toBeInTheDocument();
     expect(screen.getByText(/renderer never sees the key/i)).toBeInTheDocument();
-    await waitFor(() => expect(hasAiKey).toHaveBeenCalled());
+    await waitFor(() => expect(hasAiKey).toHaveBeenCalledWith("anthropic"));
+    expect(hasAiKey).toHaveBeenCalledWith("deepseek");
   });
 
-  it("saving a key calls setAiKey then re-checks hasAiKey", async () => {
+  it("saving a key on the Anthropic card calls setAiKey('anthropic', key)", async () => {
     render(<AiProvidersSection />);
-    fireEvent.change(screen.getByLabelText("API key"), {
+    fireEvent.change(screen.getByLabelText("Anthropic API key"), {
       target: { value: "sk-ant-xyz" },
     });
-    fireEvent.click(screen.getByText("Save"));
-    await waitFor(() => expect(setAiKey).toHaveBeenCalledWith("sk-ant-xyz"));
+    fireEvent.click(screen.getAllByText("Save")[0]!);
+    await waitFor(() =>
+      expect(setAiKey).toHaveBeenCalledWith("anthropic", "sk-ant-xyz"),
+    );
   });
 });

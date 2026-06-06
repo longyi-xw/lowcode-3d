@@ -7,8 +7,11 @@
     "title": "AI providers",
     "byok_note": "Bring your own key. Calls are proxied through the Tauri Rust process — the renderer never sees the key.",
     "provider": {
-      "anthropic": "Anthropic"
+      "anthropic": "Anthropic",
+      "deepseek": "DeepSeek"
     },
+    "active": "active",
+    "use_provider": "Use {{name}}",
     "model": "Model",
     "api_key": "API key",
     "key_placeholder": "sk-ant-…",

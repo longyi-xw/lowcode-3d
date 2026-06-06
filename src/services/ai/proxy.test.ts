@@ -13,15 +13,18 @@ vi.mock("@/bindings/tauri", () => ({
 import { commands } from "@/bindings/tauri";
 import { useSettingsStore } from "@/services/settings/store";
 
-import { aiComplete, hasAiKey, setAiKey } from "./proxy";
+import { aiComplete, hasAiKey, setAiKey, testConnection } from "./proxy";
 
 describe("ai proxy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useSettingsStore.setState({ aiProvider: "anthropic", aiModel: "claude-x" });
+    useSettingsStore.setState({
+      aiProvider: "deepseek",
+      aiModels: { anthropic: "claude-x", deepseek: "deepseek-chat" },
+    });
   });
 
-  it("aiComplete reads provider/model from settings + returns data on ok", async () => {
+  it("aiComplete uses the active provider + its model", async () => {
     vi.mocked(commands.aiComplete).mockResolvedValue({
       status: "ok",
       data: { text: "hi", json: null },
@@ -29,8 +32,8 @@ describe("ai proxy", () => {
     const res = await aiComplete({ system: "s", user: "u" });
     expect(commands.aiComplete).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: "anthropic",
-        model: "claude-x",
+        provider: "deepseek",
+        model: "deepseek-chat",
         system: "s",
         user: "u",
         json_schema: null,
@@ -60,12 +63,19 @@ describe("ai proxy", () => {
     });
   });
 
-  it("setAiKey + hasAiKey delegate to commands for the current provider", async () => {
+  it("setAiKey + hasAiKey operate on the given provider", async () => {
     vi.mocked(commands.setAiKey).mockResolvedValue({ status: "ok", data: null });
-    await setAiKey("sk-test");
+    await setAiKey("anthropic", "sk-test");
     expect(commands.setAiKey).toHaveBeenCalledWith("anthropic", "sk-test");
 
     vi.mocked(commands.hasAiKey).mockResolvedValue({ status: "ok", data: true });
-    expect(await hasAiKey()).toBe(true);
+    expect(await hasAiKey("deepseek")).toBe(true);
+    expect(commands.hasAiKey).toHaveBeenCalledWith("deepseek");
+  });
+
+  it("testConnection sends the provider + its configured model", async () => {
+    vi.mocked(commands.testAiProvider).mockResolvedValue({ status: "ok", data: null });
+    await testConnection("anthropic");
+    expect(commands.testAiProvider).toHaveBeenCalledWith("anthropic", "claude-x");
   });
 });

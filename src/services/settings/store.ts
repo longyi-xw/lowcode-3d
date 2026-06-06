@@ -32,9 +32,11 @@ interface SettingsState {
   /** AI provider for proxy calls. Non-secret (the key lives in the OS keychain
    *  via the Rust side, never here). Union grows as providers are added. */
   aiProvider: AiProvider;
-  aiModel: string;
+  /** Per-provider model id (each provider has its own — switching the active
+   *  provider keeps each model). */
+  aiModels: Record<AiProvider, string>;
   setAiProvider: (provider: AiProvider) => void;
-  setAiModel: (model: string) => void;
+  setAiModel: (provider: AiProvider, model: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -49,21 +51,32 @@ export const useSettingsStore = create<SettingsState>()(
       setAccent: (accent) => set({ accent }),
       setDensity: (density) => set({ density }),
       aiProvider: "anthropic",
-      aiModel: "claude-3-5-sonnet-latest",
+      aiModels: {
+        anthropic: "claude-3-5-sonnet-latest",
+        deepseek: "deepseek-chat",
+      },
       setAiProvider: (aiProvider) => set({ aiProvider }),
-      setAiModel: (aiModel) => set({ aiModel }),
+      setAiModel: (provider, model) =>
+        set((s) => ({ aiModels: { ...s.aiModels, [provider]: model } })),
     }),
     {
       name: "lowcode3d.settings",
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       migrate: (persisted, from) => {
-        const s = (persisted ?? {}) as Partial<SettingsState>;
+        const s = (persisted ?? {}) as Record<string, unknown>;
         if (from < 2) {
           s.aiProvider = s.aiProvider ?? "anthropic";
-          s.aiModel = s.aiModel ?? "claude-3-5-sonnet-latest";
         }
-        return s as SettingsState;
+        if (from < 3) {
+          const legacy = typeof s.aiModel === "string" ? s.aiModel : undefined;
+          s.aiModels = s.aiModels ?? {
+            anthropic: legacy ?? "claude-3-5-sonnet-latest",
+            deepseek: "deepseek-chat",
+          };
+          delete s.aiModel;
+        }
+        return s as unknown as SettingsState;
       },
     },
   ),
