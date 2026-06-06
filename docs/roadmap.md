@@ -25,7 +25,7 @@
 | v0.5 行为系统（提前部分） | Behavior framework + auto-rotate + UI + Play/Pause         | #20, #21      | 🟡 partial |
 | v0.2 资源库 + 材质编辑    | 内置库 + 用户上传 + 材质参数                               | #29, #30      | ✅         |
 | v0.3 AI Skill 框架        | Skill 接口 + AI proxy + 自然语言操作                       | #31, #32      | ✅         |
-| v0.4 空间吸附             | Socket 系统 + 几何约束                                     | —             | ⏳         |
+| v0.4 空间吸附             | Socket 系统 + 几何约束                                     | #33           | 🟡 partial |
 | v1.0 多适配器             | Babylon.js 适配器                                          | —             | ⏳         |
 | v1.x                      | R3F、Unity                                                 | —             | ⏳         |
 
@@ -104,10 +104,15 @@
   - [x] 自然语言指令（"加一盏右上暖白定向光" / "给选中节点加绕 Y 轴旋转"）实际在场景生成对应节点/行为，可撤销
 - **Depends on**: v0.2 release
 
-### v0.4 — Planned
+### v0.4 — In progress（拆为 3 个 sub-stage）
 
 - **Goals**: 空间吸附 / Socket 系统（架构 §7 v0.4）。节点之间几何关系约束求解，类似 Unity 的 Snap 或 Blender 的 Snap to。
+- **Sub-stages**:
+  - [x] **A · 网格吸附 + 吸附框架**（#33）：gizmo 平移拖拽时按住 Ctrl/Cmd 吸附到 0.5 网格；`snapTranslation` 纯函数引擎（`src/core/snap/`，供 B/C 扩展）+ ThreeViewport `objectChange` hook（pointer 读即时修饰键，不卡）。仅平移。
+  - [ ] **B · 节点对齐吸附**：拖拽节点时其包围盒角/中心/面吸附到附近节点的对应特征（建在 A 的引擎上）。
+  - [ ] **C · Socket 系统**：节点上命名插槽 + 拖拽时兼容插槽咬合。
 - **Depends on**: v0.3 release
+- **后续插入**：sub-stage B 完成后做「资源拖拽入视口 + 落点」（见 Backlog，用户定的顺序），再进 C。
 
 ### v1.0 — Planned
 
@@ -124,7 +129,7 @@
 从已完成 sub-stage 中刻意拆出的功能点，尚未排期到具体 release：
 
 - **材质贴图 pipeline**（从 v0.2 材质编辑拆出）：normalMap / map / roughnessMap / metalnessMap / aoMap 等。需 `MaterialOverrideSchema` 加贴图字段（引用 `kind:"texture"` 的 `AssetReference`）+ texture 资源上传入库 + runtime `TextureLoader`（`mesh.ts applyOverrides` 加贴图通道）+ codegen emit `TextureLoader().load("./assets/…")` + UI 贴图选择器。独立子系统，单独 spec→plan→实现。
-- **资源拖拽入视口 + 落点**（从 v0.2 资源库拆出）：当前资源库为**双击**加节点到默认位置（几何抬 `y=0.5`）。延后：从库卡片**拖拽**到视口，以 raycast 命中地面/物体的点作为新节点 `position`。
+- **资源拖拽入视口 + 落点**（从 v0.2 资源库拆出）：当前资源库为**双击**加节点到默认位置（几何抬 `y=0.5`）。从库卡片**拖拽**到视口，以 raycast 命中地面/物体的点作为新节点 `position`（可与 v0.4 网格吸附结合：落点吸附网格）。**用户已定顺序：排在 v0.4 sub-stage B 之后做**。
 - **多源资源上传**（从 v0.2 资源库拆出）：`AssetSourceSchema` 已含 `builtin/user_upload/online/ai_generated` 且 catalog 来源无关；目前只实装 `builtin`（几何/灯光预设）+ `user_upload`（.glb）。延后：`online`（在线模型/材质库浏览+下载入库）、`ai_generated`（AI 生成模型/贴图）。
 - **多材质槽**（从 v0.2 材质编辑拆出）：本期材质编辑只支持 slot 0；prefab/glTF 多材质对象的 slot 1+ 延后。
 - **agentic 多轮 Skill 执行**（从 v0.3 sub-stage B 拆出）：本期 Skill 是**单轮结构化输出**（NL→LLM 一次返回 operations→Command）。延后：架构 §4.3 的 `call_tool` / `allowed_tools` 多轮 agent 循环（LLM 多轮调工具、读场景、迭代纠错）+ `SkillContext.memory`（`MemoryStore` 项目暂无实现）。用户明确「多轮后续肯定要完善」。
