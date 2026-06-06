@@ -11,6 +11,7 @@ import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transf
 import { isEffectivelyLocked } from "@/core/scene/policy";
 import type { AssetReference, SceneNode, Transform } from "@/core/scene/types";
 import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
+import { AiCommandBar } from "@/ui/editor/AiCommandBar";
 import { BehaviorsPanel } from "@/ui/editor/BehaviorsPanel";
 import { MaterialSection } from "@/ui/editor/MaterialSection";
 import { ShortcutsHelpDialog } from "@/ui/help/ShortcutsHelpDialog";
@@ -102,6 +103,7 @@ export function EditorView() {
             stays under the viewport only, and the 1fr column auto-widens if the
             side asides ever collapse. */}
         <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <AiCommandBar />
           <main className="relative min-h-0 flex-1 overflow-hidden">
             {project ? (
               <>
