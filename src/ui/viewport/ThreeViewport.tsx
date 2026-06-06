@@ -8,6 +8,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
+import { snapTranslation } from "@/core/snap/grid";
 import { isEffectivelyLocked } from "@/core/scene/policy";
 import { ThreeAdapter } from "@/runtime/three/adapter";
 import { describeTemplate } from "@/runtime/three/asset-cache";
@@ -156,6 +157,37 @@ export function ThreeViewport() {
           prev_transform: start,
         }),
       );
+    });
+
+    // Grid snap: hold Ctrl/Cmd while dragging to snap the translate gizmo to
+    // the grid. Tracked via a closure flag because objectChange carries no
+    // modifier-key info.
+    let snapModifierDown = false;
+    const onSnapKey = (e: KeyboardEvent) => {
+      snapModifierDown = e.metaKey || e.ctrlKey;
+    };
+    const onSnapBlur = () => {
+      snapModifierDown = false;
+    };
+    window.addEventListener("keydown", onSnapKey);
+    window.addEventListener("keyup", onSnapKey);
+    window.addEventListener("blur", onSnapBlur);
+
+    gizmo.addEventListener("objectChange", () => {
+      const obj = gizmo.object;
+      if (
+        !obj ||
+        useUIStore.getState().gizmoMode !== "translate" ||
+        !snapModifierDown
+      ) {
+        return;
+      }
+      const [x, y, z] = snapTranslation([
+        obj.position.x,
+        obj.position.y,
+        obj.position.z,
+      ]);
+      obj.position.set(x, y, z);
     });
 
     const syncSelection = (id: string | null) => {
@@ -322,6 +354,9 @@ export function ThreeViewport() {
       unsubscribeUI();
       canvas.removeEventListener("click", onClick);
       canvas.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onSnapKey);
+      window.removeEventListener("keyup", onSnapKey);
+      window.removeEventListener("blur", onSnapBlur);
       ro.disconnect();
       gizmo.detach();
       gizmo.dispose();
