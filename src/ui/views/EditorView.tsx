@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Box, X } from "lucide-react";
+import { Box, Settings, X } from "lucide-react";
 
 import { useSceneStore } from "@/services/scene/store";
 import { useAssetPreviewStore } from "@/services/assets/preview-store";
@@ -31,7 +31,7 @@ const GIZMO_MODES: { mode: GizmoMode; label: string; hotkey: string }[] = [
 type Vec3 = [number, number, number];
 
 export function EditorView() {
-  const { t } = useTranslation(["common", "editor"]);
+  const { t } = useTranslation(["common", "editor", "settings"]);
   const project = useSceneStore((s) => s.project);
   const selectedNodeId = useUIStore((s) => s.selectedNodeId);
   const setSelectedNodeId = useUIStore((s) => s.setSelectedNodeId);
@@ -42,6 +42,7 @@ export function EditorView() {
   const rightPanelTab = useUIStore((s) => s.rightPanelTab);
   const setRightPanelTab = useUIStore((s) => s.setRightPanelTab);
   const playState = useUIStore((s) => s.playState);
+  const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   useGizmoShortcuts();
   useEditorShortcuts();
 
@@ -60,15 +61,25 @@ export function EditorView() {
                 {t("editor:hierarchy.title")}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void closeProject()}
-              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
-              title={t("editor:close_project")}
-            >
-              <X className="h-3 w-3" />
-              <span>{t("editor:close_project")}</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="flex items-center rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={t("settings:title")}
+              >
+                <Settings className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void closeProject()}
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={t("editor:close_project")}
+              >
+                <X className="h-3 w-3" />
+                <span>{t("editor:close_project")}</span>
+              </button>
+            </div>
           </header>
           <div className="min-h-0 flex-1 overflow-auto p-2">
             {project && project.scene.root_node_ids.length > 0 ? (

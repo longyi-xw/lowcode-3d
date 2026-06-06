@@ -24,7 +24,7 @@
 | Phase 3 打磨发布          | 快捷键完整化 / 项目模板 / 错误处理 / 文档 / GitHub Release | (in progress) | 🟡         |
 | v0.5 行为系统（提前部分） | Behavior framework + auto-rotate + UI + Play/Pause         | #20, #21      | 🟡 partial |
 | v0.2 资源库 + 材质编辑    | 内置库 + 用户上传 + 材质参数                               | #29, #30      | ✅         |
-| v0.3 AI Skill 框架        | Skill 接口 + AI proxy + 自然语言操作                       | —             | ⏳         |
+| v0.3 AI Skill 框架        | Skill 接口 + AI proxy + 自然语言操作                       | #31           | 🟡 partial |
 | v0.4 空间吸附             | Socket 系统 + 几何约束                                     | —             | ⏳         |
 | v1.0 多适配器             | Babylon.js 适配器                                          | —             | ⏳         |
 | v1.x                      | R3F、Unity                                                 | —             | ⏳         |
@@ -93,9 +93,15 @@
   - [x] 导出代码包含正确的材质字段
 - **Depends on**: v0.1 release（Phase 3 全部 5 个 sub-stage 完成）
 
-### v0.3 — Planned
+### v0.3 — In progress（拆为 2 个 sub-stage）
 
 - **Goals**: AI Skill 框架（架构 §4.3 + §7 v0.3）。Skill 接口 + Rust 端 AI proxy（防止 API key 漏到前端）+ 首个自然语言操作（"添加一盏从右上方照射的暖白色定向光"）。
+- **Sub-stages**:
+  - [x] **A · AI proxy + BYO-key + provider 配置**（#31）：Rust `ai.rs` proxy（**Anthropic + DeepSeek**，OpenAI 兼容抽象）+ OS keychain（keyring）存 key + Settings Dialog「AI providers」多卡 UI（per-provider key/model/测试连接，radio 选 active）。`ai_complete`（text + 结构化 via tool-use/function-calling）为 B 铺路；key 不进 renderer。
+  - [ ] **B · Skill 框架 + scene-edit + 自然语言 UI**：`Skill` 接口 + 注册表 + 执行循环（input→proxy→结构化输出→tool→Command）+ scene-edit skill（加灯）+ 自然语言输入框 + 填 `docs/skill-guide.md`。
+- **Success criteria**:
+  - [x] AI proxy 能调通 LLM（Anthropic / DeepSeek），key 安全存 keychain 不泄漏到前端
+  - [ ] 自然语言指令（"加一盏右上暖白定向光"）实际在场景生成对应灯节点，可撤销
 - **Depends on**: v0.2 release
 
 ### v0.4 — Planned
