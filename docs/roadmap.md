@@ -25,7 +25,7 @@
 | v0.5 行为系统（提前部分） | Behavior framework + auto-rotate + UI + Play/Pause         | #20, #21      | 🟡 partial |
 | v0.2 资源库 + 材质编辑    | 内置库 + 用户上传 + 材质参数                               | #29, #30      | ✅         |
 | v0.3 AI Skill 框架        | Skill 接口 + AI proxy + 自然语言操作                       | #31, #32      | ✅         |
-| v0.4 空间吸附             | Socket 系统 + 几何约束                                     | #33           | 🟡 partial |
+| v0.4 空间吸附             | Socket 系统 + 几何约束                                     | #33, #34      | 🟡 partial |
 | v1.0 多适配器             | Babylon.js 适配器                                          | —             | ⏳         |
 | v1.x                      | R3F、Unity                                                 | —             | ⏳         |
 
@@ -109,7 +109,7 @@
 - **Goals**: 空间吸附 / Socket 系统（架构 §7 v0.4）。节点之间几何关系约束求解，类似 Unity 的 Snap 或 Blender 的 Snap to。
 - **Sub-stages**:
   - [x] **A · 网格吸附 + 吸附框架**（#33）：gizmo 平移拖拽时按住 Ctrl/Cmd 吸附到 0.5 网格；`snapTranslation` 纯函数引擎（`src/core/snap/`，供 B/C 扩展）+ ThreeViewport `objectChange` hook（pointer 读即时修饰键，不卡）。仅平移。
-  - [ ] **B · 节点对齐吸附**：拖拽节点时其包围盒角/中心/面吸附到附近节点的对应特征（建在 A 的引擎上）。
+  - [x] **B · 节点对齐吸附**（#34）：gizmo 平移拖拽 + 按住 Ctrl/Cmd 时，被拖节点包围盒 15 特征（中心 + 8 角 + 6 面中心，**OBB** 跟随旋转）吸附到附近节点对应特征——屏幕像素（12px）做门槛、**3D 世界距离**选最近对齐对象（避免平行视角吸到深度更远的目标）；无命中回退 A 的网格吸附。`snapToNodes` 纯函数（`src/core/snap/nodes.ts`）+ ThreeViewport 投影/OBB 特征提取。仅平移。
   - [ ] **C · Socket 系统**：节点上命名插槽 + 拖拽时兼容插槽咬合。
 - **Depends on**: v0.3 release
 - **后续插入**：sub-stage B 完成后做「资源拖拽入视口 + 落点」（见 Backlog，用户定的顺序），再进 C。
