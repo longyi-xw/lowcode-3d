@@ -21,13 +21,16 @@ describe("snapToNodes", () => {
     expect(snapToNodes(dragged, [], 12)).toBeNull();
   });
 
-  it("picks the screen-closest pair among several", () => {
+  it("among in-threshold pairs, picks the one closest in 3D world space", () => {
+    // Both targets are within the pixel threshold on screen, but one is much
+    // farther in depth. The screen-nearest must NOT win — pick the 3D-nearest
+    // so a parallel/side view doesn't snap to a far box behind a near one.
     const dragged: SnapPoint[] = [{ screen: [100, 100], world: [0, 0, 0] }];
     const targets: SnapPoint[] = [
-      { screen: [108, 100], world: [9, 9, 9] }, // dist 8
-      { screen: [102, 100], world: [5, 0, 0] }, // dist 2 — closest
+      { screen: [102, 100], world: [0, 0, 10] }, // screen-near (2px) but far in 3D (10)
+      { screen: [108, 100], world: [0, 0, 1] }, // screen 8px (<12) but near in 3D (1)
     ];
-    expect(snapToNodes(dragged, targets, 12)).toEqual([5, 0, 0]);
+    expect(snapToNodes(dragged, targets, 12)).toEqual([0, 0, 1]);
   });
 
   it("defaults to SNAP_PIXELS (12)", () => {
