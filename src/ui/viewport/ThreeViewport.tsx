@@ -437,7 +437,8 @@ export function ThreeViewport() {
   return <div ref={containerRef} className="relative h-full w-full overflow-hidden" />;
 }
 
-/** 9 个 bbox 特征（中心 + 8 角）的世界坐标；无几何（bbox 空）返回 []。 */
+/** 15 个 bbox 特征（中心 + 8 角 + 6 面中心）的世界坐标；无几何（bbox 空）返回
+ *  []。面中心让"球放到 box 顶面/侧面"这类面对面对齐也能吸附。 */
 function bboxFeatures(obj: THREE.Object3D): THREE.Vector3[] {
   const box = new THREE.Box3().setFromObject(obj);
   if (box.isEmpty()) return [];
@@ -454,6 +455,13 @@ function bboxFeatures(obj: THREE.Object3D): THREE.Vector3[] {
     new THREE.Vector3(max.x, min.y, max.z),
     new THREE.Vector3(max.x, max.y, min.z),
     new THREE.Vector3(max.x, max.y, max.z),
+    // 6 face centers — so "ball on a box's top/side" (face-to-face) snaps too.
+    new THREE.Vector3(max.x, c.y, c.z),
+    new THREE.Vector3(min.x, c.y, c.z),
+    new THREE.Vector3(c.x, max.y, c.z),
+    new THREE.Vector3(c.x, min.y, c.z),
+    new THREE.Vector3(c.x, c.y, max.z),
+    new THREE.Vector3(c.x, c.y, min.z),
   ];
 }
 
