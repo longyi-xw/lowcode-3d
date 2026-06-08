@@ -147,3 +147,17 @@ export function uploadLibraryItems(assets: AssetReference[]): LibraryItem[] {
   }
   return items;
 }
+
+/**
+ * Look up a library item by id across builtins + upload-derived items. Used by
+ * drag-drop to recover the item (and its makeNode) at drop time, after only the
+ * id was carried through the drag.
+ */
+export function findLibraryItem(
+  id: string,
+  uploads: AssetReference[],
+): LibraryItem | undefined {
+  return [...BUILTIN_LIBRARY_ITEMS, ...uploadLibraryItems(uploads)].find(
+    (item) => item.id === id,
+  );
+}

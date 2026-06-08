@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { BUILTIN_LIBRARY_ITEMS, uploadLibraryItems } from "./catalog";
+import type { AssetReference } from "@/core/scene/types";
+
+import { BUILTIN_LIBRARY_ITEMS, findLibraryItem, uploadLibraryItems } from "./catalog";
 
 describe("library catalog", () => {
   it("has the 4 geometry primitives + 4 light presets as builtins", () => {
@@ -57,5 +59,40 @@ describe("library catalog", () => {
       type: "prefab_instance",
       asset_id: "a1",
     });
+  });
+});
+
+describe("findLibraryItem", () => {
+  it("finds a builtin item by id", () => {
+    const item = findLibraryItem("geo-box", []);
+    expect(item?.id).toBe("geo-box");
+    expect(item?.makeNode().data).toMatchObject({
+      type: "mesh",
+      geometry: { kind: "box" },
+    });
+  });
+
+  it("finds an upload-derived item by its upload-* id", () => {
+    const uploads: AssetReference[] = [
+      {
+        id: "a1",
+        content_hash: "h",
+        kind: "geometry",
+        relative_path: "assets/h.glb",
+        tags: [],
+        description: "",
+        source: { kind: "user_upload", original_filename: "chair.glb" },
+      },
+    ];
+    const item = findLibraryItem("upload-a1", uploads);
+    expect(item?.name).toBe("chair.glb");
+    expect(item?.makeNode().data).toMatchObject({
+      type: "prefab_instance",
+      asset_id: "a1",
+    });
+  });
+
+  it("returns undefined for an unknown id", () => {
+    expect(findLibraryItem("nope", [])).toBeUndefined();
   });
 });
