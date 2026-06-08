@@ -5,6 +5,7 @@ import {
   RuntimeTargetSchema,
   SceneNodeSchema,
   SceneProjectSchema,
+  SocketSchema,
   SPEC_VERSION,
   TransformSchema,
 } from "./schemas";
@@ -198,6 +199,42 @@ describe("SceneProjectSchema", () => {
   it("rejects a project with an outdated spec_version", () => {
     expect(() =>
       SceneProjectSchema.parse({ ...minimal, spec_version: "0.0.7" }),
+    ).toThrow();
+  });
+});
+
+describe("Socket / SceneNode.sockets", () => {
+  const baseNode = {
+    id: "n1",
+    name: "n",
+    type: "group" as const,
+    transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    parent_id: null,
+    children_ids: [],
+    visible: true,
+    locked: false,
+    data: { type: "group" as const },
+    behaviors: [],
+    user_data: {},
+  };
+
+  it("sockets is optional — a node without it parses to undefined", () => {
+    expect(SceneNodeSchema.parse(baseNode).sockets).toBeUndefined();
+  });
+
+  it("parses a node with sockets", () => {
+    const n = SceneNodeSchema.parse({
+      ...baseNode,
+      sockets: [{ id: "s1", name: "top", position: [0, 1, 0], tag: "stud" }],
+    });
+    expect(n.sockets).toEqual([
+      { id: "s1", name: "top", position: [0, 1, 0], tag: "stud" },
+    ]);
+  });
+
+  it("SocketSchema requires id/name/position/tag", () => {
+    expect(() =>
+      SocketSchema.parse({ id: "s", name: "n", position: [0, 0, 0] }),
     ).toThrow();
   });
 });

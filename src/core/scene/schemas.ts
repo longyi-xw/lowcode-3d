@@ -129,6 +129,15 @@ export const BehaviorBindingSchema = z.object({
   parameters: z.record(z.string(), z.unknown()),
 });
 
+// ─────────────────────── Socket（v0.4 C：模块化拼装地基）───────────────────────
+
+export const SocketSchema = z.object({
+  id: z.string(), // 内部稳定键（仿 BehaviorBinding.id）
+  name: z.string(), // 用户标签（如 "top"/"bottom"）
+  position: Vec3Schema, // 节点局部坐标
+  tag: z.string(), // 兼容分组；空串 = 不参与吸附
+});
+
 // ─────────────────────── Scene node ───────────────────────
 
 // Renamed from architecture's `Node` to avoid clashing with the DOM `Node`
@@ -145,6 +154,7 @@ export const SceneNodeSchema = z
     locked: z.boolean(),
     data: NodeDataSchema,
     behaviors: z.array(BehaviorBindingSchema),
+    sockets: z.array(SocketSchema).optional(),
     user_data: z.record(z.string(), z.unknown()),
   })
   .refine((node) => node.type === node.data.type, {

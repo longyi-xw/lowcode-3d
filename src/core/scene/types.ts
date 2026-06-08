@@ -9,6 +9,7 @@ import type {
   SceneGraphSchema,
   SceneNodeSchema,
   SceneProjectSchema,
+  SocketSchema,
   TransformSchema,
   Vec3Schema,
 } from "./schemas";
@@ -28,6 +29,7 @@ export type SceneNode = z.infer<typeof SceneNodeSchema>;
 
 export type AssetReference = z.infer<typeof AssetReferenceSchema>;
 export type BehaviorBinding = z.infer<typeof BehaviorBindingSchema>;
+export type Socket = z.infer<typeof SocketSchema>;
 
 export type SceneGraph = z.infer<typeof SceneGraphSchema>;
 export type SceneProject = z.infer<typeof SceneProjectSchema>;
