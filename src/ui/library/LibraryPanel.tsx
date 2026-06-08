@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { AddNodeCommand } from "@/core/command/commands/add-node";
 import { cn } from "@/lib/utils";
 import { executeCommand } from "@/services/command-history";
+import { beginAssetDrag } from "@/services/library/asset-drag";
 import {
   BUILTIN_LIBRARY_ITEMS,
   type LibraryItem,
@@ -131,6 +132,10 @@ export function LibraryPanel() {
                     <button
                       key={item.id}
                       type="button"
+                      draggable={false}
+                      onPointerDown={(e) =>
+                        beginAssetDrag(item.id, e.clientX, e.clientY)
+                      }
                       onDoubleClick={() => addItem(item)}
                       title={t("library.add_hint")}
                       className="flex flex-col items-center gap-1 rounded border border-border bg-card/50 p-2 hover:border-primary hover:bg-muted"
