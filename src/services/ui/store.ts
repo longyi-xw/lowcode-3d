@@ -57,6 +57,13 @@ interface UIState {
   pendingFocusNodeId: string | null | undefined;
   requestFocus: (nodeId: string | null) => void;
   consumeFocusRequest: () => void;
+  /** Library item id currently being drag-dropped into the viewport; null when
+   *  no asset drag is active. Set once the pointer passes the drag threshold
+   *  (services/library/asset-drag.ts), cleared on drop / cancel by the
+   *  viewport's window pointerup. */
+  assetDragItemId: string | null;
+  startAssetDrag: (id: string) => void;
+  endAssetDrag: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -95,4 +102,7 @@ export const useUIStore = create<UIState>((set) => ({
   pendingFocusNodeId: undefined,
   requestFocus: (pendingFocusNodeId) => set({ pendingFocusNodeId }),
   consumeFocusRequest: () => set({ pendingFocusNodeId: undefined }),
+  assetDragItemId: null,
+  startAssetDrag: (assetDragItemId) => set({ assetDragItemId }),
+  endAssetDrag: () => set({ assetDragItemId: null }),
 }));
