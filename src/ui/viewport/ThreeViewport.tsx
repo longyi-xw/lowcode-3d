@@ -199,7 +199,7 @@ export function ThreeViewport() {
     window.addEventListener("pointermove", onSnapPointer, true);
     window.addEventListener("pointerdown", onSnapPointer, true);
 
-    gizmo.addEventListener("objectChange", () => {
+    const snapDraggedObject = () => {
       const obj = gizmo.object;
       if (
         !obj ||
@@ -245,6 +245,13 @@ export function ThreeViewport() {
         obj.position.z,
       ]);
       obj.position.set(x, y, z);
+    };
+
+    gizmo.addEventListener("objectChange", () => {
+      snapDraggedObject();
+      // Rebuild markers after snapping on EVERY move (all paths, incl. free
+      // move / rotate / scale and the early-return socket/node-snap paths) so a
+      // dragged node's socket markers track it instead of freezing mid-snap.
       rebuildSocketMarkers();
     });
 
