@@ -377,3 +377,41 @@ describe("useSceneStore.setMeshMaterial", () => {
     ).toBeUndefined();
   });
 });
+
+describe("setNodeSockets", () => {
+  it("replaces a node's sockets immutably (new node identity)", () => {
+    useSceneStore.setState({ project: freshProject() });
+    const node: SceneNode = {
+      id: "n1",
+      name: "n1",
+      type: "group",
+      transform: IDENTITY,
+      parent_id: null,
+      children_ids: [],
+      visible: true,
+      locked: false,
+      data: { type: "group" },
+      behaviors: [],
+      user_data: {},
+    };
+    useSceneStore.getState().addNode(node);
+    const before = useSceneStore.getState().getNode("n1");
+    const sockets = [
+      {
+        id: "s1",
+        name: "top",
+        position: [0, 1, 0] as [number, number, number],
+        tag: "stud",
+      },
+    ];
+    useSceneStore.getState().setNodeSockets("n1", sockets);
+    const after = useSceneStore.getState().getNode("n1");
+    expect(after?.sockets).toEqual(sockets);
+    expect(after).not.toBe(before);
+  });
+
+  it("is a no-op when the node does not exist", () => {
+    useSceneStore.setState({ project: freshProject() });
+    expect(() => useSceneStore.getState().setNodeSockets("nope", [])).not.toThrow();
+  });
+});

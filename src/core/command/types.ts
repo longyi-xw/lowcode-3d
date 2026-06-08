@@ -1,6 +1,6 @@
 import type { MaterialOverride } from "../scene/material";
 import type { SceneNodeSnapshot } from "../scene/snapshot";
-import type { BehaviorBinding, SceneNode, Transform } from "../scene/types";
+import type { BehaviorBinding, SceneNode, Socket, Transform } from "../scene/types";
 
 /**
  * The minimal slice of editor state a scene-editing Command interacts with.
@@ -21,6 +21,7 @@ export interface SceneEditorStore {
   // ── new (Phase 3 · 3.1) ──
   addNode(node: SceneNode): void;
   setMeshMaterial(nodeId: string, override: MaterialOverride | undefined): void;
+  setNodeSockets(nodeId: string, sockets: Socket[]): void;
   removeNodeSubtree(nodeId: string): void;
   restoreNodeSubtree(snapshot: SceneNodeSnapshot): void;
   duplicateNode(sourceNodeId: string, newSubtree: SceneNodeSnapshot): void;
