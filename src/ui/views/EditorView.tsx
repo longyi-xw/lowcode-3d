@@ -14,6 +14,7 @@ import { eulerDegToQuat, quatToEulerDeg } from "@/lib/euler";
 import { AiCommandBar } from "@/ui/editor/AiCommandBar";
 import { BehaviorsPanel } from "@/ui/editor/BehaviorsPanel";
 import { MaterialSection } from "@/ui/editor/MaterialSection";
+import { SocketsSection } from "@/ui/editor/SocketsSection";
 import { ShortcutsHelpDialog } from "@/ui/help/ShortcutsHelpDialog";
 import { AssetDragGhost } from "@/ui/library/AssetDragGhost";
 import { LibraryPanel } from "@/ui/library/LibraryPanel";
@@ -228,6 +229,7 @@ function NodeProperties({ node }: { node: SceneNode }) {
         <PrefabInfo assetId={node.data.asset_id} />
       )}
       {node.data.type === "mesh" && <MaterialSection node={node} />}
+      <SocketsSection node={node} />
     </dl>
   );
 }
