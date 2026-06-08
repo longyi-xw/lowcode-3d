@@ -245,7 +245,45 @@ export function ThreeViewport() {
         obj.position.z,
       ]);
       obj.position.set(x, y, z);
+      rebuildSocketMarkers();
     });
+
+    // ── Socket markers (v0.4 C) ──────────────────────────────────
+    // Decoupled overlay group: world-positioned markers, rebuilt on
+    // scene/selection change + during drag. Shared geo/material so
+    // group.clear() just detaches (no per-marker dispose). raycast no-op so
+    // pickAt never selects a marker.
+    const socketGeo = new THREE.SphereGeometry(0.06, 8, 8);
+    const socketMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
+    const socketMatSel = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const noRaycast = () => {};
+    const socketMarkers = new THREE.Group();
+    socketMarkers.name = "socketMarkers";
+    adapter.scene.add(socketMarkers);
+
+    const rebuildSocketMarkers = () => {
+      socketMarkers.clear();
+      const proj = useSceneStore.getState().project;
+      if (!proj) return;
+      const selId = useUIStore.getState().selectedNodeId;
+      const v = new THREE.Vector3();
+      for (const [id, n] of Object.entries(proj.scene.nodes)) {
+        const sockets = n.sockets;
+        if (!sockets || sockets.length === 0) continue;
+        const tobj = adapter.getRuntimeObject(id);
+        if (!tobj) continue;
+        tobj.updateWorldMatrix(true, false);
+        for (const s of sockets) {
+          const mk = new THREE.Mesh(socketGeo, id === selId ? socketMatSel : socketMat);
+          v.set(s.position[0], s.position[1], s.position[2]).applyMatrix4(
+            tobj.matrixWorld,
+          );
+          mk.position.copy(v);
+          mk.raycast = noRaycast;
+          socketMarkers.add(mk);
+        }
+      }
+    };
 
     const syncSelection = (id: string | null) => {
       if (!id) {
@@ -275,6 +313,7 @@ export function ThreeViewport() {
       outlinePass.selectedObjects = [obj];
     };
     syncSelection(useUIStore.getState().selectedNodeId);
+    rebuildSocketMarkers();
 
     const resize = () => {
       const w = container.clientWidth;
@@ -403,6 +442,7 @@ export function ThreeViewport() {
       if (next === old) return;
       if (next.metadata.id !== old.metadata.id) return; // handled by effect re-run
       void diffAndApply(adapter, old, next, gizmo, outlinePass);
+      rebuildSocketMarkers();
     });
 
     const unsubscribeProject = useProjectStore.subscribe((state, prev) => {
@@ -414,6 +454,7 @@ export function ThreeViewport() {
     const unsubscribeUI = useUIStore.subscribe((state, prev) => {
       if (state.selectedNodeId !== prev.selectedNodeId) {
         syncSelection(state.selectedNodeId);
+        rebuildSocketMarkers();
       }
       if (state.gizmoMode !== prev.gizmoMode) {
         gizmo.setMode(state.gizmoMode);
@@ -454,6 +495,11 @@ export function ThreeViewport() {
       if (canvas.parentNode === container) {
         container.removeChild(canvas);
       }
+      adapter.scene.remove(socketMarkers);
+      socketMarkers.clear();
+      socketGeo.dispose();
+      socketMat.dispose();
+      socketMatSel.dispose();
       adapter.dispose();
       adapterRef.current = null;
       controlsRef.current = null;
