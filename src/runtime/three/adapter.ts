@@ -15,6 +15,7 @@ import type {
   IRuntimeAdapter,
   SyncOp,
 } from "../adapter";
+import { screenToNdc } from "@/lib/drop-helpers";
 
 import { AssetCache } from "./asset-cache";
 import { createThreeBehaviorRegistry, ThreeBehaviorRegistry } from "./behaviors";
@@ -68,6 +69,10 @@ const EXPORTERS: Record<ExportTarget, Exporter> = {
   vite: viteEmitter,
   "standalone-esm": standaloneEsmEmitter,
 };
+
+/** Shared y=0 ground plane (normal +y) for drop raycasts. Module-level to
+ *  avoid per-pick allocation. */
+const GROUND_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 /**
  * Three.js adapter — implements `IRuntimeAdapter` for the MVP renderer.
@@ -128,6 +133,8 @@ export class ThreeAdapter implements IRuntimeAdapter {
   /** Reused per pick to avoid per-event allocations. */
   private readonly raycaster = new THREE.Raycaster();
   private readonly ndc = new THREE.Vector2();
+  /** Reused target for raycastGroundPoint's plane intersection. */
+  private readonly groundHit = new THREE.Vector3();
 
   constructor(
     target: RuntimeTarget = DEFAULT_TARGET,
@@ -293,6 +300,32 @@ export class ThreeAdapter implements IRuntimeAdapter {
       if (nodeId !== null) return nodeId;
     }
     return null;
+  }
+
+  /**
+   * Raycast the screen point `(screen_x, screen_y)` (viewport-pixel space)
+   * against the y=0 ground plane. Returns the world-space hit `[x, y, z]`, or
+   * null when the ray is parallel to / points away from the plane (camera
+   * facing the sky). Mirrors pickAt's NDC + matrix-refresh setup so a drop
+   * handled synchronously (before the next animation frame) still uses the
+   * current camera pose.
+   */
+  raycastGroundPoint(
+    screen_x: number,
+    screen_y: number,
+  ): [number, number, number] | null {
+    if (this.viewportWidth <= 0 || this.viewportHeight <= 0) return null;
+    this.camera.updateMatrixWorld(true);
+    const [ndcX, ndcY] = screenToNdc(
+      screen_x,
+      screen_y,
+      this.viewportWidth,
+      this.viewportHeight,
+    );
+    this.ndc.set(ndcX, ndcY);
+    this.raycaster.setFromCamera(this.ndc, this.camera);
+    const hit = this.raycaster.ray.intersectPlane(GROUND_PLANE, this.groundHit);
+    return hit ? [hit.x, hit.y, hit.z] : null;
   }
 
   // ───── Export ───────────────────────────────────────────────────
