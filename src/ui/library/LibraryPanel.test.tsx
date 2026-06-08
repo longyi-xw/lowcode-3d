@@ -3,10 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createDefaultProject } from "@/core/scene/defaults";
 import { useCommandHistoryStore } from "@/services/command-history/store";
+import { beginAssetDrag } from "@/services/library/asset-drag";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 
 import { LibraryPanel } from "./LibraryPanel";
+
+vi.mock("@/services/library/asset-drag", () => ({
+  beginAssetDrag: vi.fn(),
+}));
 
 function seed(libraryOpen = true) {
   const project = createDefaultProject({
@@ -35,6 +40,7 @@ describe("LibraryPanel", () => {
     useSceneStore.setState({ project: null });
     useCommandHistoryStore.getState().clear();
     seed();
+    vi.mocked(beginAssetDrag).mockClear();
   });
 
   it("lists geometry items in the geometry tab (default)", () => {
@@ -65,5 +71,12 @@ describe("LibraryPanel", () => {
     render(<LibraryPanel />);
     expect(screen.getByText("Asset Library")).toBeInTheDocument();
     expect(screen.queryByText("Sphere")).not.toBeInTheDocument();
+  });
+
+  it("pointer-down on a card begins an asset drag with the item id", () => {
+    render(<LibraryPanel />);
+    fireEvent.pointerDown(screen.getByText("Sphere"), { clientX: 12, clientY: 34 });
+    expect(beginAssetDrag).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(beginAssetDrag).mock.calls[0]?.[0]).toBe("geo-sphere");
   });
 });

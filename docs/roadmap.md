@@ -110,9 +110,10 @@
 - **Sub-stages**:
   - [x] **A · 网格吸附 + 吸附框架**（#33）：gizmo 平移拖拽时按住 Ctrl/Cmd 吸附到 0.5 网格；`snapTranslation` 纯函数引擎（`src/core/snap/`，供 B/C 扩展）+ ThreeViewport `objectChange` hook（pointer 读即时修饰键，不卡）。仅平移。
   - [x] **B · 节点对齐吸附**（#34）：gizmo 平移拖拽 + 按住 Ctrl/Cmd 时，被拖节点包围盒 15 特征（中心 + 8 角 + 6 面中心，**OBB** 跟随旋转）吸附到附近节点对应特征——屏幕像素（12px）做门槛、**3D 世界距离**选最近对齐对象（避免平行视角吸到深度更远的目标）；无命中回退 A 的网格吸附。`snapToNodes` 纯函数（`src/core/snap/nodes.ts`）+ ThreeViewport 投影/OBB 特征提取。仅平移。
+  - [x] **资源拖拽入视口 + 落点**（[#35](https://github.com/longyi-xw/lowcode-3d/pull/35)）：从资源库卡片拖拽到视口，以 raycast y=0 地面命中点为落点（覆盖 x/z、保留库项默认 y）；双击加节点保留；走 `AddNodeCommand` 可撤销。纯函数 `screenToNdc`/`dropPositionFor`（`src/lib/drop-helpers.ts`）+ `findLibraryItem` + adapter `raycastGroundPoint` + 自定义 pointer 拖拽（Tauri 2 默认抑制 HTML5 DnD）+ DOM ghost。仅 y=0 地面（物体表面落点 / 落点吸附 / 3D 预览 / OS file-drop 见 Backlog）。
   - [ ] **C · Socket 系统**：节点上命名插槽 + 拖拽时兼容插槽咬合。
 - **Depends on**: v0.3 release
-- **后续插入**：sub-stage B 完成后做「资源拖拽入视口 + 落点」（见 Backlog，用户定的顺序），再进 C。
+- **后续**：「资源拖拽入视口 + 落点」已完成（见上 sub-stage，#35）；下一步 sub-stage C（Socket 系统）。
 
 ### v1.0 — Planned
 
@@ -129,7 +130,6 @@
 从已完成 sub-stage 中刻意拆出的功能点，尚未排期到具体 release：
 
 - **材质贴图 pipeline**（从 v0.2 材质编辑拆出）：normalMap / map / roughnessMap / metalnessMap / aoMap 等。需 `MaterialOverrideSchema` 加贴图字段（引用 `kind:"texture"` 的 `AssetReference`）+ texture 资源上传入库 + runtime `TextureLoader`（`mesh.ts applyOverrides` 加贴图通道）+ codegen emit `TextureLoader().load("./assets/…")` + UI 贴图选择器。独立子系统，单独 spec→plan→实现。
-- **资源拖拽入视口 + 落点**（从 v0.2 资源库拆出）：当前资源库为**双击**加节点到默认位置（几何抬 `y=0.5`）。从库卡片**拖拽**到视口，以 raycast 命中地面/物体的点作为新节点 `position`（可与 v0.4 网格吸附结合：落点吸附网格）。**用户已定顺序：排在 v0.4 sub-stage B 之后做**。
 - **多源资源上传**（从 v0.2 资源库拆出）：`AssetSourceSchema` 已含 `builtin/user_upload/online/ai_generated` 且 catalog 来源无关；目前只实装 `builtin`（几何/灯光预设）+ `user_upload`（.glb）。延后：`online`（在线模型/材质库浏览+下载入库）、`ai_generated`（AI 生成模型/贴图）。
 - **多材质槽**（从 v0.2 材质编辑拆出）：本期材质编辑只支持 slot 0；prefab/glTF 多材质对象的 slot 1+ 延后。
 - **agentic 多轮 Skill 执行**（从 v0.3 sub-stage B 拆出）：本期 Skill 是**单轮结构化输出**（NL→LLM 一次返回 operations→Command）。延后：架构 §4.3 的 `call_tool` / `allowed_tools` 多轮 agent 循环（LLM 多轮调工具、读场景、迭代纠错）+ `SkillContext.memory`（`MemoryStore` 项目暂无实现）。用户明确「多轮后续肯定要完善」。

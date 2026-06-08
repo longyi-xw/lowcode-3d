@@ -853,3 +853,27 @@ describe("ThreeAdapter live behavior runtime", () => {
     expect(() => adapter.dispose()).not.toThrow();
   });
 });
+
+describe("ThreeAdapter.raycastGroundPoint", () => {
+  it("hits the ground plane near the origin for a centered ray", () => {
+    // Default camera sits at [4,3,4] looking at the origin, so the center ray
+    // (NDC 0,0) crosses y=0 exactly at the origin.
+    const adapter = new ThreeAdapter(target);
+    adapter.setViewportSize(100, 100);
+    const hit = adapter.raycastGroundPoint(50, 50);
+    expect(hit).not.toBeNull();
+    expect(hit![1]).toBeCloseTo(0, 5);
+    expect(Math.hypot(hit![0], hit![2])).toBeLessThan(1e-4);
+  });
+
+  it("returns null when the camera faces away from the ground", () => {
+    // Tilt up (above the horizon) but NOT straight up — a forward parallel to
+    // the up vector makes lookAt degenerate (NaN basis). [0,5,3] tilts up
+    // around x, so the center ray points above y=0 and never crosses it.
+    const adapter = new ThreeAdapter(target, {
+      defaultCamera: { position: [0, 1, 0], lookAt: [0, 5, 3] },
+    });
+    adapter.setViewportSize(100, 100);
+    expect(adapter.raycastGroundPoint(50, 50)).toBeNull();
+  });
+});

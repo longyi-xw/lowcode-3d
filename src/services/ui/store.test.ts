@@ -170,3 +170,18 @@ describe("useUIStore — libraryOpen (v0.2)", () => {
     expect(useUIStore.getState().libraryOpen).toBe(true);
   });
 });
+
+describe("useUIStore — asset drag (asset-drag-into-viewport)", () => {
+  beforeEach(() => useUIStore.setState({ assetDragItemId: null }));
+
+  it("defaults to null (no drag active)", () => {
+    expect(useUIStore.getState().assetDragItemId).toBeNull();
+  });
+
+  it("startAssetDrag sets the id and endAssetDrag clears it", () => {
+    useUIStore.getState().startAssetDrag("geo-box");
+    expect(useUIStore.getState().assetDragItemId).toBe("geo-box");
+    useUIStore.getState().endAssetDrag();
+    expect(useUIStore.getState().assetDragItemId).toBeNull();
+  });
+});

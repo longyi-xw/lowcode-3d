@@ -7,10 +7,12 @@ import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 
+import { AddNodeCommand } from "@/core/command/commands/add-node";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import { snapTranslation } from "@/core/snap/grid";
 import { SNAP_PIXELS, snapToNodes, type SnapPoint } from "@/core/snap/nodes";
 import { isEffectivelyLocked } from "@/core/scene/policy";
+import { dropPositionFor } from "@/lib/drop-helpers";
 import { ThreeAdapter } from "@/runtime/three/adapter";
 import { describeTemplate } from "@/runtime/three/asset-cache";
 import type {
@@ -21,6 +23,7 @@ import type {
 } from "@/core/scene/types";
 import { useAssetPreviewStore } from "@/services/assets/preview-store";
 import { executeCommand } from "@/services/command-history";
+import { findLibraryItem } from "@/services/library/catalog";
 import { useProjectStore } from "@/services/project/store";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
@@ -298,6 +301,37 @@ export function ThreeViewport() {
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("click", onClick);
 
+    // Asset drag-drop: a library-card drag activates assetDragItemId (see
+    // services/library/asset-drag.ts). On release inside the canvas, raycast
+    // the y=0 ground plane and add the item there (falling back to the item's
+    // default position when the ray misses — camera facing the sky). Released
+    // outside the canvas or on a miss-with-no-item we still clear the drag.
+    // Bound on window (not canvas) so a release a few px past the canvas edge
+    // is still caught.
+    const onAssetDrop = (event: PointerEvent) => {
+      const id = useUIStore.getState().assetDragItemId;
+      if (!id) return; // not an asset drag
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const inside = x >= 0 && y >= 0 && x <= rect.width && y <= rect.height;
+      if (inside) {
+        const uploads = useSceneStore.getState().project?.assets ?? [];
+        const item = findLibraryItem(id, uploads);
+        if (item) {
+          const node = item.makeNode();
+          const hit = adapter.raycastGroundPoint(x, y);
+          if (hit) {
+            node.transform.position = dropPositionFor(node.transform.position, hit);
+          }
+          executeCommand(new AddNodeCommand({ node }));
+          setSelectedNodeId(node.id);
+        }
+      }
+      useUIStore.getState().endAssetDrag(); // clear whether dropped in/out
+    };
+    window.addEventListener("pointerup", onAssetDrop);
+
     // ── Play / Pause side effects ─────────────────────────────────
     // transformSnapshots captures every Object3D's transform at the moment
     // Play is pressed so Pause can restore them — otherwise the cube would
@@ -387,6 +421,7 @@ export function ThreeViewport() {
       unsubscribeUI();
       canvas.removeEventListener("click", onClick);
       canvas.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onAssetDrop);
       window.removeEventListener("pointermove", onSnapPointer, true);
       window.removeEventListener("pointerdown", onSnapPointer, true);
       ro.disconnect();

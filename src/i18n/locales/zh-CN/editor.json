@@ -99,7 +99,7 @@
     },
     "search": "搜索…",
     "upload": "上传 .glb",
-    "add_hint": "双击添加",
+    "add_hint": "双击或拖入视口添加",
     "empty_uploads": "暂无上传——点击「上传 .glb」添加模型。"
   },
   "ai_command": {
