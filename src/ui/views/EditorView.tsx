@@ -15,6 +15,7 @@ import { AiCommandBar } from "@/ui/editor/AiCommandBar";
 import { BehaviorsPanel } from "@/ui/editor/BehaviorsPanel";
 import { MaterialSection } from "@/ui/editor/MaterialSection";
 import { ShortcutsHelpDialog } from "@/ui/help/ShortcutsHelpDialog";
+import { AssetDragGhost } from "@/ui/library/AssetDragGhost";
 import { LibraryPanel } from "@/ui/library/LibraryPanel";
 import { PlayButton } from "@/ui/viewport/PlayButton";
 import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
@@ -175,6 +176,7 @@ export function EditorView() {
         </aside>
       </section>
       <ShortcutsHelpDialog />
+      <AssetDragGhost />
     </div>
   );
 }
