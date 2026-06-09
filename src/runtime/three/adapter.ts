@@ -13,6 +13,7 @@ import type {
   ExportOptions,
   ExportResult,
   IRuntimeAdapter,
+  RuntimeNodeInfo,
   SyncOp,
 } from "../adapter";
 import { screenToNdc } from "@/lib/drop-helpers";
@@ -268,6 +269,39 @@ export class ThreeAdapter implements IRuntimeAdapter {
     return this.objects.get(node_id);
   }
 
+  describeNode(node_id: string): RuntimeNodeInfo | null {
+    const obj = this.objects.get(node_id);
+    if (!obj) return null;
+    const parent = obj.parent;
+    const parentNodeId =
+      parent && typeof parent.userData.nodeId === "string"
+        ? parent.userData.nodeId
+        : null;
+    const info: RuntimeNodeInfo = {
+      kind: threeRuntimeKind(obj),
+      position: [obj.position.x, obj.position.y, obj.position.z],
+      rotation: [
+        obj.quaternion.x,
+        obj.quaternion.y,
+        obj.quaternion.z,
+        obj.quaternion.w,
+      ],
+      scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+      visible: obj.visible,
+      parentId: parentNodeId,
+    };
+    if (obj instanceof THREE.Mesh && typeof obj.userData.geometryKind === "string") {
+      info.geometryKind = obj.userData.geometryKind as RuntimeNodeInfo["geometryKind"];
+    }
+    if (obj instanceof THREE.DirectionalLight) info.lightKind = "directional";
+    else if (obj instanceof THREE.SpotLight) info.lightKind = "spot";
+    else if (obj instanceof THREE.PointLight) info.lightKind = "point";
+    else if (obj instanceof THREE.AmbientLight) info.lightKind = "ambient";
+    if (obj instanceof THREE.PerspectiveCamera) info.cameraKind = "perspective";
+    else if (obj instanceof THREE.OrthographicCamera) info.cameraKind = "orthographic";
+    return info;
+  }
+
   /** Mounted viewport updates this whenever the canvas resizes, so pickAt can
    *  convert pixel coords to normalized device coords without owning the DOM. */
   setViewportSize(width: number, height: number): void {
@@ -475,4 +509,12 @@ function findNodeId(object: THREE.Object3D | null): string | null {
     current = current.parent;
   }
   return null;
+}
+
+function threeRuntimeKind(obj: THREE.Object3D): RuntimeNodeInfo["kind"] {
+  if (obj instanceof THREE.Mesh) return "mesh";
+  if (obj instanceof THREE.Light) return "light";
+  if (obj instanceof THREE.Camera) return "camera";
+  if (obj instanceof THREE.Group) return "group";
+  return "unknown";
 }

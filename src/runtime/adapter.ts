@@ -16,6 +16,23 @@ import type {
 export type SyncOp = "add" | "update" | "remove";
 
 /**
+ * Engine-neutral snapshot of a synced node's runtime object. Conformance
+ * asserts on this; it also seams a future inspector panel / AI scene read.
+ * Reads the engine object's actual state, not the input SceneNode.
+ */
+export interface RuntimeNodeInfo {
+  kind: "group" | "mesh" | "light" | "camera" | "helper" | "unknown";
+  position: [number, number, number];
+  rotation: [number, number, number, number];
+  scale: [number, number, number];
+  visible: boolean;
+  parentId: string | null;
+  lightKind?: "directional" | "point" | "spot" | "ambient";
+  cameraKind?: "perspective" | "orthographic";
+  geometryKind?: "box" | "sphere" | "plane" | "cylinder";
+}
+
+/**
  * Identifier for an export emitter. Each target shapes the on-disk output:
  *   - `vite`           — full Vite project source (package.json + vite.config
  *                        + index.html + src/), user runs pnpm install && pnpm
@@ -132,6 +149,7 @@ export interface IRuntimeAdapter {
   syncAsset(asset: AssetReference): Promise<void>;
 
   getRuntimeObject(node_id: string): unknown;
+  describeNode(node_id: string): RuntimeNodeInfo | null;
   pickAt(screen_x: number, screen_y: number): string | null;
 
   // ───── Export ───────────────────────────────────────────────────

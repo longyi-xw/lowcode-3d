@@ -7,6 +7,7 @@ import type {
   ExportOptions,
   ExportResult,
   IRuntimeAdapter,
+  RuntimeNodeInfo,
   SyncOp,
 } from "./adapter";
 import type {
@@ -32,6 +33,9 @@ class NoopAdapter implements IRuntimeAdapter {
   syncNode(_node: SceneNode, _op: SyncOp): void {}
   async syncAsset(_asset: AssetReference): Promise<void> {}
   getRuntimeObject(_node_id: string): unknown {
+    return null;
+  }
+  describeNode(_node_id: string): RuntimeNodeInfo | null {
     return null;
   }
   pickAt(_screen_x: number, _screen_y: number): string | null {
