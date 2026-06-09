@@ -227,16 +227,23 @@ export function ThreeViewport() {
         );
         return;
       }
-      // Node-align snap first (bbox features → nearest other-node feature).
-      const draggedPts = featureSnapPoints(obj, adapter.camera, w2, h2);
-      const offset = snapToNodes(draggedPts, cachedTargets, SNAP_PIXELS);
-      if (offset) {
-        obj.position.set(
-          obj.position.x + offset[0],
-          obj.position.y + offset[1],
-          obj.position.z + offset[2],
-        );
-        return;
+      // Node-align snap (B) — only for nodes WITHOUT sockets. Once a node has a
+      // tagged socket it opts into socket-based assembly: it snaps via its
+      // sockets alone, so tag compatibility actually gates snapping instead of
+      // B's whole-bbox face snap masking it. A socket miss then falls through to
+      // grid only (never B).
+      const hasSockets = (draggedNode?.sockets ?? []).some((s) => s.tag);
+      if (!hasSockets) {
+        const draggedPts = featureSnapPoints(obj, adapter.camera, w2, h2);
+        const offset = snapToNodes(draggedPts, cachedTargets, SNAP_PIXELS);
+        if (offset) {
+          obj.position.set(
+            obj.position.x + offset[0],
+            obj.position.y + offset[1],
+            obj.position.z + offset[2],
+          );
+          return;
+        }
       }
       // Grid fallback (sub-stage A).
       const [x, y, z] = snapTranslation([
