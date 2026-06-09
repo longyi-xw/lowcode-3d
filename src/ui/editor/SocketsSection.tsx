@@ -73,7 +73,7 @@ function SocketRow({
   onRemove: () => void;
 }) {
   const inputCls =
-    "w-0 flex-1 rounded border border-border bg-background/50 px-1.5 py-0.5 outline-none focus:border-primary";
+    "rounded border border-border bg-background/50 px-1.5 py-0.5 outline-none focus:border-primary";
   return (
     <div className="space-y-1 rounded border border-border p-1.5">
       <div className="flex items-center gap-1">
@@ -81,7 +81,7 @@ function SocketRow({
           aria-label="socket name"
           value={socket.name}
           onChange={(e) => onPatch({ name: e.target.value })}
-          className={inputCls}
+          className={`w-0 flex-1 ${inputCls}`}
         />
         <button
           type="button"
@@ -113,7 +113,7 @@ function SocketRow({
         value={socket.tag}
         placeholder={tagPlaceholder}
         onChange={(e) => onPatch({ tag: e.target.value })}
-        className={inputCls}
+        className={`w-full ${inputCls}`}
       />
     </div>
   );
