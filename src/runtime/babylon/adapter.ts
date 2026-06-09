@@ -70,10 +70,15 @@ export class BabylonAdapter implements IRuntimeAdapter {
     }
     if (op === "update") {
       const existing = this.objects.get(node.id);
-      if (existing) {
-        applyBabylonTransform(existing, node);
-        existing.setEnabled(node.visible);
+      if (!existing) {
+        // Match ThreeAdapter: updating an unregistered node is a caller bug,
+        // not a silent no-op — keeps the contract symmetric across engines.
+        throw new Error(
+          `BabylonAdapter.syncNode: cannot update unknown node ${node.id}`,
+        );
       }
+      applyBabylonTransform(existing, node);
+      existing.setEnabled(node.visible);
       return;
     }
     if (this.objects.get(node.id)) {

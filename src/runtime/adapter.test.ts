@@ -49,6 +49,8 @@ class NoopAdapter implements IRuntimeAdapter {
     return { files: new Map(), warnings: [] };
   }
 
+  dispose(): void {}
+
   getSupportedBehaviors(): BehaviorDefinition[] {
     return [
       {

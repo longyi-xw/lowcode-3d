@@ -158,4 +158,9 @@ export interface IRuntimeAdapter {
   // ───── Behaviors ────────────────────────────────────────────────
   getSupportedBehaviors(): BehaviorDefinition[];
   generateBehaviorCode(binding: BehaviorBinding, context: CodegenContext): string;
+
+  // ───── Lifecycle ────────────────────────────────────────────────
+  /** Release all engine handles (renderer/scene/GPU resources). Both shipped
+   *  adapters already implement this; the viewport calls it on teardown. */
+  dispose(): void;
 }
