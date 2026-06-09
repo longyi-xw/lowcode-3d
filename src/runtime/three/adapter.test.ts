@@ -877,3 +877,120 @@ describe("ThreeAdapter.raycastGroundPoint", () => {
     expect(adapter.raycastGroundPoint(50, 50)).toBeNull();
   });
 });
+
+describe("ThreeAdapter.describeNode", () => {
+  it("returns null for an unknown id", () => {
+    expect(new ThreeAdapter(target).describeNode("nope")).toBeNull();
+  });
+
+  it("describes a mesh node: kind + geometryKind + transform + visible", () => {
+    const adapter = new ThreeAdapter(target);
+    adapter.syncNode(
+      {
+        id: "m1",
+        name: "m",
+        type: "mesh",
+        transform: { position: [1, 2, 3], rotation: [0, 0, 0, 1], scale: [2, 2, 2] },
+        parent_id: null,
+        children_ids: [],
+        visible: false,
+        locked: false,
+        data: { type: "mesh", geometry: { kind: "sphere" } },
+        behaviors: [],
+        user_data: {},
+      },
+      "add",
+    );
+    const info = adapter.describeNode("m1");
+    expect(info?.kind).toBe("mesh");
+    expect(info?.geometryKind).toBe("sphere");
+    expect(info?.position).toEqual([1, 2, 3]);
+    expect(info?.scale).toEqual([2, 2, 2]);
+    expect(info?.visible).toBe(false);
+    expect(info?.parentId).toBeNull();
+  });
+
+  it("maps light + camera subtypes", () => {
+    const adapter = new ThreeAdapter(target);
+    adapter.syncNode(
+      {
+        id: "L",
+        name: "L",
+        type: "light",
+        transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        parent_id: null,
+        children_ids: [],
+        visible: true,
+        locked: false,
+        data: { type: "light", light_kind: "spot", color: "#fff", intensity: 1 },
+        behaviors: [],
+        user_data: {},
+      },
+      "add",
+    );
+    adapter.syncNode(
+      {
+        id: "C",
+        name: "C",
+        type: "camera",
+        transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        parent_id: null,
+        children_ids: [],
+        visible: true,
+        locked: false,
+        data: { type: "camera", camera_kind: "orthographic", near: 0.1, far: 100 },
+        behaviors: [],
+        user_data: {},
+      },
+      "add",
+    );
+    expect(adapter.describeNode("L")).toMatchObject({
+      kind: "light",
+      lightKind: "spot",
+    });
+    expect(adapter.describeNode("C")).toMatchObject({
+      kind: "camera",
+      cameraKind: "orthographic",
+    });
+  });
+
+  it("reports parentId from the parent's nodeId", () => {
+    const adapter = new ThreeAdapter(target);
+    const base = {
+      transform: {
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0, 1] as [number, number, number, number],
+        scale: [1, 1, 1] as [number, number, number],
+      },
+      children_ids: [] as string[],
+      visible: true,
+      locked: false,
+      behaviors: [],
+      user_data: {},
+    };
+    adapter.syncNode(
+      {
+        ...base,
+        id: "g",
+        name: "g",
+        type: "group",
+        parent_id: null,
+        data: { type: "group" },
+      },
+      "add",
+    );
+    adapter.syncNode(
+      {
+        ...base,
+        id: "c",
+        name: "c",
+        type: "group",
+        parent_id: "g",
+        data: { type: "group" },
+      },
+      "add",
+    );
+    expect(adapter.describeNode("c")?.parentId).toBe("g");
+    expect(adapter.describeNode("g")?.parentId).toBeNull();
+  });
+});

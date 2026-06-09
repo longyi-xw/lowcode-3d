@@ -7,6 +7,7 @@ import type {
   ExportOptions,
   ExportResult,
   IRuntimeAdapter,
+  RuntimeNodeInfo,
   SyncOp,
 } from "./adapter";
 import type {
@@ -34,6 +35,9 @@ class NoopAdapter implements IRuntimeAdapter {
   getRuntimeObject(_node_id: string): unknown {
     return null;
   }
+  describeNode(_node_id: string): RuntimeNodeInfo | null {
+    return null;
+  }
   pickAt(_screen_x: number, _screen_y: number): string | null {
     return null;
   }
@@ -44,6 +48,8 @@ class NoopAdapter implements IRuntimeAdapter {
   ): Promise<ExportResult> {
     return { files: new Map(), warnings: [] };
   }
+
+  dispose(): void {}
 
   getSupportedBehaviors(): BehaviorDefinition[] {
     return [
