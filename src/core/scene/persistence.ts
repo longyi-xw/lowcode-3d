@@ -103,6 +103,7 @@ export function serializeProject(project: SceneProject): SerializedFiles {
       locked: node.locked,
       data: node.data,
       behaviors: node.behaviors,
+      sockets: node.sockets,
       user_data: node.user_data,
     };
     files.set(`${NODE_DIR}/${id}.json`, pretty(body));

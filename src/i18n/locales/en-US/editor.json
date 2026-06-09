@@ -102,6 +102,12 @@
     "add_hint": "Double-click or drag into the viewport to add",
     "empty_uploads": "No uploads yet — use Upload .glb to add models."
   },
+  "sockets": {
+    "section": "Sockets",
+    "add": "Add socket",
+    "empty": "No sockets. Click + to add a connection point.",
+    "tag_placeholder": "tag"
+  },
   "ai_command": {
     "placeholder": "Describe what you want…",
     "send": "Send",

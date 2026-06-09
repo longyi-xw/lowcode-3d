@@ -11,6 +11,7 @@ import { AddNodeCommand } from "@/core/command/commands/add-node";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
 import { snapTranslation } from "@/core/snap/grid";
 import { SNAP_PIXELS, snapToNodes, type SnapPoint } from "@/core/snap/nodes";
+import { snapToSockets, type SocketPoint } from "@/core/snap/sockets";
 import { isEffectivelyLocked } from "@/core/scene/policy";
 import { dropPositionFor } from "@/lib/drop-helpers";
 import { ThreeAdapter } from "@/runtime/three/adapter";
@@ -19,6 +20,7 @@ import type {
   AssetReference,
   SceneNode,
   SceneProject,
+  Socket,
   Transform,
 } from "@/core/scene/types";
 import { useAssetPreviewStore } from "@/services/assets/preview-store";
@@ -125,6 +127,7 @@ export function ThreeViewport() {
 
     let dragStart: Transform | null = null;
     let cachedTargets: SnapPoint[] = [];
+    let cachedSocketTargets: SocketPoint[] = [];
 
     gizmo.addEventListener("dragging-changed", (event) => {
       const dragging = event.value as unknown as boolean;
@@ -153,12 +156,16 @@ export function ThreeViewport() {
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
       cachedTargets = [];
+      cachedSocketTargets = [];
       for (const id of Object.keys(nodes)) {
         const n = nodes[id];
         if (id === draggedId || !n || !n.visible || n.type === "helper") continue;
         const tobj = adapter.getRuntimeObject(id);
         if (!tobj) continue;
         cachedTargets.push(...featureSnapPoints(tobj, adapter.camera, w, h));
+        cachedSocketTargets.push(
+          ...socketPoints(tobj, n.sockets ?? [], adapter.camera, w, h),
+        );
       }
     });
     gizmo.addEventListener("mouseUp", () => {
@@ -192,7 +199,7 @@ export function ThreeViewport() {
     window.addEventListener("pointermove", onSnapPointer, true);
     window.addEventListener("pointerdown", onSnapPointer, true);
 
-    gizmo.addEventListener("objectChange", () => {
+    const snapDraggedObject = () => {
       const obj = gizmo.object;
       if (
         !obj ||
@@ -201,21 +208,42 @@ export function ThreeViewport() {
       ) {
         return;
       }
-      // Node-align snap first (bbox features → nearest other-node feature).
-      const draggedPts = featureSnapPoints(
-        obj,
-        adapter.camera,
-        canvas.clientWidth,
-        canvas.clientHeight,
+      // Socket snap (C) — highest priority. Aligns a dragged socket to a
+      // tag-compatible socket on another node by world position.
+      const w2 = canvas.clientWidth;
+      const h2 = canvas.clientHeight;
+      const draggedNode =
+        useSceneStore.getState().project?.scene.nodes[obj.userData.nodeId as string];
+      const socketOffset = snapToSockets(
+        socketPoints(obj, draggedNode?.sockets ?? [], adapter.camera, w2, h2),
+        cachedSocketTargets,
+        SNAP_PIXELS,
       );
-      const offset = snapToNodes(draggedPts, cachedTargets, SNAP_PIXELS);
-      if (offset) {
+      if (socketOffset) {
         obj.position.set(
-          obj.position.x + offset[0],
-          obj.position.y + offset[1],
-          obj.position.z + offset[2],
+          obj.position.x + socketOffset[0],
+          obj.position.y + socketOffset[1],
+          obj.position.z + socketOffset[2],
         );
         return;
+      }
+      // Node-align snap (B) — only for nodes WITHOUT sockets. Once a node has a
+      // tagged socket it opts into socket-based assembly: it snaps via its
+      // sockets alone, so tag compatibility actually gates snapping instead of
+      // B's whole-bbox face snap masking it. A socket miss then falls through to
+      // grid only (never B).
+      const hasSockets = (draggedNode?.sockets ?? []).some((s) => s.tag);
+      if (!hasSockets) {
+        const draggedPts = featureSnapPoints(obj, adapter.camera, w2, h2);
+        const offset = snapToNodes(draggedPts, cachedTargets, SNAP_PIXELS);
+        if (offset) {
+          obj.position.set(
+            obj.position.x + offset[0],
+            obj.position.y + offset[1],
+            obj.position.z + offset[2],
+          );
+          return;
+        }
       }
       // Grid fallback (sub-stage A).
       const [x, y, z] = snapTranslation([
@@ -224,7 +252,52 @@ export function ThreeViewport() {
         obj.position.z,
       ]);
       obj.position.set(x, y, z);
+    };
+
+    gizmo.addEventListener("objectChange", () => {
+      snapDraggedObject();
+      // Rebuild markers after snapping on EVERY move (all paths, incl. free
+      // move / rotate / scale and the early-return socket/node-snap paths) so a
+      // dragged node's socket markers track it instead of freezing mid-snap.
+      rebuildSocketMarkers();
     });
+
+    // ── Socket markers (v0.4 C) ──────────────────────────────────
+    // Decoupled overlay group: world-positioned markers, rebuilt on
+    // scene/selection change + during drag. Shared geo/material so
+    // group.clear() just detaches (no per-marker dispose). raycast no-op so
+    // pickAt never selects a marker.
+    const socketGeo = new THREE.SphereGeometry(0.06, 8, 8);
+    const socketMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
+    const socketMatSel = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const noRaycast = () => {};
+    const socketMarkers = new THREE.Group();
+    socketMarkers.name = "socketMarkers";
+    adapter.scene.add(socketMarkers);
+
+    const rebuildSocketMarkers = () => {
+      socketMarkers.clear();
+      const proj = useSceneStore.getState().project;
+      if (!proj) return;
+      const selId = useUIStore.getState().selectedNodeId;
+      const v = new THREE.Vector3();
+      for (const [id, n] of Object.entries(proj.scene.nodes)) {
+        const sockets = n.sockets;
+        if (!sockets || sockets.length === 0) continue;
+        const tobj = adapter.getRuntimeObject(id);
+        if (!tobj) continue;
+        tobj.updateWorldMatrix(true, false);
+        for (const s of sockets) {
+          const mk = new THREE.Mesh(socketGeo, id === selId ? socketMatSel : socketMat);
+          v.set(s.position[0], s.position[1], s.position[2]).applyMatrix4(
+            tobj.matrixWorld,
+          );
+          mk.position.copy(v);
+          mk.raycast = noRaycast;
+          socketMarkers.add(mk);
+        }
+      }
+    };
 
     const syncSelection = (id: string | null) => {
       if (!id) {
@@ -254,6 +327,7 @@ export function ThreeViewport() {
       outlinePass.selectedObjects = [obj];
     };
     syncSelection(useUIStore.getState().selectedNodeId);
+    rebuildSocketMarkers();
 
     const resize = () => {
       const w = container.clientWidth;
@@ -382,6 +456,7 @@ export function ThreeViewport() {
       if (next === old) return;
       if (next.metadata.id !== old.metadata.id) return; // handled by effect re-run
       void diffAndApply(adapter, old, next, gizmo, outlinePass);
+      rebuildSocketMarkers();
     });
 
     const unsubscribeProject = useProjectStore.subscribe((state, prev) => {
@@ -393,6 +468,7 @@ export function ThreeViewport() {
     const unsubscribeUI = useUIStore.subscribe((state, prev) => {
       if (state.selectedNodeId !== prev.selectedNodeId) {
         syncSelection(state.selectedNodeId);
+        rebuildSocketMarkers();
       }
       if (state.gizmoMode !== prev.gizmoMode) {
         gizmo.setMode(state.gizmoMode);
@@ -433,6 +509,11 @@ export function ThreeViewport() {
       if (canvas.parentNode === container) {
         container.removeChild(canvas);
       }
+      adapter.scene.remove(socketMarkers);
+      socketMarkers.clear();
+      socketGeo.dispose();
+      socketMat.dispose();
+      socketMatSel.dispose();
       adapter.dispose();
       adapterRef.current = null;
       controlsRef.current = null;
@@ -547,6 +628,27 @@ function featureSnapPoints(
     screen: toScreen(v, camera, w, h),
     world: [v.x, v.y, v.z] as [number, number, number],
   }));
+}
+
+/** 一个节点 + 它的 sockets → SocketPoint[]（世界点经 node.matrixWorld，附 tag）。 */
+function socketPoints(
+  obj: THREE.Object3D,
+  sockets: readonly Socket[],
+  camera: THREE.Camera,
+  w: number,
+  h: number,
+): SocketPoint[] {
+  if (sockets.length === 0) return [];
+  obj.updateWorldMatrix(true, false);
+  const v = new THREE.Vector3();
+  return sockets.map((s) => {
+    v.set(s.position[0], s.position[1], s.position[2]).applyMatrix4(obj.matrixWorld);
+    return {
+      screen: toScreen(v, camera, w, h),
+      world: [v.x, v.y, v.z] as [number, number, number],
+      tag: s.tag,
+    };
+  });
 }
 
 function captureTransform(obj: THREE.Object3D): Transform {

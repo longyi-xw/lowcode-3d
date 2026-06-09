@@ -102,6 +102,12 @@
     "add_hint": "双击或拖入视口添加",
     "empty_uploads": "暂无上传——点击「上传 .glb」添加模型。"
   },
+  "sockets": {
+    "section": "插槽",
+    "add": "添加插槽",
+    "empty": "暂无插槽。点击 + 添加连接点。",
+    "tag_placeholder": "tag"
+  },
   "ai_command": {
     "placeholder": "描述你想要的…",
     "send": "发送",

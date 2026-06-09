@@ -25,7 +25,7 @@
 | v0.5 行为系统（提前部分） | Behavior framework + auto-rotate + UI + Play/Pause         | #20, #21      | 🟡 partial |
 | v0.2 资源库 + 材质编辑    | 内置库 + 用户上传 + 材质参数                               | #29, #30      | ✅         |
 | v0.3 AI Skill 框架        | Skill 接口 + AI proxy + 自然语言操作                       | #31, #32      | ✅         |
-| v0.4 空间吸附             | Socket 系统 + 几何约束                                     | #33, #34      | 🟡 partial |
+| v0.4 空间吸附             | Socket 系统 + 几何约束                                     | #33–#36       | ✅         |
 | v1.0 多适配器             | Babylon.js 适配器                                          | —             | ⏳         |
 | v1.x                      | R3F、Unity                                                 | —             | ⏳         |
 
@@ -111,9 +111,9 @@
   - [x] **A · 网格吸附 + 吸附框架**（#33）：gizmo 平移拖拽时按住 Ctrl/Cmd 吸附到 0.5 网格；`snapTranslation` 纯函数引擎（`src/core/snap/`，供 B/C 扩展）+ ThreeViewport `objectChange` hook（pointer 读即时修饰键，不卡）。仅平移。
   - [x] **B · 节点对齐吸附**（#34）：gizmo 平移拖拽 + 按住 Ctrl/Cmd 时，被拖节点包围盒 15 特征（中心 + 8 角 + 6 面中心，**OBB** 跟随旋转）吸附到附近节点对应特征——屏幕像素（12px）做门槛、**3D 世界距离**选最近对齐对象（避免平行视角吸到深度更远的目标）；无命中回退 A 的网格吸附。`snapToNodes` 纯函数（`src/core/snap/nodes.ts`）+ ThreeViewport 投影/OBB 特征提取。仅平移。
   - [x] **资源拖拽入视口 + 落点**（[#35](https://github.com/longyi-xw/lowcode-3d/pull/35)）：从资源库卡片拖拽到视口，以 raycast y=0 地面命中点为落点（覆盖 x/z、保留库项默认 y）；双击加节点保留；走 `AddNodeCommand` 可撤销。纯函数 `screenToNdc`/`dropPositionFor`（`src/lib/drop-helpers.ts`）+ `findLibraryItem` + adapter `raycastGroundPoint` + 自定义 pointer 拖拽（Tauri 2 默认抑制 HTML5 DnD）+ DOM ghost。仅 y=0 地面（物体表面落点 / 落点吸附 / 3D 预览 / OS file-drop 见 Backlog）。
-  - [ ] **C · Socket 系统**：节点上命名插槽 + 拖拽时兼容插槽咬合。
+  - [x] **C · Socket 系统（地基）**（[#36](https://github.com/longyi-xw/lowcode-3d/pull/36)）：节点命名连接点 `Socket {id,name,position,tag}`（schema `.optional()`，老项目兼容）+ 纯函数 `snapToSockets`（tag 兼容、屏幕门槛、世界最近）+ `SetNodeSocketsCommand`（可撤销、合并）+ Properties「插槽」面板 + 视口标记（解耦 overlay、排除拾取）。**有 socket 的节点只走 socket 吸附**（未匹配落网格 A，不回退 B——否则 B 面吸会掩盖 tag 过滤）；无 socket 节点 B→A 不变。仅位置对齐（朝向咬合 / 规则引擎 / glb 内嵌识别见 Backlog）。
 - **Depends on**: v0.3 release
-- **后续**：「资源拖拽入视口 + 落点」已完成（见上 sub-stage，#35）；下一步 sub-stage C（Socket 系统）。
+- **后续**：A 网格（#33）+ B 节点对齐（#34）+ 资源拖拽（#35）+ C Socket 系统地基（#36）均已完成，v0.4 收口。Socket 后续阶段（朝向咬合 / 规则引擎 / glb 内嵌识别 / 点选放置 / 类型库）见 Backlog。
 
 ### v1.0 — Planned
 
@@ -130,6 +130,7 @@
 从已完成 sub-stage 中刻意拆出的功能点，尚未排期到具体 release：
 
 - **材质贴图 pipeline**（从 v0.2 材质编辑拆出）：normalMap / map / roughnessMap / metalnessMap / aoMap 等。需 `MaterialOverrideSchema` 加贴图字段（引用 `kind:"texture"` 的 `AssetReference`）+ texture 资源上传入库 + runtime `TextureLoader`（`mesh.ts applyOverrides` 加贴图通道）+ codegen emit `TextureLoader().load("./assets/…")` + UI 贴图选择器。独立子系统，单独 spec→plan→实现。
+- **Socket 系统后续阶段**（从 v0.4 sub-stage C 地基拆出）：本期只做位置对齐 + tag 兼容 + 面板手填。延后（各自独立 spec→plan→实现）：**朝向咬合**（socket 带 normal/up，转动节点让两 socket 面对面「插上」）、**模型特性驱动的对齐规则引擎**（超越 tag 精确匹配）、**glb 内嵌 socket 自动识别**（importer 读 glTF 命名空节点）、**视口点选放置 socket**（raycast 模型表面落点）、**socket 类型库 / male-female 配对 / 批量拼装**、**socket 标记 LOD / 合批**（本期每次拖拽全量重建标记，大场景需按节点索引只刷被拖节点——视觉验证审查记录的次要优化项）。
 - **多源资源上传**（从 v0.2 资源库拆出）：`AssetSourceSchema` 已含 `builtin/user_upload/online/ai_generated` 且 catalog 来源无关；目前只实装 `builtin`（几何/灯光预设）+ `user_upload`（.glb）。延后：`online`（在线模型/材质库浏览+下载入库）、`ai_generated`（AI 生成模型/贴图）。
 - **多材质槽**（从 v0.2 材质编辑拆出）：本期材质编辑只支持 slot 0；prefab/glTF 多材质对象的 slot 1+ 延后。
 - **agentic 多轮 Skill 执行**（从 v0.3 sub-stage B 拆出）：本期 Skill 是**单轮结构化输出**（NL→LLM 一次返回 operations→Command）。延后：架构 §4.3 的 `call_tool` / `allowed_tools` 多轮 agent 循环（LLM 多轮调工具、读场景、迭代纠错）+ `SkillContext.memory`（`MemoryStore` 项目暂无实现）。用户明确「多轮后续肯定要完善」。

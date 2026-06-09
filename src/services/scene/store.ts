@@ -7,6 +7,7 @@ import type {
   SceneGraph,
   SceneNode,
   SceneProject,
+  Socket,
   Transform,
 } from "@/core/scene/types";
 import type { MaterialOverride } from "@/core/scene/material";
@@ -54,6 +55,9 @@ interface SceneState {
    *  No-op when the node is missing or not a mesh. Used by
    *  SetMaterialOverrideCommand. */
   setMeshMaterial: (nodeId: string, override: MaterialOverride | undefined) => void;
+  /** Replace a node's socket list. No-op when the node is missing. Used by
+   *  SetNodeSocketsCommand. */
+  setNodeSockets: (nodeId: string, sockets: Socket[]) => void;
   /** Remove a node and every descendant; also drops the id from the parent's
    *  children_ids (or from scene.root_node_ids when the node is a root).
    *  Silent no-op when nodeId does not exist. Used by DeleteNodeCommand. */
@@ -249,6 +253,14 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       };
       return mutateNode(s, nodeId, nextNode);
     }),
+  setNodeSockets: (nodeId, sockets) =>
+    set((s) => {
+      if (!s.project) return s;
+      const node = s.project.scene.nodes[nodeId];
+      if (!node) return s;
+      const nextNode: SceneNode = { ...node, sockets };
+      return mutateNode(s, nodeId, nextNode);
+    }),
   removeNodeSubtree: (nodeId) =>
     set((s) => {
       if (!s.project) return s;
@@ -364,6 +376,8 @@ export function getSceneEditorStore(): SceneEditorStore {
     addNode: (node) => useSceneStore.getState().addNode(node),
     setMeshMaterial: (nodeId, override) =>
       useSceneStore.getState().setMeshMaterial(nodeId, override),
+    setNodeSockets: (nodeId, sockets) =>
+      useSceneStore.getState().setNodeSockets(nodeId, sockets),
     removeNodeSubtree: (nodeId) => useSceneStore.getState().removeNodeSubtree(nodeId),
     restoreNodeSubtree: (snapshot) =>
       useSceneStore.getState().restoreNodeSubtree(snapshot),
