@@ -115,9 +115,14 @@
 - **Depends on**: v0.3 release
 - **后续**：A 网格（#33）+ B 节点对齐（#34）+ 资源拖拽（#35）+ C Socket 系统地基（#36）均已完成，v0.4 收口。Socket 后续阶段（朝向咬合 / 规则引擎 / glb 内嵌识别 / 点选放置 / 类型库）见 Backlog。
 
-### v1.0 — Planned
+### v1.0 — In progress（多适配器；拆为 A1/A2/A3 + B）
 
-- **Goals**: 多运行时适配器（架构 §7 v1.0）。Babylon.js 适配器实现，验证 `IRuntimeAdapter` 抽象在第二个引擎下能跑；同时落地 adapter conformance test 套件。
+- **Goals**: 多运行时适配器（架构 §7 v1.0）。把 `IRuntimeAdapter` 确立为引擎中立接缝，用第二个引擎（Babylon.js）+ conformance 套件验证抽象成立；最终支持实时切换渲染引擎、新引擎最小改动接入（项目本质：多框架低代码 3D 平台）。
+- **Sub-stages**:
+  - [x] **A1 · 契约 + Babylon headless + conformance**（[#37](https://github.com/longyi-xw/lowcode-3d/pull/37)）：契约加引擎中立 `describeNode(): RuntimeNodeInfo`（读引擎对象）+ `dispose()`；`BabylonAdapter`（`@babylonjs/core` `NullEngine`，headless）实现 `syncNode` 核心 kind（group/mesh/light/camera）；conformance 套件让 ThreeAdapter + BabylonAdapter 跑同一批断言全绿 = 契约对第二引擎成立。纯 headless，不接实时视口。
+  - [ ] **A2 · behaviors 跨引擎**：install/tick + behavior codegen 在 Babylon 对等。
+  - [ ] **A3 · glTF + 导出**：prefab_instance/glTF 加载 + `babylon` 导出 target。
+  - [ ] **B · 实时视口切引擎**：抽 `IRenderHost`（渲染循环/相机控制/gizmo/拾取/outline），ThreeViewport 改为面向它，Babylon 渲染宿主落地，用户可把实时编辑器切到 Babylon。spec §8 已备边界清单。
 - **Depends on**: v0.5 行为系统全部完成（v0.5 Stage C）
 
 ### v1.x — Planned
@@ -131,6 +136,7 @@
 
 - **材质贴图 pipeline**（从 v0.2 材质编辑拆出）：normalMap / map / roughnessMap / metalnessMap / aoMap 等。需 `MaterialOverrideSchema` 加贴图字段（引用 `kind:"texture"` 的 `AssetReference`）+ texture 资源上传入库 + runtime `TextureLoader`（`mesh.ts applyOverrides` 加贴图通道）+ codegen emit `TextureLoader().load("./assets/…")` + UI 贴图选择器。独立子系统，单独 spec→plan→实现。
 - **Socket 系统后续阶段**（从 v0.4 sub-stage C 地基拆出）：本期只做位置对齐 + tag 兼容 + 面板手填。延后（各自独立 spec→plan→实现）：**朝向咬合**（socket 带 normal/up，转动节点让两 socket 面对面「插上」）、**模型特性驱动的对齐规则引擎**（超越 tag 精确匹配）、**glb 内嵌 socket 自动识别**（importer 读 glTF 命名空节点）、**视口点选放置 socket**（raycast 模型表面落点）、**socket 类型库 / male-female 配对 / 批量拼装**、**socket 标记 LOD / 合批**（本期每次拖拽全量重建标记，大场景需按节点索引只刷被拖节点——视觉验证审查记录的次要优化项）。
+- **Babylon 适配器跨引擎差异（A1 记录，待 in-scope 时对齐）**：A1 conformance 只在 group/mesh 断言完整 transform，已知未对齐项延后到各自变 in-scope 时处理——(a) **camera 朝向**：Babylon `UniversalCamera` 用 Euler `.rotation`（无 `rotationQuaternion`），`applyBabylonTransform` 当前跳过其旋转；(b) **ambient light**：映射为 `HemisphericLight`，无 `position`，落点被丢；(c) **prefab_instance kind**：ThreeAdapter 占位报 `mesh`、BabylonAdapter 报 `unknown`（A3 加 glTF 时统一）。camera/light 朝向并入 A2/B，prefab 并入 A3。
 - **多源资源上传**（从 v0.2 资源库拆出）：`AssetSourceSchema` 已含 `builtin/user_upload/online/ai_generated` 且 catalog 来源无关；目前只实装 `builtin`（几何/灯光预设）+ `user_upload`（.glb）。延后：`online`（在线模型/材质库浏览+下载入库）、`ai_generated`（AI 生成模型/贴图）。
 - **多材质槽**（从 v0.2 材质编辑拆出）：本期材质编辑只支持 slot 0；prefab/glTF 多材质对象的 slot 1+ 延后。
 - **agentic 多轮 Skill 执行**（从 v0.3 sub-stage B 拆出）：本期 Skill 是**单轮结构化输出**（NL→LLM 一次返回 operations→Command）。延后：架构 §4.3 的 `call_tool` / `allowed_tools` 多轮 agent 循环（LLM 多轮调工具、读场景、迭代纠错）+ `SkillContext.memory`（`MemoryStore` 项目暂无实现）。用户明确「多轮后续肯定要完善」。
