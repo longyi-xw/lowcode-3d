@@ -111,6 +111,21 @@ describe("deserializeProject", () => {
     }
   });
 
+  it("round-trips a node's sockets (v0.4 C)", () => {
+    const project = fixedDemo();
+    const target = Object.keys(project.scene.nodes)[0]!;
+    project.scene.nodes[target]!.sockets = [
+      { id: "s1", name: "top", position: [0, 0.5, 0], tag: "stud" },
+    ];
+    const result = deserializeProject(serializeProject(project));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.project.scene.nodes[target]?.sockets).toEqual([
+        { id: "s1", name: "top", position: [0, 0.5, 0], tag: "stud" },
+      ]);
+    }
+  });
+
   it("reconstructs parent_id and children_ids from hierarchy", () => {
     const project = fixedDemo();
     const files = serializeProject(project);
