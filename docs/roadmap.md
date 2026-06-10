@@ -122,7 +122,10 @@
   - [x] **A1 · 契约 + Babylon headless + conformance**（[#37](https://github.com/longyi-xw/lowcode-3d/pull/37)）：契约加引擎中立 `describeNode(): RuntimeNodeInfo`（读引擎对象）+ `dispose()`；`BabylonAdapter`（`@babylonjs/core` `NullEngine`，headless）实现 `syncNode` 核心 kind（group/mesh/light/camera）；conformance 套件让 ThreeAdapter + BabylonAdapter 跑同一批断言全绿 = 契约对第二引擎成立。纯 headless，不接实时视口。
   - [x] **A2 · behaviors 跨引擎运行时**（[#38](https://github.com/longyi-xw/lowcode-3d/pull/38)）：`installBehaviors`/`tickBehaviors`/`uninstallBehaviors` 纳入 `IRuntimeAdapter`；Babylon behavior 框架（registry + auto-rotate + bob，操作 Babylon 节点，共享引擎中立 `BehaviorDefinition`）；conformance 验运行时对等——**bob 跨引擎精确对等**（位置突变同公式）、auto-rotate ran/累积/卸载、enabled/unknown 隔离。纯 headless。hover-highlight（事件型）+ behavior codegen 留后续。
   - [ ] **A3 · glTF + 导出**：prefab_instance/glTF 加载 + `babylon` 导出 target（含 behavior codegen 跨引擎）。
-  - [ ] **B · 实时视口切引擎**：抽 `IRenderHost`（渲染循环/相机控制/gizmo/拾取/outline），ThreeViewport 改为面向它，Babylon 渲染宿主落地，用户可把实时编辑器切到 Babylon。spec §8 已备边界清单。
+  - [x] **B1 · render host：实时切引擎（看+转相机）**：引擎中立 `IRenderHost` 契约（B1 子集：mount/渲染循环/相机/resize/dispose）+ `BabylonRenderHost`（真 `Engine` + `ArcRotateCamera`，`BabylonAdapter` 构造可注入引擎、默认仍 NullEngine 保 conformance）+ `BabylonViewport`（`diffSceneNodes` 增量同步，warn-skip 错误隔离）+ 视口工具栏 Three/Babylon 开关（`useUIStore.viewportEngine` 会话态，切换强制退 play）。Babylon 场景 `useRightHandedSystem` 对齐 three/glTF 坐标系（无镜像）。Babylon 模式 view-only：play/gizmo/拾取/拖放/F focus 经 `isEngineEditingCapable` 统一禁用。**ThreeViewport 零改动**（「并行+定接口」，B2/B3 按 A1 spec §8 清单收敛）。
+  - [ ] **B2 · 拾取 + 选中描边跨引擎**：`IRenderHost` 扩 pick/选中高亮，ThreeViewport 开始收敛（迁 `scene-diff`）。
+  - [ ] **B3 · gizmo + snap 跨引擎**。
+  - [ ] **B4 · 视口能力剩余**：socket 标记 / 资源拖放落点 / F focus / play 行为预览跨引擎；Babylon 视口底色 sRGB 对齐（Three OutputPass 提亮 vs Babylon 直写 raw，见 B1 smoke 记录）；Babylon 光强/材质观感对齐。
 - **Depends on**: v0.5 行为系统全部完成（v0.5 Stage C）
 
 ### v1.x — Planned
