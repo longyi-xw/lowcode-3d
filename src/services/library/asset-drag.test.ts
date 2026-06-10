@@ -12,7 +12,9 @@ function up() {
 }
 
 describe("beginAssetDrag", () => {
-  beforeEach(() => useUIStore.setState({ assetDragItemId: null }));
+  beforeEach(() =>
+    useUIStore.setState({ assetDragItemId: null, viewportEngine: "three.js" }),
+  );
 
   it("does not activate the drag below the 5px threshold", () => {
     beginAssetDrag("geo-box", 100, 100);
@@ -32,5 +34,13 @@ describe("beginAssetDrag", () => {
     up(); // plain click/double-click — no drag
     move(200, 200); // listeners removed → no late activation
     expect(useUIStore.getState().assetDragItemId).toBeNull();
+  });
+
+  it("does not start a drag while the Babylon viewport is active (B1 — drop lands in B4)", () => {
+    useUIStore.setState({ viewportEngine: "babylon.js" });
+    beginAssetDrag("geo-box", 100, 100);
+    move(110, 100); // would activate in the three viewport
+    expect(useUIStore.getState().assetDragItemId).toBeNull();
+    up();
   });
 });

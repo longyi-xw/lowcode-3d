@@ -4,6 +4,7 @@ import { DeleteNodeCommand } from "@/core/command/commands/delete-node";
 import { DuplicateNodeCommand } from "@/core/command/commands/duplicate-node";
 import { generateUUID } from "@/core/id/uuid";
 import { isEffectivelyLocked } from "@/core/scene/policy";
+import { isEngineEditingCapable } from "@/runtime/render-host";
 import {
   cloneSubtreeWithNewIds,
   generateCopyName,
@@ -107,8 +108,12 @@ export function useEditorShortcuts(): void {
 
       // ── F (focus camera) ───────────────────────────────────────
       if (key.toLowerCase() === "f" && !isMod) {
-        const id = useUIStore.getState().selectedNodeId;
-        useUIStore.getState().requestFocus(id);
+        const ui = useUIStore.getState();
+        // Focus is viewport-owned and only the Three viewport implements it
+        // (B1); a request queued in Babylon mode would fire stale on the next
+        // ThreeViewport remount.
+        if (!isEngineEditingCapable(ui.viewportEngine)) return;
+        ui.requestFocus(ui.selectedNodeId);
         e.preventDefault();
         return;
       }
@@ -117,6 +122,7 @@ export function useEditorShortcuts(): void {
       if (key === " " && !isMod) {
         if (isOnButton(e)) return;
         const ui = useUIStore.getState();
+        if (!isEngineEditingCapable(ui.viewportEngine)) return; // B1: babylon is view-only
         ui.setPlayState(ui.playState === "play" ? "edit" : "play");
         e.preventDefault();
         return;

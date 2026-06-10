@@ -72,6 +72,7 @@ function seed(node: SceneNode = meshNode()) {
     playState: "edit",
     helpOpen: false,
     pendingFocusNodeId: undefined,
+    viewportEngine: "three.js",
   });
 }
 
@@ -202,5 +203,21 @@ describe("useEditorShortcuts", () => {
     // playState should NOT have toggled
     expect(useUIStore.getState().playState).toBe("edit");
     btn.remove();
+  });
+
+  describe("babylon viewport (B1 view-only)", () => {
+    beforeEach(() => useUIStore.setState({ viewportEngine: "babylon.js" }));
+
+    it("Space does not toggle play", () => {
+      renderHook(() => useEditorShortcuts());
+      fire(" ");
+      expect(useUIStore.getState().playState).toBe("edit");
+    });
+
+    it("F does not request camera focus", () => {
+      renderHook(() => useEditorShortcuts());
+      fire("f");
+      expect(useUIStore.getState().pendingFocusNodeId).toBeUndefined();
+    });
   });
 });
