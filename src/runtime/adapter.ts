@@ -160,8 +160,9 @@ export interface IRuntimeAdapter {
   generateBehaviorCode(binding: BehaviorBinding, context: CodegenContext): string;
 
   /** Install behavior bindings on a synced node's runtime object. Disabled
-   *  bindings are skipped; an invalid/unknown binding is isolated (logged via
-   *  console.warn, not thrown) so one bad binding never blocks the rest. */
+   *  bindings are skipped; unknown/invalid ones are skipped with a warning; a
+   *  binding whose install throws is caught and logged. No bad binding ever
+   *  blocks the rest (all failures are isolated, never re-thrown). */
   installBehaviors(node_id: string, bindings: BehaviorBinding[]): void;
   /** Advance every installed behavior by dt seconds. */
   tickBehaviors(dt: number): void;
