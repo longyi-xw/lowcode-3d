@@ -51,6 +51,10 @@ class NoopAdapter implements IRuntimeAdapter {
 
   dispose(): void {}
 
+  installBehaviors(_node_id: string, _bindings: BehaviorBinding[]): void {}
+  tickBehaviors(_dt: number): void {}
+  uninstallBehaviors(_node_id: string): void {}
+
   getSupportedBehaviors(): BehaviorDefinition[] {
     return [
       {

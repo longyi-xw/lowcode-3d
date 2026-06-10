@@ -240,5 +240,94 @@ export function describeAdapterConformance(
         ),
       ).toThrow();
     });
+
+    it("getSupportedBehaviors includes auto-rotate + bob", () => {
+      const types = make()
+        .getSupportedBehaviors()
+        .map((d) => d.type);
+      expect(types).toContain("auto-rotate");
+      expect(types).toContain("bob");
+    });
+
+    it("bob behavior moves the node by base + amp*sin(2π f t) (exact across engines)", () => {
+      const a = make();
+      a.syncNode(
+        node({
+          id: "m",
+          name: "m",
+          type: "mesh",
+          data: { type: "mesh", geometry: { kind: "box" } },
+        }),
+        "add",
+      );
+      a.installBehaviors("m", [
+        {
+          id: "b1",
+          behavior_type: "bob",
+          enabled: true,
+          parameters: { axis: "y", amplitude: 2, frequency: 1 },
+        },
+      ]);
+      a.tickBehaviors(0.25); // sin(π/2)=1 → y=2
+      expect(a.describeNode("m")!.position[1]).toBeCloseTo(2, 6);
+      a.tickBehaviors(0.25); // sin(π)=0 → y=0
+      expect(a.describeNode("m")!.position[1]).toBeCloseTo(0, 6);
+    });
+
+    it("auto-rotate behavior runs, accumulates, and freezes on uninstall", () => {
+      const a = make();
+      a.syncNode(
+        node({
+          id: "r",
+          name: "r",
+          type: "mesh",
+          data: { type: "mesh", geometry: { kind: "box" } },
+        }),
+        "add",
+      );
+      a.installBehaviors("r", [
+        {
+          id: "b1",
+          behavior_type: "auto-rotate",
+          enabled: true,
+          parameters: { axis: "y", speed: 90 },
+        },
+      ]);
+      a.tickBehaviors(1);
+      const after1 = a.describeNode("r")!.rotation;
+      expect(after1).not.toEqual([0, 0, 0, 1]); // it rotated
+      a.tickBehaviors(1);
+      expect(a.describeNode("r")!.rotation).not.toEqual(after1); // it kept rotating
+      a.uninstallBehaviors("r");
+      const frozen = a.describeNode("r")!.rotation;
+      a.tickBehaviors(1);
+      expect(a.describeNode("r")!.rotation).toEqual(frozen); // frozen after uninstall
+    });
+
+    it("skips disabled bindings and isolates unknown behavior types (no throw)", () => {
+      const a = make();
+      a.syncNode(
+        node({
+          id: "m",
+          name: "m",
+          type: "mesh",
+          data: { type: "mesh", geometry: { kind: "box" } },
+        }),
+        "add",
+      );
+      expect(() =>
+        a.installBehaviors("m", [
+          { id: "x", behavior_type: "nope", enabled: true, parameters: {} },
+          {
+            id: "d",
+            behavior_type: "bob",
+            enabled: false,
+            parameters: { axis: "y", amplitude: 2, frequency: 1 },
+          },
+        ]),
+      ).not.toThrow();
+      a.tickBehaviors(0.25);
+      expect(a.describeNode("m")!.position[1]).toBe(0); // disabled bob didn't move it
+    });
   });
 }

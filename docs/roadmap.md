@@ -120,8 +120,8 @@
 - **Goals**: 多运行时适配器（架构 §7 v1.0）。把 `IRuntimeAdapter` 确立为引擎中立接缝，用第二个引擎（Babylon.js）+ conformance 套件验证抽象成立；最终支持实时切换渲染引擎、新引擎最小改动接入（项目本质：多框架低代码 3D 平台）。
 - **Sub-stages**:
   - [x] **A1 · 契约 + Babylon headless + conformance**（[#37](https://github.com/longyi-xw/lowcode-3d/pull/37)）：契约加引擎中立 `describeNode(): RuntimeNodeInfo`（读引擎对象）+ `dispose()`；`BabylonAdapter`（`@babylonjs/core` `NullEngine`，headless）实现 `syncNode` 核心 kind（group/mesh/light/camera）；conformance 套件让 ThreeAdapter + BabylonAdapter 跑同一批断言全绿 = 契约对第二引擎成立。纯 headless，不接实时视口。
-  - [ ] **A2 · behaviors 跨引擎**：install/tick + behavior codegen 在 Babylon 对等。
-  - [ ] **A3 · glTF + 导出**：prefab_instance/glTF 加载 + `babylon` 导出 target。
+  - [x] **A2 · behaviors 跨引擎运行时**（[#38](https://github.com/longyi-xw/lowcode-3d/pull/38)）：`installBehaviors`/`tickBehaviors`/`uninstallBehaviors` 纳入 `IRuntimeAdapter`；Babylon behavior 框架（registry + auto-rotate + bob，操作 Babylon 节点，共享引擎中立 `BehaviorDefinition`）；conformance 验运行时对等——**bob 跨引擎精确对等**（位置突变同公式）、auto-rotate ran/累积/卸载、enabled/unknown 隔离。纯 headless。hover-highlight（事件型）+ behavior codegen 留后续。
+  - [ ] **A3 · glTF + 导出**：prefab_instance/glTF 加载 + `babylon` 导出 target（含 behavior codegen 跨引擎）。
   - [ ] **B · 实时视口切引擎**：抽 `IRenderHost`（渲染循环/相机控制/gizmo/拾取/outline），ThreeViewport 改为面向它，Babylon 渲染宿主落地，用户可把实时编辑器切到 Babylon。spec §8 已备边界清单。
 - **Depends on**: v0.5 行为系统全部完成（v0.5 Stage C）
 
@@ -136,7 +136,7 @@
 
 - **材质贴图 pipeline**（从 v0.2 材质编辑拆出）：normalMap / map / roughnessMap / metalnessMap / aoMap 等。需 `MaterialOverrideSchema` 加贴图字段（引用 `kind:"texture"` 的 `AssetReference`）+ texture 资源上传入库 + runtime `TextureLoader`（`mesh.ts applyOverrides` 加贴图通道）+ codegen emit `TextureLoader().load("./assets/…")` + UI 贴图选择器。独立子系统，单独 spec→plan→实现。
 - **Socket 系统后续阶段**（从 v0.4 sub-stage C 地基拆出）：本期只做位置对齐 + tag 兼容 + 面板手填。延后（各自独立 spec→plan→实现）：**朝向咬合**（socket 带 normal/up，转动节点让两 socket 面对面「插上」）、**模型特性驱动的对齐规则引擎**（超越 tag 精确匹配）、**glb 内嵌 socket 自动识别**（importer 读 glTF 命名空节点）、**视口点选放置 socket**（raycast 模型表面落点）、**socket 类型库 / male-female 配对 / 批量拼装**、**socket 标记 LOD / 合批**（本期每次拖拽全量重建标记，大场景需按节点索引只刷被拖节点——视觉验证审查记录的次要优化项）。
-- **Babylon 适配器跨引擎差异（A1 记录，待 in-scope 时对齐）**：A1 conformance 只在 group/mesh 断言完整 transform，已知未对齐项延后到各自变 in-scope 时处理——(a) **camera 朝向**：Babylon `UniversalCamera` 用 Euler `.rotation`（无 `rotationQuaternion`），`applyBabylonTransform` 当前跳过其旋转；(b) **ambient light**：映射为 `HemisphericLight`，无 `position`，落点被丢；(c) **prefab_instance kind**：ThreeAdapter 占位报 `mesh`、BabylonAdapter 报 `unknown`（A3 加 glTF 时统一）。camera/light 朝向并入 A2/B，prefab 并入 A3。
+- **Babylon 适配器跨引擎差异（A1/A2 记录，待 in-scope 时对齐）**：conformance 已断言的部分两引擎对等；已知未对齐/未处理项——(a) **camera 朝向**：Babylon `UniversalCamera` 用 Euler `.rotation`（无 `rotationQuaternion`），`applyBabylonTransform` 当前跳过其旋转（并入 B）；(b) **ambient light**：映射为 `HemisphericLight`，无 `position`，落点被丢（并入 B）；(c) **prefab_instance kind**：ThreeAdapter 占位报 `mesh`、BabylonAdapter 报 `unknown`（A3 加 glTF 时统一）；(d) **BabylonAdapter.dispose() 的 behavior handle 释放**：当前 `behaviorRuntime.clear()` 不遍历调 `handle.dispose?.()`（A2 的 auto-rotate/bob handle 无 dispose，故当前无副作用）；将来加有状态 Babylon behavior（绑监听器等）时，dispose 应改为遍历 `uninstallBehaviors` 释放 handle。
 - **多源资源上传**（从 v0.2 资源库拆出）：`AssetSourceSchema` 已含 `builtin/user_upload/online/ai_generated` 且 catalog 来源无关；目前只实装 `builtin`（几何/灯光预设）+ `user_upload`（.glb）。延后：`online`（在线模型/材质库浏览+下载入库）、`ai_generated`（AI 生成模型/贴图）。
 - **多材质槽**（从 v0.2 材质编辑拆出）：本期材质编辑只支持 slot 0；prefab/glTF 多材质对象的 slot 1+ 延后。
 - **agentic 多轮 Skill 执行**（从 v0.3 sub-stage B 拆出）：本期 Skill 是**单轮结构化输出**（NL→LLM 一次返回 operations→Command）。延后：架构 §4.3 的 `call_tool` / `allowed_tools` 多轮 agent 循环（LLM 多轮调工具、读场景、迭代纠错）+ `SkillContext.memory`（`MemoryStore` 项目暂无实现）。用户明确「多轮后续肯定要完善」。
