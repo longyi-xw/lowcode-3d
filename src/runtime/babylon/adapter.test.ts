@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { NullEngine } from "@babylonjs/core";
 
 import type { SceneNode } from "@/core/scene/types";
 
@@ -198,5 +199,27 @@ describe("BabylonAdapter behaviors", () => {
     a.tickBehaviors(0.25);
     expect(a.describeNode("m")!.position[1]).toBe(0);
     a.dispose();
+  });
+});
+
+describe("engine injection (v1.0 B1)", () => {
+  it("uses the injected engine and disposes it with the adapter", () => {
+    const engine = new NullEngine();
+    const adapter = new BabylonAdapter({ engine });
+    expect(adapter.scene.getEngine()).toBe(engine);
+    adapter.dispose();
+    expect(engine.isDisposed).toBe(true);
+  });
+
+  it("defaults to a NullEngine when nothing is injected", () => {
+    const adapter = new BabylonAdapter();
+    expect(adapter.scene.getEngine()).toBeInstanceOf(NullEngine);
+    adapter.dispose();
+  });
+
+  it("scene uses the right-handed system (matches three.js / glTF transforms)", () => {
+    const adapter = new BabylonAdapter();
+    expect(adapter.scene.useRightHandedSystem).toBe(true);
+    adapter.dispose();
   });
 });

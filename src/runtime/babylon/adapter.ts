@@ -11,6 +11,7 @@ import {
   TransformNode,
   UniversalCamera,
   Vector3,
+  type AbstractEngine,
   type Node as BabylonNode,
 } from "@babylonjs/core";
 
@@ -61,8 +62,10 @@ function notImplemented(method: string): never {
  */
 export class BabylonAdapter implements IRuntimeAdapter {
   readonly target = BABYLON_TARGET;
-  private readonly engine = new NullEngine();
-  private readonly scene = new Scene(this.engine);
+  /** Engine-specific escape hatch (mirrors ThreeAdapter.scene) — used by
+   *  BabylonRenderHost to mount the editor camera. Not on IRuntimeAdapter. */
+  readonly scene: Scene;
+  private readonly engine: AbstractEngine;
   private readonly objects = new Map<string, BabylonNode>();
   private readonly behaviorRegistry: BabylonBehaviorRegistry =
     createBabylonBehaviorRegistry();
@@ -73,6 +76,16 @@ export class BabylonAdapter implements IRuntimeAdapter {
       { behavior: BabylonBehavior; params: unknown; handle: BabylonBehaviorHandle }
     >
   >();
+
+  constructor(options?: { engine?: AbstractEngine }) {
+    this.engine = options?.engine ?? new NullEngine();
+    this.scene = new Scene(this.engine);
+    // Project transforms are right-handed (three.js was the first engine and
+    // glTF is RH); Babylon defaults to left-handed, which would mirror the
+    // rendered scene on z. Raw stored values are unaffected, so headless
+    // conformance/describeNode behavior does not change.
+    this.scene.useRightHandedSystem = true;
+  }
 
   syncNode(node: SceneNode, op: SyncOp): void {
     if (op === "remove") {
