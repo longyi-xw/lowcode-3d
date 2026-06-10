@@ -159,6 +159,15 @@ export interface IRuntimeAdapter {
   getSupportedBehaviors(): BehaviorDefinition[];
   generateBehaviorCode(binding: BehaviorBinding, context: CodegenContext): string;
 
+  /** Install behavior bindings on a synced node's runtime object. Disabled
+   *  bindings are skipped; an invalid/unknown binding is isolated (logged via
+   *  console.warn, not thrown) so one bad binding never blocks the rest. */
+  installBehaviors(node_id: string, bindings: BehaviorBinding[]): void;
+  /** Advance every installed behavior by dt seconds. */
+  tickBehaviors(dt: number): void;
+  /** Tear down all behaviors installed on a node (releasing per-binding state). */
+  uninstallBehaviors(node_id: string): void;
+
   // ───── Lifecycle ────────────────────────────────────────────────
   /** Release all engine handles (renderer/scene/GPU resources). Both shipped
    *  adapters already implement this; the viewport calls it on teardown. */

@@ -31,6 +31,12 @@ import type {
   RuntimeNodeInfo,
   SyncOp,
 } from "../adapter";
+import {
+  createBabylonBehaviorRegistry,
+  type BabylonBehavior,
+  type BabylonBehaviorHandle,
+  type BabylonBehaviorRegistry,
+} from "./behaviors";
 
 const BABYLON_TARGET: RuntimeTarget = { kind: "babylon.js", version: "9.11.0" };
 
@@ -58,6 +64,15 @@ export class BabylonAdapter implements IRuntimeAdapter {
   private readonly engine = new NullEngine();
   private readonly scene = new Scene(this.engine);
   private readonly objects = new Map<string, BabylonNode>();
+  private readonly behaviorRegistry: BabylonBehaviorRegistry =
+    createBabylonBehaviorRegistry();
+  private readonly behaviorRuntime = new Map<
+    string,
+    Map<
+      string,
+      { behavior: BabylonBehavior; params: unknown; handle: BabylonBehaviorHandle }
+    >
+  >();
 
   syncNode(node: SceneNode, op: SyncOp): void {
     if (op === "remove") {
@@ -170,6 +185,7 @@ export class BabylonAdapter implements IRuntimeAdapter {
     this.scene.dispose();
     this.engine.dispose();
     this.objects.clear();
+    this.behaviorRuntime.clear();
   }
 
   pickAt(_screen_x: number, _screen_y: number): string | null {
@@ -189,8 +205,69 @@ export class BabylonAdapter implements IRuntimeAdapter {
     );
   }
   getSupportedBehaviors(): BehaviorDefinition[] {
-    return notImplemented("getSupportedBehaviors");
+    return this.behaviorRegistry.list().map((b) => b.definition);
   }
+
+  installBehaviors(node_id: string, bindings: BehaviorBinding[]): void {
+    const node = this.objects.get(node_id);
+    if (!node) return;
+    const perNode = new Map<
+      string,
+      { behavior: BabylonBehavior; params: unknown; handle: BabylonBehaviorHandle }
+    >();
+    for (const binding of bindings) {
+      if (!binding.enabled) continue;
+      const b = this.behaviorRegistry.get(binding.behavior_type);
+      if (!b) {
+        console.warn(
+          `installBehaviors: unknown behavior_type "${binding.behavior_type}"`,
+        );
+        continue;
+      }
+      const parsed = b.definition.parameters_schema.safeParse(binding.parameters);
+      if (!parsed.success) {
+        console.warn(
+          `installBehaviors: invalid params on binding ${binding.id} (${binding.behavior_type})`,
+        );
+        continue;
+      }
+      try {
+        const handle = b.install(node, parsed.data);
+        perNode.set(binding.id, { behavior: b, params: parsed.data, handle });
+      } catch (e) {
+        console.error(`installBehaviors: install threw on ${binding.id}`, e);
+      }
+    }
+    this.behaviorRuntime.set(node_id, perNode);
+  }
+
+  tickBehaviors(dt: number): void {
+    for (const [node_id, perNode] of this.behaviorRuntime) {
+      const node = this.objects.get(node_id);
+      if (!node) continue;
+      for (const entry of perNode.values()) {
+        try {
+          entry.behavior.tick?.(node, entry.params, entry.handle, dt);
+        } catch (e) {
+          console.error(`tickBehaviors: tick threw on node ${node_id}`, e);
+        }
+      }
+    }
+  }
+
+  uninstallBehaviors(node_id: string): void {
+    const perNode = this.behaviorRuntime.get(node_id);
+    if (!perNode) return;
+    for (const entry of perNode.values()) {
+      try {
+        entry.handle.dispose?.();
+      } catch (e) {
+        console.error("uninstallBehaviors: dispose threw", e);
+      }
+    }
+    this.behaviorRuntime.delete(node_id);
+  }
+
   generateBehaviorCode(_binding: BehaviorBinding, _context: CodegenContext): string {
     return notImplemented("generateBehaviorCode");
   }

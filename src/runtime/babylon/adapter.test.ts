@@ -122,3 +122,81 @@ describe("BabylonAdapter", () => {
     a.dispose();
   });
 });
+
+describe("BabylonAdapter behaviors", () => {
+  function meshAt(id: string, y: number): SceneNode {
+    return {
+      id,
+      name: id,
+      type: "mesh",
+      parent_id: null,
+      transform: { position: [0, y, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      children_ids: [],
+      visible: true,
+      locked: false,
+      data: { type: "mesh", geometry: { kind: "box" } },
+      behaviors: [],
+      user_data: {},
+    };
+  }
+
+  it("getSupportedBehaviors returns auto-rotate + bob", () => {
+    const types = new BabylonAdapter().getSupportedBehaviors().map((d) => d.type);
+    expect(types).toContain("auto-rotate");
+    expect(types).toContain("bob");
+  });
+
+  it("install + tick bob moves the node by the sine formula", () => {
+    const a = new BabylonAdapter();
+    a.syncNode(meshAt("m", 0), "add");
+    a.installBehaviors("m", [
+      {
+        id: "b1",
+        behavior_type: "bob",
+        enabled: true,
+        parameters: { axis: "y", amplitude: 2, frequency: 1 },
+      },
+    ]);
+    a.tickBehaviors(0.25);
+    expect(a.describeNode("m")!.position[1]).toBeCloseTo(2, 6);
+    a.dispose();
+  });
+
+  it("uninstall freezes the behavior", () => {
+    const a = new BabylonAdapter();
+    a.syncNode(meshAt("m", 0), "add");
+    a.installBehaviors("m", [
+      {
+        id: "b1",
+        behavior_type: "bob",
+        enabled: true,
+        parameters: { axis: "y", amplitude: 2, frequency: 1 },
+      },
+    ]);
+    a.tickBehaviors(0.25);
+    a.uninstallBehaviors("m");
+    const frozen = a.describeNode("m")!.position[1];
+    a.tickBehaviors(0.25);
+    expect(a.describeNode("m")!.position[1]).toBe(frozen);
+    a.dispose();
+  });
+
+  it("skips disabled bindings and isolates unknown types (no throw)", () => {
+    const a = new BabylonAdapter();
+    a.syncNode(meshAt("m", 0), "add");
+    expect(() =>
+      a.installBehaviors("m", [
+        { id: "x", behavior_type: "nope", enabled: true, parameters: {} },
+        {
+          id: "d",
+          behavior_type: "bob",
+          enabled: false,
+          parameters: { axis: "y", amplitude: 2, frequency: 1 },
+        },
+      ]),
+    ).not.toThrow();
+    a.tickBehaviors(0.25);
+    expect(a.describeNode("m")!.position[1]).toBe(0);
+    a.dispose();
+  });
+});
