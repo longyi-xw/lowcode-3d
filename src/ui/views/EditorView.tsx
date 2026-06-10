@@ -18,8 +18,10 @@ import { SocketsSection } from "@/ui/editor/SocketsSection";
 import { ShortcutsHelpDialog } from "@/ui/help/ShortcutsHelpDialog";
 import { AssetDragGhost } from "@/ui/library/AssetDragGhost";
 import { LibraryPanel } from "@/ui/library/LibraryPanel";
+import { isEngineEditingCapable } from "@/runtime/render-host";
+import { EngineToggle } from "@/ui/viewport/EngineToggle";
 import { PlayButton } from "@/ui/viewport/PlayButton";
-import { ThreeViewport } from "@/ui/viewport/ThreeViewport";
+import { Viewport } from "@/ui/viewport/Viewport";
 import { useEditorShortcuts } from "@/ui/viewport/use-editor-shortcuts";
 import { useGizmoShortcuts } from "@/ui/viewport/use-gizmo-shortcuts";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,7 @@ export function EditorView() {
   const rightPanelTab = useUIStore((s) => s.rightPanelTab);
   const setRightPanelTab = useUIStore((s) => s.setRightPanelTab);
   const playState = useUIStore((s) => s.playState);
+  const viewportEngine = useUIStore((s) => s.viewportEngine);
   const setSettingsOpen = useUIStore((s) => s.setSettingsOpen);
   useGizmoShortcuts();
   useEditorShortcuts();
@@ -109,10 +112,13 @@ export function EditorView() {
           <main className="relative min-h-0 flex-1 overflow-hidden">
             {project ? (
               <>
-                <ThreeViewport />
+                <Viewport />
+                <EngineToggle />
                 <GizmoModeToolbar
                   mode={gizmoMode}
-                  disabled={selectedNodeId === null}
+                  disabled={
+                    selectedNodeId === null || !isEngineEditingCapable(viewportEngine)
+                  }
                   onChange={setGizmoMode}
                 />
                 <div className="absolute right-3 top-3 z-10">
