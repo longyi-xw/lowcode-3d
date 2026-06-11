@@ -15,6 +15,12 @@ describeAdapterConformance(() => new ThreeAdapter(), "ThreeAdapter", {
 describeAdapterConformance(() => new BabylonAdapter(), "BabylonAdapter", {
   makePickAdapter: () =>
     new BabylonAdapter({
-      engine: new NullEngine({ renderWidth: 800, renderHeight: 600 }),
+      engine: new NullEngine({
+        renderWidth: 800,
+        renderHeight: 600,
+        textureSize: 512,
+        deterministicLockstep: false,
+        lockstepMaxSteps: 4,
+      }),
     }),
 });

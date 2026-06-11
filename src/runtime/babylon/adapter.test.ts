@@ -226,7 +226,13 @@ describe("engine injection (v1.0 B1)", () => {
 describe("pickAt (v1.0 B2)", () => {
   const sized = () =>
     new BabylonAdapter({
-      engine: new NullEngine({ renderWidth: 800, renderHeight: 600 }),
+      engine: new NullEngine({
+        renderWidth: 800,
+        renderHeight: 600,
+        textureSize: 512,
+        deterministicLockstep: false,
+        lockstepMaxSteps: 4,
+      }),
     });
   const boxNode = (id: string, parent: string | null = null) =>
     ({
