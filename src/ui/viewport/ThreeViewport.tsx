@@ -77,7 +77,7 @@ export function ThreeViewport() {
     adapter.assetCache.setProjectPath(useProjectStore.getState().currentPath);
 
     const initial = useSceneStore.getState().project;
-    if (initial) void seedScene(adapter, initial);
+    const seeded = initial ? seedScene(adapter, initial) : Promise.resolve();
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -328,6 +328,18 @@ export function ThreeViewport() {
     };
     syncSelection(useUIStore.getState().selectedNodeId);
     rebuildSocketMarkers();
+    // seedScene is async, so when the viewport mounts while a selection is
+    // already in the store (engine switch back to Three, v1.0 B1) the sync
+    // above ran against an empty adapter and was a no-op. Re-picking the same
+    // node won't re-fire the store subscription (same id == no change), so
+    // without this replay the gizmo/outline stay missing until the selection
+    // actually changes.
+    let unmounted = false;
+    void seeded.then(() => {
+      if (unmounted) return;
+      syncSelection(useUIStore.getState().selectedNodeId);
+      rebuildSocketMarkers();
+    });
 
     const resize = () => {
       const w = container.clientWidth;
@@ -491,6 +503,7 @@ export function ThreeViewport() {
     animate();
 
     return () => {
+      unmounted = true;
       cancelAnimationFrame(rafId);
       unsubscribeScene();
       unsubscribeProject();
