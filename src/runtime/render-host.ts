@@ -21,6 +21,10 @@ export interface IRenderHost {
   start(): void;
   stop(): void;
   resize(width: number, height: number): void;
+  /** Mark the node as visually selected (engine-specific highlight), or
+   *  clear the marker when null. Idempotent — callers may replay it after
+   *  scene diffs (removed/rebuilt nodes must not leave stale highlights). */
+  setSelection(node_id: string | null): void;
   dispose(): void;
 }
 

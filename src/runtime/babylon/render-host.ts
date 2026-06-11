@@ -1,9 +1,13 @@
 import {
   ArcRotateCamera,
+  Color3,
   Color4,
   Engine,
+  HighlightLayer,
+  Mesh,
   Vector3,
   type AbstractEngine,
+  type Node as BabylonNode,
 } from "@babylonjs/core";
 
 import type { IRenderHost } from "@/runtime/render-host";
@@ -19,6 +23,9 @@ export interface BabylonRenderHostOptions {
 /** Matches ThreeViewport's renderer.setClearColor(0x101418). */
 const CLEAR_COLOR = new Color4(0x10 / 255, 0x14 / 255, 0x18 / 255, 1);
 
+/** Matches ThreeViewport's OutlinePass visibleEdgeColor (#3b82f6). */
+const SELECTION_COLOR = Color3.FromHexString("#3b82f6");
+
 /**
  * Babylon render host (v1.0 B1) — owns the real Engine, the editor
  * ArcRotateCamera and the render loop. The BabylonAdapter it creates owns the
@@ -31,6 +38,7 @@ export class BabylonRenderHost implements IRenderHost {
   private babylonEngine: AbstractEngine | null = null;
   private camera: ArcRotateCamera | null = null;
   private adapterInstance: BabylonAdapter | null = null;
+  private highlight: HighlightLayer | null = null;
 
   constructor(options?: BabylonRenderHostOptions) {
     this.createEngine = options?.createEngine ?? ((canvas) => new Engine(canvas, true));
@@ -64,6 +72,9 @@ export class BabylonRenderHost implements IRenderHost {
     // NullEngine has no rendering canvas — pointer controls only make sense
     // on a real Engine.
     if (engine.getRenderingCanvas()) camera.attachControl();
+    // Selection highlight — engine-side counterpart of ThreeViewport's
+    // OutlinePass. Works on NullEngine too (verified), so no headless guard.
+    this.highlight = new HighlightLayer("selection-highlight", scene);
     scene.activeCamera = camera;
     this.camera = camera;
   }
@@ -85,8 +96,29 @@ export class BabylonRenderHost implements IRenderHost {
     this.babylonEngine?.resize();
   }
 
+  /** Test-only surface: lets unit tests assert hasMesh membership. */
+  get selectionLayer(): HighlightLayer | null {
+    return this.highlight;
+  }
+
+  setSelection(node_id: string | null): void {
+    const layer = this.highlight;
+    const adapter = this.adapterInstance;
+    if (!layer || !adapter) return;
+    layer.removeAllMeshes();
+    if (!node_id) return;
+    const root = adapter.getRuntimeObject(node_id) as BabylonNode | undefined;
+    if (!root) return; // removed/unknown — an empty layer is the right state
+    if (root instanceof Mesh) layer.addMesh(root, SELECTION_COLOR);
+    for (const child of root.getDescendants(false)) {
+      if (child instanceof Mesh) layer.addMesh(child, SELECTION_COLOR);
+    }
+  }
+
   dispose(): void {
     this.stop();
+    this.highlight?.dispose();
+    this.highlight = null;
     this.camera?.dispose();
     this.camera = null;
     this.adapterInstance?.dispose();
