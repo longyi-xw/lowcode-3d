@@ -21,7 +21,12 @@
   },
   "viewport": {
     "empty": "Empty scene",
-    "empty_hint": "Drop a .glb file here or pick a template from the menu."
+    "empty_hint": "Drop a .glb file here or pick a template from the menu.",
+    "engine": {
+      "title": "Render engine",
+      "three": "Three",
+      "babylon": "Babylon"
+    }
   },
   "behaviors": {
     "tab_title": "Behaviors",
@@ -46,7 +51,8 @@
   },
   "play": {
     "play": "Play",
-    "pause": "Pause"
+    "pause": "Pause",
+    "engine_unavailable": "Play is not available in the Babylon preview yet"
   },
   "close_project": "Close project",
   "help": {

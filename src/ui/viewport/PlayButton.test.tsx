@@ -6,7 +6,9 @@ import { useUIStore } from "@/services/ui/store";
 import { PlayButton } from "./PlayButton";
 
 describe("PlayButton", () => {
-  beforeEach(() => useUIStore.setState({ playState: "edit" }));
+  beforeEach(() =>
+    useUIStore.setState({ playState: "edit", viewportEngine: "three.js" }),
+  );
 
   it("shows 'Play' label when in edit mode", () => {
     render(<PlayButton />);
@@ -29,6 +31,15 @@ describe("PlayButton", () => {
     useUIStore.setState({ playState: "play" });
     render(<PlayButton />);
     fireEvent.click(screen.getByText(/pause/i));
+    expect(useUIStore.getState().playState).toBe("edit");
+  });
+
+  it("is disabled in the Babylon viewport (B1 — play lands in B4)", () => {
+    useUIStore.setState({ viewportEngine: "babylon.js" });
+    render(<PlayButton />);
+    const button = screen.getByRole("button");
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
     expect(useUIStore.getState().playState).toBe("edit");
   });
 });

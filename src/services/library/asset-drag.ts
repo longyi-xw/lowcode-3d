@@ -1,3 +1,4 @@
+import { isEngineEditingCapable } from "@/runtime/render-host";
 import { useUIStore } from "@/services/ui/store";
 
 /**
@@ -16,6 +17,9 @@ let onMove: ((e: PointerEvent) => void) | null = null;
 let onUp: (() => void) | null = null;
 
 export function beginAssetDrag(id: string, clientX: number, clientY: number): void {
+  // B1: the Babylon viewport has no drop handler (raycastGroundPoint lands in
+  // B4) — without a window-pointerup consumer the drag flag would leak.
+  if (!isEngineEditingCapable(useUIStore.getState().viewportEngine)) return;
   teardown(); // drop any stale candidate before starting a new one
   candidate = { id, x: clientX, y: clientY };
   onMove = (e) => {

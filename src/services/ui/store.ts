@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ViewportEngine } from "@/runtime/render-host";
 
 /**
  * UI store — ephemeral, never persisted.
@@ -35,6 +36,10 @@ interface UIState {
    *  via undo/redo / commands are swallowed by command-history. */
   playState: PlayState;
   setPlayState: (state: PlayState) => void;
+  /** Which engine the editor viewport renders with (v1.0 B1). Session-only
+   *  preview switch — never persisted, not part of project data. */
+  viewportEngine: ViewportEngine;
+  setViewportEngine: (engine: ViewportEngine) => void;
   /** Whether the keyboard-shortcuts help dialog is visible. */
   helpOpen: boolean;
   setHelpOpen: (open: boolean) => void;
@@ -93,6 +98,8 @@ export const useUIStore = create<UIState>((set) => ({
   setRightPanelTab: (rightPanelTab) => set({ rightPanelTab }),
   playState: "edit",
   setPlayState: (playState) => set({ playState }),
+  viewportEngine: "three.js",
+  setViewportEngine: (viewportEngine) => set({ viewportEngine }),
   helpOpen: false,
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   newProjectOpen: false,

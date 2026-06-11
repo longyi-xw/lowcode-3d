@@ -21,7 +21,12 @@
   },
   "viewport": {
     "empty": "空场景",
-    "empty_hint": "拖入 .glb 文件，或从菜单选一个模板。"
+    "empty_hint": "拖入 .glb 文件，或从菜单选一个模板。",
+    "engine": {
+      "title": "渲染引擎",
+      "three": "Three",
+      "babylon": "Babylon"
+    }
   },
   "behaviors": {
     "tab_title": "行为",
@@ -46,7 +51,8 @@
   },
   "play": {
     "play": "播放",
-    "pause": "暂停"
+    "pause": "暂停",
+    "engine_unavailable": "Babylon 预览暂不支持播放"
   },
   "close_project": "关闭项目",
   "help": {
