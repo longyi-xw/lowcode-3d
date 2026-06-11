@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NullEngine } from "@babylonjs/core";
+import { Camera, NullEngine } from "@babylonjs/core";
 
 import type { SceneNode } from "@/core/scene/types";
 
@@ -115,9 +115,8 @@ describe("BabylonAdapter", () => {
     a.dispose();
   });
 
-  it("throws NotImplemented for pickAt / syncAsset / exportProject", async () => {
+  it("throws NotImplemented for syncAsset / exportProject", async () => {
     const a = new BabylonAdapter();
-    expect(() => a.pickAt(0, 0)).toThrow(/not implemented/i);
     await expect(a.syncAsset({} as never)).rejects.toThrow(/not implemented/i);
     await expect(a.exportProject({} as never, {})).rejects.toThrow(/not implemented/i);
     a.dispose();
@@ -221,5 +220,83 @@ describe("engine injection (v1.0 B1)", () => {
     const adapter = new BabylonAdapter();
     expect(adapter.scene.useRightHandedSystem).toBe(true);
     adapter.dispose();
+  });
+});
+
+describe("pickAt (v1.0 B2)", () => {
+  const sized = () =>
+    new BabylonAdapter({
+      engine: new NullEngine({ renderWidth: 800, renderHeight: 600 }),
+    });
+  const boxNode = (id: string, parent: string | null = null) =>
+    ({
+      id,
+      name: id,
+      type: "mesh",
+      data: { type: "mesh", geometry: { kind: "box" } },
+      transform: {
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0, 1] as [number, number, number, number],
+        scale: [1, 1, 1] as [number, number, number],
+      },
+      parent_id: parent,
+      children_ids: [] as string[],
+      visible: true,
+      locked: false,
+      behaviors: [],
+      user_data: {},
+    }) as SceneNode;
+
+  it("constructor installs a default editor camera as activeCamera", () => {
+    const a = new BabylonAdapter();
+    expect(a.scene.activeCamera).toBeInstanceOf(Camera);
+    expect(a.scene.activeCamera?.name).toBe("default-editor-camera");
+    a.dispose();
+  });
+
+  it("hits the mesh under the viewport center", () => {
+    const a = sized();
+    a.syncNode(boxNode("box"), "add");
+    expect(a.pickAt(400, 300)).toBe("box");
+    a.dispose();
+  });
+
+  it("returns null on empty space and after remove", () => {
+    const a = sized();
+    a.syncNode(boxNode("box"), "add");
+    expect(a.pickAt(10, 10)).toBeNull();
+    a.syncNode(boxNode("box"), "remove");
+    expect(a.pickAt(400, 300)).toBeNull();
+    a.dispose();
+  });
+
+  it("a child mesh under a group resolves to the child's own node id", () => {
+    const a = sized();
+    a.syncNode(
+      {
+        ...boxNode("g"),
+        type: "group",
+        data: { type: "group" },
+        children_ids: ["child"],
+      } as SceneNode,
+      "add",
+    );
+    a.syncNode(boxNode("child", "g"), "add");
+    expect(a.pickAt(400, 300)).toBe("child");
+    a.dispose();
+  });
+
+  it("helper placeholder nodes are unpickable", () => {
+    const a = sized();
+    a.syncNode(
+      {
+        ...boxNode("h"),
+        type: "helper",
+        data: { type: "helper", helper_kind: "grid" },
+      } as SceneNode,
+      "add",
+    );
+    expect(a.pickAt(400, 300)).toBeNull();
+    a.dispose();
   });
 });
