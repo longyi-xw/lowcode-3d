@@ -31,6 +31,7 @@ import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 
 import { computeFocusTarget } from "./focus-helpers";
+import { diffSceneNodes } from "./scene-diff";
 
 /**
  * Three.js viewport — mounts a WebGL canvas into a host div and mirrors the
@@ -749,9 +750,9 @@ async function seedScene(adapter: ThreeAdapter, project: SceneProject): Promise<
 
 /**
  * Translate node-identity differences between two project snapshots into
- * syncNode calls. Update first (the common case during editing), then adds
- * (BFS-ordered so parents land first), then removes — detaching the gizmo
- * before any node it's currently attached to disappears.
+ * syncNode calls via the engine-neutral diffSceneNodes walk (adds are
+ * BFS-ordered so parents land first; removes detach the gizmo / clear the
+ * outline before the object disappears).
  *
  * Async because newly-added prefab_instance nodes may reference an asset
  * not yet in the cache; we kick off syncAsset for any unknown asset_ids
@@ -775,34 +776,16 @@ async function diffAndApply(
       newAssets.map((a) => syncAndPublishPreview(adapter, a as AssetReference)),
     );
   }
-  const queue: string[] = [...next.scene.root_node_ids];
-  const seen = new Set<string>();
-  while (queue.length > 0) {
-    const id = queue.shift();
-    if (id === undefined || seen.has(id)) continue;
-    seen.add(id);
-    const n = next.scene.nodes[id];
-    if (!n) continue;
-    const o = old.scene.nodes[id];
-    if (!o) {
-      adapter.syncNode(n, "add");
-    } else if (n !== o) {
-      adapter.syncNode(n, "update");
+  const diff = diffSceneNodes(old.scene, next.scene);
+  for (const n of diff.added) adapter.syncNode(n, "add");
+  for (const n of diff.updated) adapter.syncNode(n, "update");
+  for (const n of diff.removed) {
+    if (gizmo.object && gizmo.object.userData.nodeId === n.id) {
+      gizmo.detach();
     }
-    queue.push(...n.children_ids);
-  }
-  for (const id of Object.keys(old.scene.nodes)) {
-    if (!next.scene.nodes[id]) {
-      const removed = old.scene.nodes[id];
-      if (removed) {
-        if (gizmo.object && gizmo.object.userData.nodeId === id) {
-          gizmo.detach();
-        }
-        if (outlinePass.selectedObjects.some((obj) => obj.userData.nodeId === id)) {
-          outlinePass.selectedObjects = [];
-        }
-        adapter.syncNode(removed, "remove");
-      }
+    if (outlinePass.selectedObjects.some((obj) => obj.userData.nodeId === n.id)) {
+      outlinePass.selectedObjects = [];
     }
+    adapter.syncNode(n, "remove");
   }
 }
