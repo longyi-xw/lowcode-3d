@@ -131,8 +131,11 @@ describe("BabylonViewport", () => {
     render(<BabylonViewport createHost={createHost} />);
     const meshId = centerCube();
     useUIStore.getState().setSelectedNodeId(meshId);
+    const mesh = host!.adapter.getRuntimeObject(meshId);
+    expect(host!.selectionLayer?.hasMesh(mesh as never)).toBe(true);
     const project = useSceneStore.getState().project!;
-    const { [meshId]: _gone, ...rest } = project.scene.nodes;
+    const rest = { ...project.scene.nodes };
+    delete rest[meshId];
     useSceneStore.getState().setProject({
       ...project,
       scene: {
@@ -140,7 +143,7 @@ describe("BabylonViewport", () => {
         root_node_ids: project.scene.root_node_ids.filter((id) => id !== meshId),
       },
     });
-    // applyDiff replays setSelection — removed node must not leave stale meshes.
     expect(host!.adapter.describeNode(meshId)).toBeNull();
+    expect(host!.selectionLayer?.hasMesh(mesh as never)).toBe(false);
   });
 });

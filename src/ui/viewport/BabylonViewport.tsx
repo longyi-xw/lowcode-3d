@@ -59,8 +59,10 @@ export function BabylonViewport({
       for (const n of diff.added) trySync(n, "add");
       for (const n of diff.updated) trySync(n, "update");
       for (const n of diff.removed) trySync(n, "remove");
-      // Replay the highlight: a removed/rebuilt selected node must not leave
-      // a stale mesh in the HighlightLayer (setSelection is idempotent).
+      // Replay the highlight onto rebuilt instances: when a diff removes and
+      // re-adds the selected node id, the old mesh's highlight dies with its
+      // dispose (HighlightLayer auto-cleans), but the NEW mesh instance needs
+      // a fresh addMesh — setSelection is idempotent, so replaying is safe.
       syncSelection();
     };
 
