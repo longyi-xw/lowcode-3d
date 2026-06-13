@@ -85,6 +85,23 @@ export class BabylonAdapter implements IRuntimeAdapter {
     // rendered scene on z. Raw stored values are unaffected, so headless
     // conformance/describeNode behavior does not change.
     this.scene.useRightHandedSystem = true;
+
+    // Default editor camera (mirrors ThreeAdapter's defaultCamera convention:
+    // position [4,3,4] looking at the origin, vertical fov 50°). scene.pick
+    // needs an active camera even headless, and conformance asserts pick
+    // parity against the same framing on both engines. BabylonRenderHost's
+    // ArcRotateCamera takes over activeCamera on mount; this one stays in the
+    // scene unused (scene.dispose cleans it up).
+    const editorCamera = new UniversalCamera(
+      "default-editor-camera",
+      new Vector3(4, 3, 4),
+      this.scene,
+    );
+    editorCamera.setTarget(Vector3.Zero());
+    editorCamera.fov = (50 * Math.PI) / 180;
+    editorCamera.minZ = 0.1;
+    editorCamera.maxZ = 1000;
+    this.scene.activeCamera = editorCamera;
   }
 
   syncNode(node: SceneNode, op: SyncOp): void {
@@ -201,8 +218,19 @@ export class BabylonAdapter implements IRuntimeAdapter {
     this.behaviorRuntime.clear();
   }
 
-  pickAt(_screen_x: number, _screen_y: number): string | null {
-    return notImplemented("pickAt");
+  /**
+   * Pick the SceneNode under `(screen_x, screen_y)` in viewport-pixel space.
+   * scene.pick unprojects against engine.getRenderWidth/Height — on a real
+   * Engine that is the canvas pixel size, i.e. the same coordinate contract
+   * as ThreeAdapter.pickAt. Babylon recomputes view/world matrices lazily,
+   * so no manual refresh is needed (verified headless on NullEngine).
+   * Walks up the parent chain for metadata.nodeId, mirroring Three's
+   * userData.nodeId convention. Returns null on empty space.
+   */
+  pickAt(screen_x: number, screen_y: number): string | null {
+    const hit = this.scene.pick(screen_x, screen_y);
+    if (!hit?.hit || !hit.pickedMesh) return null;
+    return findNodeId(hit.pickedMesh);
   }
   syncAsset(_asset: AssetReference): Promise<void> {
     return Promise.reject(
@@ -357,4 +385,17 @@ function createCamera(
       ? Camera.ORTHOGRAPHIC_CAMERA
       : Camera.PERSPECTIVE_CAMERA;
   return cam;
+}
+
+/** Walk up the Babylon parent chain for the nearest synced node's id
+ *  (metadata.nodeId is set by syncNode("add")). Mirrors the Three side's
+ *  findNodeId-over-userData convention. */
+function findNodeId(obj: BabylonNode | null): string | null {
+  let cur: BabylonNode | null = obj;
+  while (cur) {
+    const meta = cur.metadata as NodeMeta | null | undefined;
+    if (meta?.nodeId) return meta.nodeId;
+    cur = cur.parent;
+  }
+  return null;
 }

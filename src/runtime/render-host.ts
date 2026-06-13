@@ -21,14 +21,19 @@ export interface IRenderHost {
   start(): void;
   stop(): void;
   resize(width: number, height: number): void;
+  /** Mark the node as visually selected (engine-specific highlight), or
+   *  clear the marker when null. Idempotent — callers may replay it after
+   *  scene diffs (removed/rebuilt nodes must not leave stale highlights). */
+  setSelection(node_id: string | null): void;
   dispose(): void;
 }
 
 /**
- * B1 capability gate: only the Three viewport supports editing interactions
- * (gizmo / play / pick / drop / focus). Every UI surface that disables itself
- * in Babylon mode reads this single helper, so B2/B3/B4 flip capabilities in
- * one place instead of hunting scattered engine === "..." checks.
+ * Capability gate: only the Three viewport supports editing interactions
+ * (gizmo / play / drop / focus). Picking + selection highlight are cross-engine
+ * since B2 (viewport-internal, not gated here). Every UI surface that disables
+ * itself in Babylon mode reads this single helper, so B3/B4 flip capabilities
+ * in one place instead of hunting scattered engine === "..." checks.
  */
 export function isEngineEditingCapable(engine: ViewportEngine): boolean {
   return engine === "three.js";

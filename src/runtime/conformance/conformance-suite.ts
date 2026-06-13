@@ -3,6 +3,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { SceneNode } from "@/core/scene/types";
 import type { IRuntimeAdapter } from "@/runtime/adapter";
 
+export interface ConformanceOptions {
+  /** Engine-specific factory returning an adapter ready to pick against an
+   *  800×600 viewport (Three: setViewportSize; Babylon: sized NullEngine).
+   *  Both engines share the default editor camera framing [4,3,4]→origin,
+   *  fov 50°, so the same screen points resolve the same nodes. */
+  makePickAdapter?: () => IRuntimeAdapter;
+}
+
 const ID = {
   position: [0, 0, 0] as [number, number, number],
   rotation: [0, 0, 0, 1] as [number, number, number, number],
@@ -42,6 +50,7 @@ function node(
 export function describeAdapterConformance(
   makeAdapter: () => IRuntimeAdapter,
   label: string,
+  options?: ConformanceOptions,
 ): void {
   describe(`IRuntimeAdapter conformance — ${label}`, () => {
     // Track every adapter a test creates so we can dispose them (Babylon holds
@@ -329,5 +338,42 @@ export function describeAdapterConformance(
       a.tickBehaviors(0.25);
       expect(a.describeNode("m")!.position[1]).toBe(0); // disabled bob didn't move it
     });
+
+    const makePickAdapter = options?.makePickAdapter;
+    if (makePickAdapter) {
+      describe("pick parity (v1.0 B2) — 800×600 viewport, default editor camera", () => {
+        const makePick = (): IRuntimeAdapter => {
+          const adapter = makePickAdapter();
+          live.push(adapter);
+          return adapter;
+        };
+        const box = () =>
+          node({
+            id: "box",
+            name: "box",
+            type: "mesh",
+            data: { type: "mesh", geometry: { kind: "box" } },
+          });
+
+        it("pickAt(center) resolves the mesh at the origin", () => {
+          const a = makePick();
+          a.syncNode(box(), "add");
+          expect(a.pickAt(400, 300)).toBe("box");
+        });
+
+        it("pickAt(corner sky) returns null", () => {
+          const a = makePick();
+          a.syncNode(box(), "add");
+          expect(a.pickAt(10, 10)).toBeNull();
+        });
+
+        it("pickAt returns null after the node is removed", () => {
+          const a = makePick();
+          a.syncNode(box(), "add");
+          a.syncNode(box(), "remove");
+          expect(a.pickAt(400, 300)).toBeNull();
+        });
+      });
+    }
   });
 }
