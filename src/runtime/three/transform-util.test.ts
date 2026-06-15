@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
+import type { Transform } from "@/core/scene/types";
 import { captureTransform, transformsEqual } from "./transform-util";
 
 describe("captureTransform", () => {
@@ -16,11 +17,11 @@ describe("captureTransform", () => {
 
 describe("transformsEqual", () => {
   it("true for identical, false for any differing component", () => {
-    const a = {
+    const a: Transform = {
       position: [0, 0, 0],
       rotation: [0, 0, 0, 1],
       scale: [1, 1, 1],
-    } as const;
+    };
     expect(transformsEqual(a, { ...a })).toBe(true);
     expect(transformsEqual(a, { ...a, position: [0, 1, 0] })).toBe(false);
   });
