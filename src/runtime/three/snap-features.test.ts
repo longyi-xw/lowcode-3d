@@ -55,4 +55,22 @@ describe("computeSnapOffset priority chain", () => {
     expect(off).not.toBeNull();
     expect(off![0]).toBeCloseTo(1);
   });
+
+  it("uses node-align offset (over grid) only when the node has no sockets", () => {
+    const args = {
+      currentPos: [0, 0, 0] as [number, number, number],
+      draggedFeatures: [{ screen: [100, 100], world: [0, 0, 0] }] as SnapPoint[],
+      draggedSockets: [],
+      targetFeatures: [{ screen: [101, 101], world: [1, 0, 0] }] as SnapPoint[],
+      targetSockets: [],
+    };
+    // hasSockets=false → node-align is consulted and wins over grid.
+    const node = computeSnapOffset({ ...args, hasSockets: false });
+    expect(node).not.toBeNull();
+    expect(node![0]).toBeCloseTo(1);
+    // hasSockets=true → node-align is skipped; with no socket target it falls
+    // through to grid (≈zero offset from the origin), NOT the node offset.
+    const skipped = computeSnapOffset({ ...args, hasSockets: true });
+    expect(skipped![0]).toBeCloseTo(0);
+  });
 });
