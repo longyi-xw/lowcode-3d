@@ -10,7 +10,9 @@ import {
   type Node as BabylonNode,
 } from "@babylonjs/core";
 
-import type { IRenderHost } from "@/runtime/render-host";
+import type { IRenderHost, SnapNode } from "@/runtime/render-host";
+import type { GizmoMode } from "@/core/editor-types";
+import type { Transform } from "@/core/scene/types";
 
 import { BabylonAdapter } from "./adapter";
 
@@ -113,6 +115,22 @@ export class BabylonRenderHost implements IRenderHost {
     for (const child of root.getDescendants(false)) {
       if (child instanceof Mesh) layer.addMesh(child, SELECTION_COLOR);
     }
+  }
+
+  // ── Gizmo + snap (B3b will implement; Babylon is view-only until then) ──
+  setGizmoMode(_mode: GizmoMode): void {
+    // no-op until B3b adds the Babylon GizmoManager
+  }
+  setGizmoTarget(_node_id: string | null, _locked: boolean): void {
+    // no-op until B3b
+  }
+  onTransformCommit(
+    _cb: (node_id: string, prev: Transform, next: Transform) => void,
+  ): void {
+    // no-op until B3b
+  }
+  setSnapProvider(_provider: () => SnapNode[]): void {
+    // no-op until B3b
   }
 
   dispose(): void {
