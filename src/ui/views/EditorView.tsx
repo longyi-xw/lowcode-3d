@@ -4,7 +4,8 @@ import { Box, Settings, X } from "lucide-react";
 
 import { useSceneStore } from "@/services/scene/store";
 import { useAssetPreviewStore } from "@/services/assets/preview-store";
-import { useUIStore, type GizmoMode, type RightPanelTab } from "@/services/ui/store";
+import { useUIStore, type RightPanelTab } from "@/services/ui/store";
+import type { GizmoMode } from "@/core/editor-types";
 import { executeCommand } from "@/services/command-history";
 import { closeProject } from "@/services/project/actions";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";

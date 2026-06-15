@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ViewportEngine } from "@/runtime/render-host";
+import type { GizmoMode } from "@/core/editor-types";
 
 /**
  * UI store — ephemeral, never persisted.
@@ -8,7 +9,7 @@ import type { ViewportEngine } from "@/runtime/render-host";
  * visible, which node is selected for inspection, which nodes are expanded
  * in the hierarchy tree. Reset on every launch.
  */
-export type GizmoMode = "translate" | "rotate" | "scale";
+export type { GizmoMode } from "@/core/editor-types";
 export type RightPanelTab = "properties" | "behaviors";
 export type PlayState = "edit" | "play";
 
