@@ -124,7 +124,9 @@
   - [ ] **A3 · glTF + 导出**：prefab_instance/glTF 加载 + `babylon` 导出 target（含 behavior codegen 跨引擎）。
   - [x] **B1 · render host：实时切引擎（看+转相机）**：引擎中立 `IRenderHost` 契约（B1 子集：mount/渲染循环/相机/resize/dispose）+ `BabylonRenderHost`（真 `Engine` + `ArcRotateCamera`，`BabylonAdapter` 构造可注入引擎、默认仍 NullEngine 保 conformance）+ `BabylonViewport`（`diffSceneNodes` 增量同步，warn-skip 错误隔离）+ 视口工具栏 Three/Babylon 开关（`useUIStore.viewportEngine` 会话态，切换强制退 play）。Babylon 场景 `useRightHandedSystem` 对齐 three/glTF 坐标系（无镜像）。Babylon 模式 view-only：play/gizmo/拾取/拖放/F focus 经 `isEngineEditingCapable` 统一禁用。**ThreeViewport 零改动**（「并行+定接口」，B2/B3 按 A1 spec §8 清单收敛）。
   - [x] **B2 · 拾取 + 选中描边跨引擎**：`BabylonAdapter.pickAt`（`scene.pick` + `metadata.nodeId` 父链上溯——A1 已埋标记）+ 构造时默认编辑器相机（镜像 ThreeAdapter defaultCamera [4,3,4]/fov50°，conformance 拾取对等的基础）；conformance 扩 `makePickAdapter` 拾取对等 3 用例 ×2 引擎；`IRenderHost.setSelection` + `BabylonRenderHost` `HighlightLayer`（#3b82f6，NullEngine 可测）；`BabylonViewport` 点选（PR #8 click-vs-drag guard）+ 选中订阅 + diff 后重放（同 id 重建重挂高亮）；ThreeViewport `diffAndApply` 迁 `diffSceneNodes`（最小收敛，拾取/描边/gizmo 不动，B3 抽 ThreeRenderHost 时一起收）。
-  - [ ] **B3 · gizmo + snap 跨引擎**。
+  - [ ] **B3 · gizmo + snap 跨引擎**（拆为 B3a/B3b）：
+    - [ ] **B3a · 抽 ThreeRenderHost**：render loop/camera/pick/outline/gizmo/snap 从 `ThreeViewport` 抽进 `ThreeRenderHost implements IRenderHost`（行为保持重构，借成熟 Three 实现定义 gizmo+snap 契约）；`IRenderHost` 加 `setGizmoMode`/`setGizmoTarget`/`onTransformCommit`（store/command 无关）/`setSnapProvider`；snap 特征提取下沉 `snap-features.ts`（纯函数 `computeSnapOffset`）；`ThreeViewport` 改薄壳，socket markers/asset drop/play/focus 经引擎专有面（`adapter`/`focusCamera`/`setFrameCallback`）留守（B4 抽）；`BabylonRenderHost` 暂 no-op stub。
+    - [ ] **B3b · Babylon gizmo + snap**：`BabylonRenderHost` 实现同契约（`GizmoManager` + Babylon 特征提取），conformance / smoke 验跨引擎对等。
   - [ ] **B4 · 视口能力剩余**：socket 标记 / 资源拖放落点 / F focus / play 行为预览跨引擎；Babylon 视口底色 sRGB 对齐（Three OutputPass 提亮 vs Babylon 直写 raw，见 B1 smoke 记录）；Babylon 光强/材质观感对齐。
 - **Depends on**: v0.5 行为系统全部完成（v0.5 Stage C）
 
