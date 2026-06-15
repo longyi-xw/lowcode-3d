@@ -141,6 +141,11 @@ export function ThreeViewport() {
         }
       }
     };
+    // Rebuild markers on every gizmo drag move so a dragged node's socket
+    // markers track it instead of freezing at the drag start (the host owns
+    // the gizmo's objectChange now; this seam restores the old in-component
+    // "rebuild markers on objectChange" behaviour).
+    host.onGizmoChange(rebuildSocketMarkers);
 
     // syncSelectionShell wires selection into the host (gizmo target + outline)
     // and rebuilds socket markers (which depend on the current selection for

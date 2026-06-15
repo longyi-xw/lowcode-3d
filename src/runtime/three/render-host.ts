@@ -45,6 +45,7 @@ export class ThreeRenderHost implements IRenderHost {
     null;
   private snapProvider: (() => SnapNode[]) | null = null;
   private frameCb: ((dt: number) => void) | null = null;
+  private gizmoChangeCb: (() => void) | null = null;
 
   private gizmoMode: GizmoMode = "translate";
   private currentSelectionId: string | null = null;
@@ -179,6 +180,10 @@ export class ThreeRenderHost implements IRenderHost {
 
     gizmo.addEventListener("objectChange", () => {
       this.snapDraggedObject();
+      // Notify the shell every move so viewport-side overlays that track the
+      // dragged node (socket markers, which stay in ThreeViewport per B3a's
+      // minimal extraction) rebuild instead of freezing at the drag start.
+      this.gizmoChangeCb?.();
     });
 
     this.clock = new THREE.Clock();
@@ -246,6 +251,13 @@ export class ThreeRenderHost implements IRenderHost {
     this.frameCb = cb;
   }
 
+  /** Engine-specific surface — fires on every gizmo drag move (after snap) so
+   *  the viewport can rebuild overlays that track the dragged node (socket
+   *  markers stay in the shell per B3a's minimal extraction). */
+  onGizmoChange(cb: (() => void) | null): void {
+    this.gizmoChangeCb = cb;
+  }
+
   /** Engine-specific surface — focus effect moves camera + controls (both
    *  owned here now). target/distance computed by the viewport via
    *  computeFocusTarget. */
@@ -306,5 +318,6 @@ export class ThreeRenderHost implements IRenderHost {
     this.commitCb = null;
     this.snapProvider = null;
     this.frameCb = null;
+    this.gizmoChangeCb = null;
   }
 }

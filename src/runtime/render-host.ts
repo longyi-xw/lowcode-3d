@@ -15,11 +15,12 @@ export interface SnapNode {
 }
 
 /**
- * Engine-neutral render host contract (v1.0 B1 subset: mount / render loop /
- * camera / resize / dispose). B2 extends it with picking + selection
- * highlight, B3 with the gizmo — converging ThreeViewport onto it per the
- * A1 spec §8 boundary list. B1's only implementation is BabylonRenderHost;
- * the Three side stays inside ThreeViewport untouched.
+ * Engine-neutral render host contract. Grown incrementally: B1 = mount /
+ * render loop / camera / resize / dispose; B2 = picking + selection highlight;
+ * B3a = gizmo + snap (setGizmoMode / setGizmoTarget / onTransformCommit /
+ * setSnapProvider), defined by extracting the mature Three implementation.
+ * Implementations: ThreeRenderHost (full) and BabylonRenderHost (gizmo+snap
+ * are no-op stubs until B3b adds the Babylon GizmoManager).
  *
  * Call order: mount → start → (resize/stop/start)* → dispose. An instance is
  * not reusable after dispose.
