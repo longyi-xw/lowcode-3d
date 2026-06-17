@@ -1,5 +1,5 @@
 import { ArcRotateCamera, Mesh, NullEngine } from "@babylonjs/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { SceneNode } from "@/core/scene/types";
 
@@ -108,6 +108,119 @@ describe("BabylonRenderHost", () => {
     it("setSelection before mount is a no-op (no throw)", () => {
       const { host } = makeHost();
       expect(() => host.setSelection("box")).not.toThrow();
+    });
+  });
+
+  describe("gizmo wiring (v1.0 B3b)", () => {
+    function mounted() {
+      const { host } = makeHost();
+      host.mount(document.createElement("canvas"));
+      return host;
+    }
+
+    it("mount creates a GizmoManager with all gizmos disabled", () => {
+      const host = mounted();
+      const gm = host.gizmoManagerForTest!;
+      expect(gm).not.toBeNull();
+      expect(gm.positionGizmoEnabled).toBe(false);
+      expect(gm.rotationGizmoEnabled).toBe(false);
+      expect(gm.scaleGizmoEnabled).toBe(false);
+      host.dispose();
+    });
+
+    it("setGizmoMode('translate') enables only the position gizmo", () => {
+      const host = mounted();
+      host.setGizmoMode("translate");
+      const gm = host.gizmoManagerForTest!;
+      expect(gm.positionGizmoEnabled).toBe(true);
+      expect(gm.rotationGizmoEnabled).toBe(false);
+      expect(gm.scaleGizmoEnabled).toBe(false);
+      host.dispose();
+    });
+
+    it("setGizmoMode('rotate') enables only the rotation gizmo", () => {
+      const host = mounted();
+      host.setGizmoMode("rotate");
+      const gm = host.gizmoManagerForTest!;
+      expect(gm.positionGizmoEnabled).toBe(false);
+      expect(gm.rotationGizmoEnabled).toBe(true);
+      expect(gm.scaleGizmoEnabled).toBe(false);
+      host.dispose();
+    });
+
+    it("setGizmoMode('scale') enables only the scale gizmo", () => {
+      const host = mounted();
+      host.setGizmoMode("scale");
+      const gm = host.gizmoManagerForTest!;
+      expect(gm.positionGizmoEnabled).toBe(false);
+      expect(gm.rotationGizmoEnabled).toBe(false);
+      expect(gm.scaleGizmoEnabled).toBe(true);
+      host.dispose();
+    });
+
+    it("setGizmoMode can switch modes without throwing", () => {
+      const host = mounted();
+      expect(() => {
+        host.setGizmoMode("translate");
+        host.setGizmoMode("rotate");
+        host.setGizmoMode("scale");
+        host.setGizmoMode("translate");
+      }).not.toThrow();
+      host.dispose();
+    });
+
+    it("setGizmoTarget with locked=true detaches (attachedNodeId=null)", () => {
+      const host = mounted();
+      host.adapter.syncNode(boxNode("box"), "add");
+      host.setGizmoMode("translate");
+      // locked node: should not attach
+      host.setGizmoTarget("box", true);
+      expect(host.gizmoManagerForTest!.attachedNode).toBeNull();
+      host.dispose();
+    });
+
+    it("setGizmoTarget with null detaches", () => {
+      const host = mounted();
+      host.adapter.syncNode(boxNode("box"), "add");
+      host.setGizmoMode("translate");
+      host.setGizmoTarget(null, false);
+      expect(host.gizmoManagerForTest!.attachedNode).toBeNull();
+      host.dispose();
+    });
+
+    it("setGizmoTarget with valid id and locked=false attaches the node", () => {
+      const host = mounted();
+      host.adapter.syncNode(boxNode("box"), "add");
+      host.setGizmoMode("translate");
+      host.setGizmoTarget("box", false);
+      expect(host.gizmoManagerForTest!.attachedNode).not.toBeNull();
+      host.dispose();
+    });
+
+    it("onTransformCommit and setSnapProvider do not throw", () => {
+      const host = mounted();
+      expect(() => {
+        host.onTransformCommit(vi.fn());
+        host.setSnapProvider(() => []);
+      }).not.toThrow();
+      host.dispose();
+    });
+
+    it("dispose cleans up GizmoManager without throwing", () => {
+      const host = mounted();
+      host.setGizmoMode("translate");
+      expect(() => host.dispose()).not.toThrow();
+      expect(host.gizmoManagerForTest).toBeNull();
+    });
+
+    it("setGizmoMode before mount is a no-op (no throw)", () => {
+      const { host } = makeHost();
+      expect(() => host.setGizmoMode("rotate")).not.toThrow();
+    });
+
+    it("setGizmoTarget before mount is a no-op (no throw)", () => {
+      const { host } = makeHost();
+      expect(() => host.setGizmoTarget("box", false)).not.toThrow();
     });
   });
 });
