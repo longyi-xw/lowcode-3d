@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { isEngineEditingCapable } from "@/runtime/render-host";
+import { engineCapabilities } from "@/runtime/render-host";
 import { useUIStore } from "@/services/ui/store";
 
 export function PlayButton() {
@@ -9,7 +9,7 @@ export function PlayButton() {
   const setPlayState = useUIStore((s) => s.setPlayState);
   const viewportEngine = useUIStore((s) => s.viewportEngine);
   const isPlay = playState === "play";
-  const editingCapable = isEngineEditingCapable(viewportEngine);
+  const editingCapable = engineCapabilities(viewportEngine).play;
 
   return (
     <button

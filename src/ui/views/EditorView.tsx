@@ -19,7 +19,7 @@ import { SocketsSection } from "@/ui/editor/SocketsSection";
 import { ShortcutsHelpDialog } from "@/ui/help/ShortcutsHelpDialog";
 import { AssetDragGhost } from "@/ui/library/AssetDragGhost";
 import { LibraryPanel } from "@/ui/library/LibraryPanel";
-import { isEngineEditingCapable } from "@/runtime/render-host";
+import { engineCapabilities } from "@/runtime/render-host";
 import { EngineToggle } from "@/ui/viewport/EngineToggle";
 import { PlayButton } from "@/ui/viewport/PlayButton";
 import { Viewport } from "@/ui/viewport/Viewport";
@@ -118,7 +118,7 @@ export function EditorView() {
                 <GizmoModeToolbar
                   mode={gizmoMode}
                   disabled={
-                    selectedNodeId === null || !isEngineEditingCapable(viewportEngine)
+                    selectedNodeId === null || !engineCapabilities(viewportEngine).gizmo
                   }
                   onChange={setGizmoMode}
                 />

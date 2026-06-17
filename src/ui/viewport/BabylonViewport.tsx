@@ -14,9 +14,9 @@ import { diffSceneNodes, EMPTY_SCENE_GRAPH, type SceneDiff } from "./scene-diff"
  *   - Mount effect re-runs only when the active project id changes; node
  *     edits flow through a useSceneStore subscription → diffSceneNodes →
  *     adapter.syncNode, so the canvas / camera state survive edits.
- *   - No gizmo / play / drop / focus — those are B3/B4; picking + selection
- *     highlight landed in B2. The surrounding UI disables itself via
- *     isEngineEditingCapable.
+ *   - No play / drop / focus — those are B4; gizmo landed in B3b; picking +
+ *     selection highlight landed in B2. The surrounding UI disables itself via
+ *     engineCapabilities.
  * Per-node sync failures warn + skip (one unbuildable node — e.g. a helper,
  * which has no Babylon builder yet — must not kill the whole viewport).
  */
