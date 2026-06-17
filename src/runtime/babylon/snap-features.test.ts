@@ -7,7 +7,12 @@ import {
   MeshBuilder,
   TransformNode,
 } from "@babylonjs/core";
-import { bboxFeatures, toScreen, socketPoints } from "./snap-features";
+import {
+  bboxFeatures,
+  toScreen,
+  socketPoints,
+  featureSnapPoints,
+} from "./snap-features";
 
 function makeScene() {
   const engine = new NullEngine();
@@ -78,6 +83,21 @@ describe("babylon socketPoints", () => {
     expect(pts).toHaveLength(1);
     expect(pts[0]!.world[0]).toBeCloseTo(5);
     expect(pts[0]!.world[1]).toBeCloseTo(1);
+    engine.dispose();
+  });
+});
+
+describe("babylon featureSnapPoints", () => {
+  it("pairs each bbox feature's world point with its screen projection", () => {
+    const { scene, engine } = makeScene();
+    const box = MeshBuilder.CreateBox("b", { size: 2 }, scene);
+    box.computeWorldMatrix(true);
+    const pts = featureSnapPoints(box, scene, 800, 600);
+    expect(pts).toHaveLength(15);
+    // center (index 0) is the world origin → projects to viewport center.
+    expect(pts[0]!.world).toEqual([0, 0, 0]);
+    expect(pts[0]!.screen[0]).toBeCloseTo(400, 0);
+    expect(pts[0]!.screen[1]).toBeCloseTo(300, 0);
     engine.dispose();
   });
 });

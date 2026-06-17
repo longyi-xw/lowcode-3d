@@ -1,8 +1,8 @@
 import {
+  AbstractMesh,
   Matrix,
   Vector3,
   Viewport,
-  type AbstractMesh,
   type Node as BabylonNode,
   type Scene,
 } from "@babylonjs/core";
@@ -14,11 +14,9 @@ import type { Socket } from "@/core/scene/types";
 /** Descendant meshes of a node, including the node itself when it is a mesh. */
 function meshesOf(node: BabylonNode): AbstractMesh[] {
   const children = node.getChildMeshes(false);
-  const self = node as unknown as Partial<AbstractMesh>;
-  if (typeof self.getBoundingInfo === "function") {
-    return [self as unknown as AbstractMesh, ...children.filter((m) => m !== self)];
-  }
-  return children;
+  return node instanceof AbstractMesh
+    ? [node, ...children.filter((m) => m !== node)]
+    : children;
 }
 
 /** 15 OBB features (center + 8 corners + 6 face centers) in WORLD space; []
@@ -28,10 +26,8 @@ function meshesOf(node: BabylonNode): AbstractMesh[] {
  *  follow rotation (OBB, not world AABB). Index order MUST match the Three
  *  version for cross-engine node-align parity. */
 export function bboxFeatures(node: BabylonNode): Vector3[] {
-  const tn = node as BabylonNode & { computeWorldMatrix?: (force: boolean) => Matrix };
-  if (typeof tn.computeWorldMatrix !== "function") return [];
-  tn.computeWorldMatrix(true);
-  const world = tn.getWorldMatrix();
+  node.computeWorldMatrix(true);
+  const world = node.getWorldMatrix();
   const invWorld = Matrix.Invert(world);
   let min: Vector3 | null = null;
   let max: Vector3 | null = null;
@@ -126,9 +122,8 @@ export function socketPoints(
   h: number,
 ): SocketPoint[] {
   if (sockets.length === 0) return [];
-  const tn = node as BabylonNode & { computeWorldMatrix?: (force: boolean) => Matrix };
-  if (typeof tn.computeWorldMatrix === "function") tn.computeWorldMatrix(true);
-  const world = tn.getWorldMatrix();
+  node.computeWorldMatrix(true);
+  const world = node.getWorldMatrix();
   return sockets.map((s) => {
     const wp = Vector3.TransformCoordinates(
       new Vector3(s.position[0], s.position[1], s.position[2]),
@@ -137,7 +132,7 @@ export function socketPoints(
     return {
       screen: toScreen(wp, scene, w, h),
       world: [wp.x, wp.y, wp.z] as [number, number, number],
-      tag: s.tag ?? "",
+      tag: s.tag,
     };
   });
 }
