@@ -50,6 +50,10 @@ export class BabylonRenderHost implements IRenderHost {
   // ── Gizmo state (B3b) ──
   private gizmoManager: GizmoManager | null = null;
   private gizmoMode: GizmoMode = "translate";
+  /** Gizmo instances we've already attached drag observers to. GizmoManager
+   *  reuses (does NOT dispose) a gizmo when its *Enabled flag toggles, so
+   *  wiring must be idempotent or observers accumulate across mode switches. */
+  private readonly wiredGizmos = new WeakSet<object>();
   private attachedNodeId: string | null = null;
   private commitCb: ((id: string, prev: Transform, next: Transform) => void) | null =
     null;
@@ -160,9 +164,9 @@ export class BabylonRenderHost implements IRenderHost {
     this.gizmoMode = mode;
     const gm = this.gizmoManager;
     if (!gm) return;
-    // Setting a flag to false disposes the gizmo (and its observables).
-    // Setting to true recreates it with fresh empty observables.
-    // We must re-wire after every mode switch.
+    // Toggling *Enabled creates the gizmo on first true (and reuses it after);
+    // false only detaches it. Wire its observers once it exists (idempotent —
+    // see wireActiveGizmo).
     gm.positionGizmoEnabled = mode === "translate";
     gm.rotationGizmoEnabled = mode === "rotate";
     gm.scaleGizmoEnabled = mode === "scale";
@@ -188,10 +192,10 @@ export class BabylonRenderHost implements IRenderHost {
     this.snapProvider = provider;
   }
 
-  /** Re-attach drag observers to the currently-enabled gizmo. Called after
-   *  setGizmoMode because GizmoManager disposes a gizmo (and its observers)
-   *  when its *Enabled flag goes false; the freshly-recreated gizmo starts
-   *  with empty observables, so adding once here never double-fires. */
+  /** Attach drag observers to the currently-enabled gizmo, once per gizmo
+   *  instance. GizmoManager reuses (does not dispose) a gizmo across *Enabled
+   *  toggles, so without the wiredGizmos guard every mode switch would stack
+   *  another observer and fire onDragStart/End/Drag multiple times per drag. */
   private wireActiveGizmo(): void {
     const gm = this.gizmoManager;
     if (!gm) return;
@@ -201,7 +205,8 @@ export class BabylonRenderHost implements IRenderHost {
         : this.gizmoMode === "rotate"
           ? gm.gizmos.rotationGizmo
           : gm.gizmos.scaleGizmo;
-    if (!g) return;
+    if (!g || this.wiredGizmos.has(g)) return;
+    this.wiredGizmos.add(g);
     g.onDragStartObservable.add(() => this.onGizmoDragStart());
     g.onDragEndObservable.add(() => this.onGizmoDragEnd());
     if (this.gizmoMode === "translate") {

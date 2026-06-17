@@ -169,6 +169,21 @@ describe("BabylonRenderHost", () => {
       host.dispose();
     });
 
+    it("does not accumulate drag observers when a mode is re-selected", () => {
+      // GizmoManager reuses gizmo instances across *Enabled toggles, so
+      // re-entering translate must NOT add a second onDragStart observer
+      // (otherwise captureTransform + commit fire twice per drag).
+      const host = mounted();
+      host.setGizmoMode("translate");
+      host.setGizmoMode("rotate");
+      host.setGizmoMode("translate"); // reuse the same positionGizmo instance
+      const pg = host.gizmoManagerForTest!.gizmos.positionGizmo!;
+      expect(pg.onDragStartObservable.observers).toHaveLength(1);
+      expect(pg.onDragEndObservable.observers).toHaveLength(1);
+      expect(pg.onDragObservable.observers).toHaveLength(1);
+      host.dispose();
+    });
+
     it("setGizmoTarget with locked=true detaches (attachedNodeId=null)", () => {
       const host = mounted();
       host.adapter.syncNode(boxNode("box"), "add");
