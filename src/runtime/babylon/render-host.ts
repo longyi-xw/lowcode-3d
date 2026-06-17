@@ -112,6 +112,10 @@ export class BabylonRenderHost implements IRenderHost {
     // GizmoManager — usePointerToAttachGizmos=false because selection is
     // driven by the editor store (setGizmoTarget), not pointer picking.
     // All three gizmo flags start false; setGizmoMode enables the right one.
+    // No manual camera detach needed during drag: Babylon gizmos use
+    // PointerDragBehavior, which has detachCameraControls=true by default, so
+    // the ArcRotateCamera stops orbiting for the drag's duration on its own
+    // (unlike Three, where ThreeRenderHost must toggle orbit.enabled).
     const gm = new GizmoManager(scene);
     gm.usePointerToAttachGizmos = false;
     gm.positionGizmoEnabled = false;
@@ -209,8 +213,9 @@ export class BabylonRenderHost implements IRenderHost {
     this.wiredGizmos.add(g);
     g.onDragStartObservable.add(() => this.onGizmoDragStart());
     g.onDragEndObservable.add(() => this.onGizmoDragEnd());
+    // Per-move snapping only applies to translate; g is the position gizmo here.
     if (this.gizmoMode === "translate") {
-      gm.gizmos.positionGizmo?.onDragObservable.add(() => this.onGizmoDrag());
+      g.onDragObservable.add(() => this.onGizmoDrag());
     }
   }
 
