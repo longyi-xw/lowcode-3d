@@ -138,6 +138,17 @@ describe("BabylonRenderHost", () => {
       host.dispose();
     });
 
+    it("translate gizmo enables plane-drag handles (not just axis arrows)", () => {
+      const host = mounted();
+      host.setGizmoMode("translate");
+      // planarGizmoEnabled adds the XY/YZ/XZ plane handles so the user can drag
+      // on a plane, matching Three's TransformControls.
+      expect(host.gizmoManagerForTest!.gizmos.positionGizmo!.planarGizmoEnabled).toBe(
+        true,
+      );
+      host.dispose();
+    });
+
     it("setGizmoMode('rotate') enables only the rotation gizmo", () => {
       const host = mounted();
       host.setGizmoMode("rotate");

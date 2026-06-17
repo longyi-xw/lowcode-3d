@@ -203,20 +203,25 @@ export class BabylonRenderHost implements IRenderHost {
   private wireActiveGizmo(): void {
     const gm = this.gizmoManager;
     if (!gm) return;
+    if (this.gizmoMode === "translate") {
+      const pg = gm.gizmos.positionGizmo;
+      if (!pg || this.wiredGizmos.has(pg)) return;
+      this.wiredGizmos.add(pg);
+      // Show the plane-drag handles too (the axis arrows alone only allow
+      // single-axis drag); matches Three's TransformControls which has both
+      // axis and plane handles. Plane drags fire the same onDrag* observables.
+      pg.planarGizmoEnabled = true;
+      pg.onDragStartObservable.add(() => this.onGizmoDragStart());
+      pg.onDragEndObservable.add(() => this.onGizmoDragEnd());
+      pg.onDragObservable.add(() => this.onGizmoDrag()); // snap, translate only
+      return;
+    }
     const g =
-      this.gizmoMode === "translate"
-        ? gm.gizmos.positionGizmo
-        : this.gizmoMode === "rotate"
-          ? gm.gizmos.rotationGizmo
-          : gm.gizmos.scaleGizmo;
+      this.gizmoMode === "rotate" ? gm.gizmos.rotationGizmo : gm.gizmos.scaleGizmo;
     if (!g || this.wiredGizmos.has(g)) return;
     this.wiredGizmos.add(g);
     g.onDragStartObservable.add(() => this.onGizmoDragStart());
     g.onDragEndObservable.add(() => this.onGizmoDragEnd());
-    // Per-move snapping only applies to translate; g is the position gizmo here.
-    if (this.gizmoMode === "translate") {
-      g.onDragObservable.add(() => this.onGizmoDrag());
-    }
   }
 
   private draggedNode(): BabylonNode | undefined {
