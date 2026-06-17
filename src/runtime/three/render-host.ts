@@ -11,7 +11,8 @@ import type { Transform } from "@/core/scene/types";
 import type { IRenderHost, SnapNode } from "@/runtime/render-host";
 import { ThreeAdapter } from "@/runtime/three/adapter";
 
-import { computeSnapOffset, featureSnapPoints, socketPoints } from "./snap-features";
+import { computeSnapOffset } from "@/core/snap/offset";
+import { featureSnapPoints, socketPoints } from "./snap-features";
 import { captureTransform, transformsEqual } from "./transform-util";
 
 /**

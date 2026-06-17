@@ -1,8 +1,7 @@
 import * as THREE from "three";
 
-import { snapTranslation } from "@/core/snap/grid";
-import { SNAP_PIXELS, snapToNodes, type SnapPoint } from "@/core/snap/nodes";
-import { snapToSockets, type SocketPoint } from "@/core/snap/sockets";
+import type { SnapPoint } from "@/core/snap/nodes";
+import type { SocketPoint } from "@/core/snap/sockets";
 import type { Socket } from "@/core/scene/types";
 
 /** 15 个 bbox 特征（中心 + 8 角 + 6 面中心）的世界坐标；无几何返回 []。
@@ -101,34 +100,4 @@ export function socketPoints(
       tag: s.tag,
     };
   });
-}
-
-type Vec3 = [number, number, number];
-
-/**
- * Pure snap priority chain extracted from ThreeViewport.snapDraggedObject:
- * socket-align → node-align (only when the dragged node has no tagged socket)
- * → grid fallback. Returns the world-space offset to apply to the dragged
- * object's position, or null only when there is genuinely nothing to do
- * (never happens on the grid path — grid always returns an offset, possibly
- * zero). Behaviour-equivalent to the in-component version; the caller still
- * gates on translate-mode + modifier before calling.
- */
-export function computeSnapOffset(args: {
-  currentPos: Vec3;
-  draggedFeatures: SnapPoint[];
-  draggedSockets: SocketPoint[];
-  hasSockets: boolean;
-  targetFeatures: SnapPoint[];
-  targetSockets: SocketPoint[];
-}): Vec3 | null {
-  const { currentPos, draggedFeatures, draggedSockets, hasSockets } = args;
-  const socketOffset = snapToSockets(draggedSockets, args.targetSockets, SNAP_PIXELS);
-  if (socketOffset) return socketOffset;
-  if (!hasSockets) {
-    const offset = snapToNodes(draggedFeatures, args.targetFeatures, SNAP_PIXELS);
-    if (offset) return offset;
-  }
-  const [gx, gy, gz] = snapTranslation(currentPos);
-  return [gx - currentPos[0], gy - currentPos[1], gz - currentPos[2]];
 }
