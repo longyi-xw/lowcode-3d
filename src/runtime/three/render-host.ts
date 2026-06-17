@@ -13,7 +13,8 @@ import { ThreeAdapter } from "@/runtime/three/adapter";
 
 import { computeSnapOffset } from "@/core/snap/offset";
 import { featureSnapPoints, socketPoints } from "./snap-features";
-import { captureTransform, transformsEqual } from "./transform-util";
+import { captureTransform } from "./transform-util";
+import { transformsEqual } from "@/runtime/transform-util";
 
 /**
  * Three.js render host (v1.0 B3a) — owns the WebGLRenderer, post-processing
