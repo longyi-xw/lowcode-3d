@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 
+function expectHexClose(actual: string | undefined, expected: string): void {
+  expect(actual).toBeDefined();
+  const ch = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const a = ch(actual!);
+  const e = ch(expected);
+  for (let i = 0; i < 3; i++) expect(Math.abs(a[i]! - e[i]!)).toBeLessThanOrEqual(2);
+}
+
 import type { SceneNode } from "@/core/scene/types";
 import type { IRuntimeAdapter } from "@/runtime/adapter";
 
@@ -150,6 +158,41 @@ export function describeAdapterConformance(
       );
       expect(a.describeNode("c")!.parentId).toBe("g");
       expect(a.describeNode("g")!.parentId).toBeNull();
+    });
+
+    it("describeNode reports equivalent material across engines", () => {
+      const a = make();
+      a.syncNode(
+        node({
+          id: "m",
+          name: "m",
+          type: "mesh",
+          data: {
+            type: "mesh",
+            geometry: { kind: "box" },
+            material_overrides: [
+              {
+                slot: 0,
+                color: "#3366cc",
+                metalness: 0.4,
+                roughness: 0.2,
+                emissive: "#110022",
+                emissive_intensity: 2,
+                opacity: 0.5,
+              },
+            ],
+          },
+        }),
+        "add",
+      );
+      const mat = a.describeNode("m")?.material;
+      expect(mat).toBeDefined();
+      expectHexClose(mat?.color, "#3366cc");
+      expect(mat?.metalness).toBeCloseTo(0.4);
+      expect(mat?.roughness).toBeCloseTo(0.2);
+      expectHexClose(mat?.emissive, "#110022");
+      expect(mat?.emissive_intensity).toBeCloseTo(2);
+      expect(mat?.opacity).toBeCloseTo(0.5);
     });
 
     it("maps mesh geometry kinds", () => {
