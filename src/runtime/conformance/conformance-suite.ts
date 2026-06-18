@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { SceneNode } from "@/core/scene/types";
+import type { IRuntimeAdapter } from "@/runtime/adapter";
+
+/** Assert two #rrggbb hex colours are within ±2 per channel — absorbs Three's
+ *  sRGB↔linear 8-bit round-trip without masking a real mapping difference. */
 function expectHexClose(actual: string | undefined, expected: string): void {
   expect(actual).toBeDefined();
   const ch = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -7,9 +12,6 @@ function expectHexClose(actual: string | undefined, expected: string): void {
   const e = ch(expected);
   for (let i = 0; i < 3; i++) expect(Math.abs(a[i]! - e[i]!)).toBeLessThanOrEqual(2);
 }
-
-import type { SceneNode } from "@/core/scene/types";
-import type { IRuntimeAdapter } from "@/runtime/adapter";
 
 export interface ConformanceOptions {
   /** Engine-specific factory returning an adapter ready to pick against an
