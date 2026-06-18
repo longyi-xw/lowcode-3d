@@ -54,12 +54,23 @@ export interface IRenderHost {
 }
 
 /**
- * Capability gate: only the Three viewport supports editing interactions
- * (gizmo / play / drop / focus). Picking + selection highlight are cross-engine
- * since B2 (viewport-internal, not gated here). Every UI surface that disables
- * itself in Babylon mode reads this single helper, so B3/B4 flip capabilities
- * in one place instead of hunting scattered engine === "..." checks.
+ * Per-engine editing capability flags. B1/B2 gated everything behind a single
+ * "three-only" boolean; B3b splits it so Babylon can enable the gizmo while
+ * play / focus / asset-drop stay Three-only until B4 implements them. B4 flips
+ * the remaining flags here in one place.
  */
-export function isEngineEditingCapable(engine: ViewportEngine): boolean {
-  return engine === "three.js";
+export interface EngineCapabilities {
+  /** Transform gizmo + snap (B3b: both engines). */
+  gizmo: boolean;
+  /** Play/pause behavior preview (B4: Three-only). */
+  play: boolean;
+  /** F-to-focus camera (B4: Three-only). */
+  focus: boolean;
+  /** Drag library assets into the viewport (B4: Three-only). */
+  assetDrop: boolean;
+}
+
+export function engineCapabilities(engine: ViewportEngine): EngineCapabilities {
+  const three = engine === "three.js";
+  return { gizmo: true, play: three, focus: three, assetDrop: three };
 }
