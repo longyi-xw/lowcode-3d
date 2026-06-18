@@ -1,8 +1,12 @@
 import { useEffect, useRef } from "react";
 
+import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
+import { isEffectivelyLocked } from "@/core/scene/policy";
 import type { SceneNode } from "@/core/scene/types";
 import type { SyncOp } from "@/runtime/adapter";
 import { BabylonRenderHost } from "@/runtime/babylon/render-host";
+import type { SnapNode } from "@/runtime/render-host";
+import { executeCommand } from "@/services/command-history";
 import { useSceneStore } from "@/services/scene/store";
 import { useUIStore } from "@/services/ui/store";
 
@@ -14,9 +18,9 @@ import { diffSceneNodes, EMPTY_SCENE_GRAPH, type SceneDiff } from "./scene-diff"
  *   - Mount effect re-runs only when the active project id changes; node
  *     edits flow through a useSceneStore subscription → diffSceneNodes →
  *     adapter.syncNode, so the canvas / camera state survive edits.
- *   - No gizmo / play / drop / focus — those are B3/B4; picking + selection
- *     highlight landed in B2. The surrounding UI disables itself via
- *     isEngineEditingCapable.
+ *   - No play / drop / focus — those are B4; gizmo landed in B3b; picking +
+ *     selection highlight landed in B2. The surrounding UI disables itself via
+ *     engineCapabilities.
  * Per-node sync failures warn + skip (one unbuildable node — e.g. a helper,
  * which has no Babylon builder yet — must not kill the whole viewport).
  */
@@ -44,6 +48,31 @@ export function BabylonViewport({
     host.mount(canvas);
     const adapter = host.adapter;
 
+    host.onTransformCommit((id, prev, next) =>
+      executeCommand(
+        new SetNodeTransformCommand({
+          node_id: id,
+          transform: next,
+          prev_transform: prev,
+        }),
+      ),
+    );
+    host.setSnapProvider(() => {
+      const nodes = useSceneStore.getState().project?.scene.nodes ?? {};
+      return Object.values(nodes).map((n) => ({
+        id: n.id,
+        sockets: n.sockets ?? [],
+        visible: n.visible,
+        type: n.type,
+      })) satisfies SnapNode[];
+    });
+    const syncGizmoTarget = (id: string | null) => {
+      const node = id ? useSceneStore.getState().project?.scene.nodes[id] : undefined;
+      host.setGizmoTarget(id, node ? isEffectivelyLocked(node) : false);
+    };
+    host.setGizmoMode(useUIStore.getState().gizmoMode);
+    syncGizmoTarget(useUIStore.getState().selectedNodeId);
+
     const trySync = (node: SceneNode, op: SyncOp) => {
       try {
         adapter.syncNode(node, op);
@@ -64,6 +93,10 @@ export function BabylonViewport({
       // dispose (HighlightLayer auto-cleans), but the NEW mesh instance needs
       // a fresh addMesh — setSelection is idempotent, so replaying is safe.
       syncSelection();
+      // Replay gizmo target onto the new node instance — after a diff the old
+      // runtime object may have been disposed; re-pinning ensures the gizmo
+      // points at the freshly-built mesh rather than a stale reference.
+      syncGizmoTarget(useUIStore.getState().selectedNodeId);
     };
 
     const initial = useSceneStore.getState().project;
@@ -97,6 +130,10 @@ export function BabylonViewport({
     const unsubscribeUI = useUIStore.subscribe((state, prev) => {
       if (state.selectedNodeId !== prev.selectedNodeId) {
         host.setSelection(state.selectedNodeId);
+        syncGizmoTarget(state.selectedNodeId);
+      }
+      if (state.gizmoMode !== prev.gizmoMode) {
+        host.setGizmoMode(state.gizmoMode);
       }
     });
 

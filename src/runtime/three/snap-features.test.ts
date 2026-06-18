@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { bboxFeatures, computeSnapOffset } from "./snap-features";
+import { bboxFeatures } from "./snap-features";
+import { computeSnapOffset } from "@/core/snap/offset";
 import type { SnapPoint } from "@/core/snap/nodes";
 
 describe("bboxFeatures (OBB)", () => {
