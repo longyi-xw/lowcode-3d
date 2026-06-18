@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { Camera, NullEngine } from "@babylonjs/core";
+import { Camera, Mesh, NullEngine, PBRMaterial } from "@babylonjs/core";
 
 import type { SceneNode } from "@/core/scene/types";
+import type { MaterialOverride } from "@/core/scene/material";
 
 import { BabylonAdapter } from "./adapter";
 
@@ -22,6 +23,7 @@ function meshNode(
   id: string,
   kind: "box" | "sphere" = "box",
   parent_id: string | null = null,
+  materialOverrides?: MaterialOverride[],
 ): SceneNode {
   return {
     ...base,
@@ -29,7 +31,7 @@ function meshNode(
     name: id,
     type: "mesh",
     parent_id,
-    data: { type: "mesh", geometry: { kind } },
+    data: { type: "mesh", geometry: { kind }, material_overrides: materialOverrides },
   };
 }
 
@@ -119,6 +121,36 @@ describe("BabylonAdapter", () => {
     const a = new BabylonAdapter();
     await expect(a.syncAsset({} as never)).rejects.toThrow(/not implemented/i);
     await expect(a.exportProject({} as never, {})).rejects.toThrow(/not implemented/i);
+    a.dispose();
+  });
+
+  it("applies material overrides to the mesh on create", () => {
+    const a = new BabylonAdapter();
+    a.syncNode(
+      meshNode("m", "box", null, [{ slot: 0, color: "#3366cc", metalness: 0.4 }]),
+      "add",
+    );
+    const mesh = a.getRuntimeObject("m") as Mesh;
+    expect(mesh.material).toBeInstanceOf(PBRMaterial);
+    expect((mesh.material as PBRMaterial).albedoColor.toHexString().toLowerCase()).toBe(
+      "#3366cc",
+    );
+    expect((mesh.material as PBRMaterial).metallic).toBeCloseTo(0.4);
+    a.dispose();
+  });
+
+  it("re-applies material on update and resets when override cleared", () => {
+    const a = new BabylonAdapter();
+    a.syncNode(meshNode("m", "box", null, [{ slot: 0, color: "#ff0000" }]), "add");
+    a.syncNode(meshNode("m", "box", null, [{ slot: 0, color: "#00ff00" }]), "update");
+    const mesh = a.getRuntimeObject("m") as Mesh;
+    expect((mesh.material as PBRMaterial).albedoColor.toHexString().toLowerCase()).toBe(
+      "#00ff00",
+    );
+    a.syncNode(meshNode("m", "box", null, undefined), "update"); // clear → default
+    expect((mesh.material as PBRMaterial).albedoColor.toHexString().toLowerCase()).toBe(
+      "#cccccc",
+    );
     a.dispose();
   });
 });

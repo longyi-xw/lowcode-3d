@@ -2,8 +2,10 @@ import {
   Camera,
   DirectionalLight,
   HemisphericLight,
+  Mesh,
   MeshBuilder,
   NullEngine,
+  PBRMaterial,
   PointLight,
   Quaternion,
   Scene,
@@ -14,6 +16,9 @@ import {
   type AbstractEngine,
   type Node as BabylonNode,
 } from "@babylonjs/core";
+
+import { resolveMaterial, type MaterialOverride } from "@/core/scene/material";
+import { applyPbrMaterial, createPbrMaterial } from "./material";
 
 import type {
   AssetReference,
@@ -124,6 +129,16 @@ export class BabylonAdapter implements IRuntimeAdapter {
       }
       applyBabylonTransform(existing, node);
       existing.setEnabled(node.visible);
+      if (
+        node.data.type === "mesh" &&
+        existing instanceof Mesh &&
+        existing.material instanceof PBRMaterial
+      ) {
+        applyPbrMaterial(
+          existing.material,
+          resolveMaterial(node.data.material_overrides?.[0]),
+        );
+      }
       return;
     }
     if (this.objects.get(node.id)) {
@@ -156,7 +171,7 @@ export class BabylonAdapter implements IRuntimeAdapter {
       case "mesh": {
         const kind = data.geometry?.kind ?? "box";
         return {
-          object: createMesh(node.name, kind, this.scene),
+          object: createMesh(node.name, kind, this.scene, data.material_overrides?.[0]),
           meta: { nodeId: node.id, kind: "mesh", geometryKind: kind },
         };
       }
@@ -332,11 +347,11 @@ function applyBabylonTransform(obj: BabylonNode, node: SceneNode): void {
   }
 }
 
-function createMesh(
+function buildMeshGeometry(
   name: string,
   kind: NonNullable<Extract<NodeData, { type: "mesh" }>["geometry"]>["kind"],
   scene: Scene,
-) {
+): Mesh {
   switch (kind) {
     case "sphere":
       return MeshBuilder.CreateSphere(name, { diameter: 1 }, scene);
@@ -348,6 +363,19 @@ function createMesh(
     default:
       return MeshBuilder.CreateBox(name, { size: 1 }, scene);
   }
+}
+
+function createMesh(
+  name: string,
+  kind: NonNullable<Extract<NodeData, { type: "mesh" }>["geometry"]>["kind"],
+  scene: Scene,
+  materialOverride?: MaterialOverride,
+): Mesh {
+  const mesh = buildMeshGeometry(name, kind, scene);
+  const mat = createPbrMaterial(name, scene);
+  applyPbrMaterial(mat, resolveMaterial(materialOverride));
+  mesh.material = mat;
+  return mesh;
 }
 
 function createLight(
