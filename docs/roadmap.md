@@ -127,7 +127,11 @@
   - [ ] **B3 · gizmo + snap 跨引擎**（拆为 B3a/B3b）：
     - [ ] **B3a · 抽 ThreeRenderHost**：render loop/camera/pick/outline/gizmo/snap 从 `ThreeViewport` 抽进 `ThreeRenderHost implements IRenderHost`（行为保持重构，借成熟 Three 实现定义 gizmo+snap 契约）；`IRenderHost` 加 `setGizmoMode`/`setGizmoTarget`/`onTransformCommit`（store/command 无关）/`setSnapProvider`；snap 特征提取下沉 `snap-features.ts`（纯函数 `computeSnapOffset`）；`ThreeViewport` 改薄壳，socket markers/asset drop/play/focus 经引擎专有面（`adapter`/`focusCamera`/`setFrameCallback`）留守（B4 抽）；`BabylonRenderHost` 暂 no-op stub。
     - [ ] **B3b · Babylon gizmo + snap**：`BabylonRenderHost` 实现同契约（`GizmoManager` + Babylon 特征提取），conformance / smoke 验跨引擎对等。
-  - [ ] **B4 · 视口能力剩余**：socket 标记 / 资源拖放落点 / F focus / play 行为预览跨引擎；Babylon 视口底色 sRGB 对齐（Three OutputPass 提亮 vs Babylon 直写 raw，见 B1 smoke 记录）；Babylon 光强/材质观感对齐。
+  - [ ] **B4 · 视口能力剩余**（多独立子系统，拆为 B4a-B4d）：
+    - [x] **B4a · Babylon 材质覆盖**：`BabylonAdapter` create+update 应用 PBR 材质覆盖（`PBRMaterial`，复用引擎中立 `resolveMaterial`，新 `babylon/material.ts`）；`RuntimeNodeInfo.material` + 两引擎 `describeNode` 读真实材质 + conformance 材质对等。观感/色彩空间/IBL/光强对齐留 B4d。
+    - [ ] **B4b · Babylon socket markers**：青色小球 overlay（让 B3b 的 socket 吸附可见可用），镜像 ThreeViewport。
+    - [ ] **B4c · Babylon 视口交互剩余**：play 行为预览 + F focus + 资源拖放落点接 BabylonViewport，翻 `engineCapabilities` 的 play/focus/assetDrop。
+    - [ ] **B4d · 渲染观感对齐**：Babylon 底色 sRGB/tone 对齐 Three OutputPass + 光强 + 材质观感（IBL/环境贴图让金属正常）。依赖 B4a。
 - **Depends on**: v0.5 行为系统全部完成（v0.5 Stage C）
 
 ### v1.x — Planned
