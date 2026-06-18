@@ -153,6 +153,19 @@ describe("BabylonAdapter", () => {
     );
     a.dispose();
   });
+
+  it("describeNode reports the mesh material", () => {
+    const a = new BabylonAdapter();
+    a.syncNode(
+      meshNode("m", "box", null, [{ slot: 0, color: "#3366cc", roughness: 0.2 }]),
+      "add",
+    );
+    const mat = a.describeNode("m")?.material;
+    expect(mat?.color).toBe("#3366cc");
+    expect(mat?.roughness).toBeCloseTo(0.2);
+    expect(mat?.opacity).toBeCloseTo(1);
+    a.dispose();
+  });
 });
 
 describe("BabylonAdapter behaviors", () => {

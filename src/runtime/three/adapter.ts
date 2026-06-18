@@ -293,6 +293,20 @@ export class ThreeAdapter implements IRuntimeAdapter {
     if (obj instanceof THREE.Mesh && typeof obj.userData.geometryKind === "string") {
       info.geometryKind = obj.userData.geometryKind as RuntimeNodeInfo["geometryKind"];
     }
+    if (
+      obj instanceof THREE.Mesh &&
+      obj.material instanceof THREE.MeshStandardMaterial
+    ) {
+      const mat = obj.material;
+      info.material = {
+        color: `#${mat.color.getHexString()}`,
+        metalness: mat.metalness,
+        roughness: mat.roughness,
+        emissive: `#${mat.emissive.getHexString()}`,
+        emissive_intensity: mat.emissiveIntensity,
+        opacity: mat.opacity,
+      };
+    }
     if (obj instanceof THREE.DirectionalLight) info.lightKind = "directional";
     else if (obj instanceof THREE.SpotLight) info.lightKind = "spot";
     else if (obj instanceof THREE.PointLight) info.lightKind = "point";

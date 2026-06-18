@@ -219,6 +219,17 @@ export class BabylonAdapter implements IRuntimeAdapter {
     if (meta.lightKind) info.lightKind = meta.lightKind;
     if (meta.cameraKind) info.cameraKind = meta.cameraKind;
     if (meta.geometryKind) info.geometryKind = meta.geometryKind;
+    if (obj instanceof Mesh && obj.material instanceof PBRMaterial) {
+      const mat = obj.material;
+      info.material = {
+        color: mat.albedoColor.toHexString().toLowerCase(),
+        metalness: mat.metallic ?? 0,
+        roughness: mat.roughness ?? 0,
+        emissive: mat.emissiveColor.toHexString().toLowerCase(),
+        emissive_intensity: mat.emissiveIntensity,
+        opacity: mat.alpha,
+      };
+    }
     return info;
   }
 

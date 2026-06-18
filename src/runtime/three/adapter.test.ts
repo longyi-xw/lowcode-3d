@@ -954,6 +954,33 @@ describe("ThreeAdapter.describeNode", () => {
     });
   });
 
+  it("describeNode reports the mesh material", () => {
+    const adapter = new ThreeAdapter(target);
+    adapter.syncNode(
+      {
+        id: "m",
+        name: "m",
+        type: "mesh",
+        transform: identityTransform,
+        parent_id: null,
+        children_ids: [],
+        visible: true,
+        locked: false,
+        data: {
+          type: "mesh",
+          geometry: { kind: "box" },
+          material_overrides: [{ slot: 0, color: "#3366cc", roughness: 0.2 }],
+        },
+        behaviors: [],
+        user_data: {},
+      },
+      "add",
+    );
+    const mat = adapter.describeNode("m")?.material;
+    expect(mat?.color).toBe("#3366cc");
+    expect(mat?.roughness).toBeCloseTo(0.2);
+  });
+
   it("reports parentId from the parent's nodeId", () => {
     const adapter = new ThreeAdapter(target);
     const base = {
