@@ -15,6 +15,18 @@ import type {
  */
 export type SyncOp = "add" | "update" | "remove";
 
+/** Engine-neutral snapshot of a mesh's resolved material (default ⊕ override),
+ *  read from the actual engine material. Colours are #rrggbb hex (lowercase).
+ *  Only present on mesh nodes that carry a material. */
+export interface MaterialInfo {
+  color: string;
+  metalness: number;
+  roughness: number;
+  emissive: string;
+  emissive_intensity: number;
+  opacity: number;
+}
+
 /**
  * Engine-neutral snapshot of a synced node's runtime object. Conformance
  * asserts on this; it also seams a future inspector panel / AI scene read.
@@ -30,6 +42,7 @@ export interface RuntimeNodeInfo {
   lightKind?: "directional" | "point" | "spot" | "ambient";
   cameraKind?: "perspective" | "orthographic";
   geometryKind?: "box" | "sphere" | "plane" | "cylinder";
+  material?: MaterialInfo;
 }
 
 /**
