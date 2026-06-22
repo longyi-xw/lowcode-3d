@@ -34,12 +34,12 @@ describe("PlayButton", () => {
     expect(useUIStore.getState().playState).toBe("edit");
   });
 
-  it("is disabled in the Babylon viewport (B1 — play lands in B4)", () => {
+  it("is enabled on Babylon viewport (B4c: play support)", () => {
     useUIStore.setState({ viewportEngine: "babylon.js" });
     render(<PlayButton />);
     const button = screen.getByRole("button");
-    expect(button).toBeDisabled();
+    expect(button).not.toBeDisabled();
     fireEvent.click(button);
-    expect(useUIStore.getState().playState).toBe("edit");
+    expect(useUIStore.getState().playState).toBe("play");
   });
 });

@@ -3,16 +3,13 @@ import { describe, expect, it } from "vitest";
 import { engineCapabilities } from "./render-host";
 
 describe("engineCapabilities", () => {
-  it("enables gizmo on both engines (B3b)", () => {
-    expect(engineCapabilities("three.js").gizmo).toBe(true);
-    expect(engineCapabilities("babylon.js").gizmo).toBe(true);
-  });
-  it("keeps play/focus/assetDrop Three-only (B4)", () => {
-    const b = engineCapabilities("babylon.js");
-    expect(b.play).toBe(false);
-    expect(b.focus).toBe(false);
-    expect(b.assetDrop).toBe(false);
-    const t = engineCapabilities("three.js");
-    expect(t.play && t.focus && t.assetDrop).toBe(true);
+  it("enables all editing capabilities on both engines (B4c)", () => {
+    for (const e of ["three.js", "babylon.js"] as const) {
+      const c = engineCapabilities(e);
+      expect(c.gizmo).toBe(true);
+      expect(c.play).toBe(true);
+      expect(c.focus).toBe(true);
+      expect(c.assetDrop).toBe(true);
+    }
   });
 });

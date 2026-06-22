@@ -71,6 +71,7 @@ export interface EngineCapabilities {
 }
 
 export function engineCapabilities(engine: ViewportEngine): EngineCapabilities {
-  const three = engine === "three.js";
-  return { gizmo: true, play: three, focus: three, assetDrop: three };
+  void engine; // both engines reach full editing parity at B4c; kept as the
+  // capability-gate seam for future v1.x engines (r3f / Unity) that may not.
+  return { gizmo: true, play: true, focus: true, assetDrop: true };
 }
