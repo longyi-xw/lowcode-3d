@@ -263,27 +263,18 @@ describe("BabylonRenderHost", () => {
       host.dispose();
     });
 
-    it("setFrameCallback is stored and cleared on dispose", () => {
+    it("setFrameCallback is accepted and dispose tears down cleanly", () => {
       // NullEngine's runRenderLoop does not self-drive frames in a test
-      // environment (no browser requestAnimationFrame). We therefore verify the
-      // contract semantics: the callback is accepted without throwing and is
-      // cleared (set to null) on dispose so it cannot fire after teardown.
+      // environment (no requestAnimationFrame), so the per-frame frameCb
+      // invocation is covered by visual smoke, not here. We verify the
+      // contract: the callback is accepted without throwing and start/stop/
+      // dispose tear down cleanly (dispose clears frameCb so it cannot fire
+      // after teardown).
       const { host } = makeHost();
       host.mount(document.createElement("canvas"));
-      const cb = vi.fn();
-      expect(() => host.setFrameCallback(cb)).not.toThrow();
-      // The render loop wired in start() calls frameCb each frame.
-      // Manually invoke a single frame to verify the wiring:
+      expect(() => host.setFrameCallback(vi.fn())).not.toThrow();
       host.start();
-      // Force one render loop tick by manually calling the registered loop cb.
-      // NullEngine exposes _activeRenderLoops (internal) — instead we call
-      // scene.render() directly and verify via the indirect frameCb integration.
-      // Because NullEngine doesn't auto-tick, we do a white-box check:
-      // setFrameCallback must not throw and dispose must clear it.
       host.stop();
-      host.dispose();
-      // After dispose the cb reference inside the host must be null —
-      // verified by the fact that calling dispose a second time doesn't throw.
       expect(() => host.dispose()).not.toThrow();
     });
 
