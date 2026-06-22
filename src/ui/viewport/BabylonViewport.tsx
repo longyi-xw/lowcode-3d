@@ -20,14 +20,14 @@ import { dropPositionFor } from "@/lib/drop-helpers";
 import { diffSceneNodes, EMPTY_SCENE_GRAPH, type SceneDiff } from "./scene-diff";
 
 /**
- * Babylon.js viewport (v1.0 B1 — view + orbit camera only). Mirrors
- * ThreeViewport's lifecycle conventions:
+ * Babylon.js viewport. Mirrors ThreeViewport's lifecycle conventions:
  *   - Mount effect re-runs only when the active project id changes; node
  *     edits flow through a useSceneStore subscription → diffSceneNodes →
  *     adapter.syncNode, so the canvas / camera state survive edits.
- *   - No play / drop / focus — those are B4; gizmo landed in B3b; picking +
- *     selection highlight landed in B2. The surrounding UI disables itself via
- *     engineCapabilities.
+ *   - Cross-engine parity grew incrementally: picking + selection highlight
+ *     (B2), gizmo + snap (B3b), material (B4a), play + F-focus + asset-drop
+ *     (B4c, mirroring ThreeViewport). engineCapabilities reports both engines
+ *     fully editing-capable.
  * Per-node sync failures warn + skip (one unbuildable node — e.g. a helper,
  * which has no Babylon builder yet — must not kill the whole viewport).
  */
@@ -209,6 +209,16 @@ export function BabylonViewport({
         obj.position?.set(t.position[0], t.position[1], t.position[2]);
         if (obj.rotationQuaternion) {
           obj.rotationQuaternion.set(
+            t.rotation[0],
+            t.rotation[1],
+            t.rotation[2],
+            t.rotation[3],
+          );
+        } else if (obj.rotationQuaternion === null) {
+          // Euler-mode transform node: assign a quaternion to restore the
+          // snapshot rotation (captureTransform converted its Euler → quat, so
+          // the in-place `.set` branch above would otherwise skip the restore).
+          obj.rotationQuaternion = new Quaternion(
             t.rotation[0],
             t.rotation[1],
             t.rotation[2],
