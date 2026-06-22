@@ -125,6 +125,10 @@ export function BabylonViewport({
       downY = event.clientY;
     };
     const onClick = (event: MouseEvent) => {
+      // Play mode: behaviors are running; clicking must not change the
+      // selection / gizmo target (Properties + Behaviors panels stay locked to
+      // whatever was selected when Play was pressed). Mirrors ThreeViewport.
+      if (useUIStore.getState().playState === "play") return;
       const dx = event.clientX - downX;
       const dy = event.clientY - downY;
       if (dx * dx + dy * dy > DRAG_PX_TOLERANCE_SQ) return;
