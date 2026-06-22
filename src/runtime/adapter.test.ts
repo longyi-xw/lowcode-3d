@@ -41,6 +41,12 @@ class NoopAdapter implements IRuntimeAdapter {
   pickAt(_screen_x: number, _screen_y: number): string | null {
     return null;
   }
+  raycastGroundPoint(
+    _screen_x: number,
+    _screen_y: number,
+  ): [number, number, number] | null {
+    return null;
+  }
 
   async exportProject(
     _project: SceneProject,

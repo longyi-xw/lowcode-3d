@@ -268,6 +268,28 @@ describe("engine injection (v1.0 B1)", () => {
   });
 });
 
+describe("raycastGroundPoint (v1.0 B4c)", () => {
+  it("raycastGroundPoint(center) hits the y=0 ground near origin", () => {
+    const a = new BabylonAdapter();
+    const w = a.scene.getEngine().getRenderWidth();
+    const h = a.scene.getEngine().getRenderHeight();
+    const hit = a.raycastGroundPoint(w / 2, h / 2);
+    expect(hit).not.toBeNull();
+    expect(hit![1]).toBeCloseTo(0, 4); // on the ground plane
+  });
+
+  it("raycastGroundPoint returns null when the ray points up (sky)", () => {
+    const a = new BabylonAdapter();
+    // The default NullEngine is 512×256. The camera at [4,3,4] looking at
+    // origin still casts downward rays across the entire 512×256 viewport.
+    // Pixels above the canvas top (negative sy) shoot skyward once sy < -15.
+    // Probe confirmed: at (256, -20) dir.y ≈ +0.007 → t=null (no ground hit).
+    // Negative screen coords are valid for createPickingRay; not clamped.
+    const hit = a.raycastGroundPoint(256, -20);
+    expect(hit).toBeNull();
+  });
+});
+
 describe("pickAt (v1.0 B2)", () => {
   const sized = () =>
     new BabylonAdapter({
