@@ -418,6 +418,25 @@ export function describeAdapterConformance(
           a.syncNode(box(), "remove");
           expect(a.pickAt(400, 300)).toBeNull();
         });
+
+        it("raycastGroundPoint(center) hits the ground at the look-at origin", () => {
+          const a = makePick();
+          const hit = a.raycastGroundPoint(400, 300); // 800×600 center
+          expect(hit).not.toBeNull();
+          // camera looks at the origin (on y=0), so the center ray hits [0,0,0].
+          expect(hit![0]).toBeCloseTo(0, 1);
+          expect(hit![1]).toBeCloseTo(0, 1);
+          expect(hit![2]).toBeCloseTo(0, 1);
+        });
+
+        it("raycastGroundPoint returns null for an upward ray (off-viewport top)", () => {
+          const a = makePick();
+          // The editor camera looks down at the scene, so every in-viewport ray
+          // hits the ground; an upward ray only exists past the top edge. Both
+          // engines must report a miss as null.
+          const hit = a.raycastGroundPoint(400, -200);
+          expect(hit).toBeNull();
+        });
       });
     }
   });
