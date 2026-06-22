@@ -195,6 +195,38 @@ describe("BabylonRenderHost", () => {
       host.dispose();
     });
 
+    it("snap tracks the cumulative drag instead of sticking (incremental gizmo)", () => {
+      // Regression: Babylon's AxisDragGizmo moves the node incrementally
+      // (position += pointerDelta). If our snap overwrites node.position, the
+      // gizmo's next delta lands on the snapped value, so the snap-evaluation
+      // position decouples from the real cumulative pointer — the node sticks
+      // to / jitters around targets ("drifting"). Three's TransformControls is
+      // absolute and never had this; we track an unsnapped base to match it.
+      const host = mounted();
+      host.adapter.syncNode(boxNode("d"), "add");
+      host.setSnapProvider(() => [
+        { id: "d", sockets: [], visible: true, type: "mesh" as const },
+      ]);
+      host.setGizmoMode("translate");
+      host.setGizmoTarget("d", false);
+      // hold Ctrl (snap modifier) — read off window pointer events.
+      window.dispatchEvent(new MouseEvent("pointermove", { ctrlKey: true }));
+
+      const pg = host.gizmoManagerForTest!.gizmos.positionGizmo!;
+      const node = host.adapter.getRuntimeObject("d") as Mesh;
+      pg.onDragStartObservable.notifyObservers({} as never);
+      // 10 incremental gizmo steps along +x (each adds the pointer delta to
+      // node.position like AxisDragGizmo), firing our drag handler each time.
+      for (let i = 0; i < 10; i++) {
+        node.position.x += 0.13;
+        pg.onDragObservable.notifyObservers({} as never);
+      }
+      // cumulative pointer ≈ 1.3 → nearest 0.5 grid = 1.5. The node must have
+      // tracked the drag (snapping to successive grid points), not stuck at 0.
+      expect(node.position.x).toBeCloseTo(1.5, 5);
+      host.dispose();
+    });
+
     it("setGizmoTarget with locked=true detaches (attachedNodeId=null)", () => {
       const host = mounted();
       host.adapter.syncNode(boxNode("box"), "add");

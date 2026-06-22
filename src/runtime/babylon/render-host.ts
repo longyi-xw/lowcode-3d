@@ -60,6 +60,14 @@ export class BabylonRenderHost implements IRenderHost {
     null;
   private snapProvider: (() => SnapNode[]) | null = null;
   private dragStart: Transform | null = null;
+  // Babylon's AxisDragGizmo moves the node incrementally (position += delta).
+  // `dragUnsnapped` accumulates those deltas to track the true cumulative
+  // pointer position; `lastSnappedPos` is what we last wrote to node.position,
+  // used to recover each frame's delta. Without this the snap correction feeds
+  // back into the next gizmo delta and the node sticks to / jitters around
+  // targets. Both null outside a drag.
+  private dragUnsnapped: Vector3 | null = null;
+  private lastSnappedPos: Vector3 | null = null;
   private cachedTargets: ReturnType<typeof featureSnapPoints> = [];
   private cachedSocketTargets: ReturnType<typeof socketPoints> = [];
   private snapModifierDown = false;
@@ -244,6 +252,9 @@ export class BabylonRenderHost implements IRenderHost {
     const node = this.draggedNode();
     if (!node) return;
     this.dragStart = captureTransform(node);
+    const [px, py, pz] = this.dragStart.position;
+    this.dragUnsnapped = new Vector3(px, py, pz);
+    this.lastSnappedPos = new Vector3(px, py, pz);
     this.highlight?.removeAllMeshes(); // hide selection outline during drag
     this.cachedTargets = [];
     this.cachedSocketTargets = [];
@@ -265,14 +276,34 @@ export class BabylonRenderHost implements IRenderHost {
     const node = this.draggedNode() as
       | (BabylonNode & { position: Vector3 })
       | undefined;
-    if (!node || this.gizmoMode !== "translate" || !this.snapModifierDown) return;
+    const base = this.dragUnsnapped;
+    const last = this.lastSnappedPos;
+    if (!node || this.gizmoMode !== "translate" || !base || !last) return;
+    // The gizmo applied its pointer delta to node.position (position += delta)
+    // since our last write. Fold that delta into the unsnapped base so snapping
+    // evaluates the true cumulative pointer position, not the previously-snapped
+    // one — otherwise the node sticks to / jitters around targets ("drifting").
+    base.addInPlace(node.position.subtract(last));
+    const finish = () => {
+      last.copyFrom(node.position);
+      node.computeWorldMatrix(true); // keep the world matrix in sync with our write
+    };
+    if (!this.snapModifierDown) {
+      node.position.copyFrom(base); // free drag: no snap, but keep base tracking
+      finish();
+      return;
+    }
     const scene = this.adapterInstance?.scene;
-    if (!scene) return;
+    if (!scene) {
+      finish();
+      return;
+    }
     const [w, h] = this.viewportSize();
+    node.position.copyFrom(base); // project features at the unsnapped base
     const draggedNode = this.snapProvider?.().find((n) => n.id === this.attachedNodeId);
     const hasSockets = (draggedNode?.sockets ?? []).some((s) => s.tag);
     const offset = computeSnapOffset({
-      currentPos: [node.position.x, node.position.y, node.position.z],
+      currentPos: [base.x, base.y, base.z],
       draggedFeatures: featureSnapPoints(node, scene, w, h),
       draggedSockets: socketPoints(node, draggedNode?.sockets ?? [], scene, w, h),
       hasSockets,
@@ -280,12 +311,9 @@ export class BabylonRenderHost implements IRenderHost {
       targetSockets: this.cachedSocketTargets,
     });
     if (offset) {
-      node.position.set(
-        node.position.x + offset[0],
-        node.position.y + offset[1],
-        node.position.z + offset[2],
-      );
+      node.position.set(base.x + offset[0], base.y + offset[1], base.z + offset[2]);
     }
+    finish();
   }
 
   // ── Engine-specific surface (B4c) ──
@@ -311,6 +339,8 @@ export class BabylonRenderHost implements IRenderHost {
     const node = this.draggedNode();
     const start = this.dragStart;
     this.dragStart = null;
+    this.dragUnsnapped = null;
+    this.lastSnappedPos = null;
     this.setSelection(this.attachedNodeId); // restore outline hidden on drag start
     if (!node || !start) return;
     const nodeId = this.attachedNodeId;
@@ -329,6 +359,8 @@ export class BabylonRenderHost implements IRenderHost {
     this.commitCb = null;
     this.snapProvider = null;
     this.frameCb = null;
+    this.dragUnsnapped = null;
+    this.lastSnappedPos = null;
     this.highlight?.dispose();
     this.highlight = null;
     this.camera?.dispose();
