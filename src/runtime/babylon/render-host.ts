@@ -46,6 +46,7 @@ export class BabylonRenderHost implements IRenderHost {
   private camera: ArcRotateCamera | null = null;
   private adapterInstance: BabylonAdapter | null = null;
   private highlight: HighlightLayer | null = null;
+  private frameCb: ((dt: number) => void) | null = null;
 
   // ── Gizmo state (B3b) ──
   private gizmoManager: GizmoManager | null = null;
@@ -130,7 +131,10 @@ export class BabylonRenderHost implements IRenderHost {
     const engine = this.babylonEngine;
     const scene = this.adapterInstance?.scene;
     if (!engine || !scene) return;
-    engine.runRenderLoop(() => scene.render());
+    engine.runRenderLoop(() => {
+      this.frameCb?.(engine.getDeltaTime() / 1000); // ms → seconds (tickBehaviors expects seconds)
+      scene.render();
+    });
   }
 
   stop(): void {
@@ -284,6 +288,25 @@ export class BabylonRenderHost implements IRenderHost {
     }
   }
 
+  // ── Engine-specific surface (B4c) ──
+
+  /** Engine-specific surface — per-frame hook so the viewport can tick play
+   *  behaviors without the host knowing about play state (mirrors
+   *  ThreeRenderHost.setFrameCallback). The callback receives elapsed time in
+   *  seconds (Babylon getDeltaTime() returns ms, divided here). */
+  setFrameCallback(cb: ((dt: number) => void) | null): void {
+    this.frameCb = cb;
+  }
+
+  /** Engine-specific surface — F-focus moves the ArcRotate camera to center
+   *  `target` at `distance` (mirrors ThreeRenderHost.focusCamera). */
+  focusCamera(target: Vector3, distance: number): void {
+    const cam = this.camera;
+    if (!cam) return;
+    cam.setTarget(target);
+    cam.radius = distance;
+  }
+
   private onGizmoDragEnd(): void {
     const node = this.draggedNode();
     const start = this.dragStart;
@@ -305,6 +328,7 @@ export class BabylonRenderHost implements IRenderHost {
     this.gizmoManager = null;
     this.commitCb = null;
     this.snapProvider = null;
+    this.frameCb = null;
     this.highlight?.dispose();
     this.highlight = null;
     this.camera?.dispose();
