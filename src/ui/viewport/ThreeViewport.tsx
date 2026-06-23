@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import * as THREE from "three";
 
 import { AddNodeCommand } from "@/core/command/commands/add-node";
 import { SetNodeTransformCommand } from "@/core/command/commands/set-node-transform";
@@ -26,12 +25,14 @@ import { computeFocusTarget } from "./focus-helpers";
 import { diffSceneNodes } from "./scene-diff";
 
 /**
- * Three.js viewport — thin shell over `ThreeRenderHost` (v1.0 B3a). The host
- * owns the WebGLRenderer, post-processing/outline, OrbitControls,
- * TransformControls (gizmo) and the render loop; this component wires
+ * Three.js viewport — thin shell over `ThreeRenderHost` (v1.0 B3a / B4b). The
+ * host owns the WebGLRenderer, post-processing/outline, OrbitControls,
+ * TransformControls (gizmo), the render loop, and the socket-marker overlay
+ * (moved host-side in B4b — the component only calls host.syncSocketMarkers()
+ * after scene diffs and selection changes). This component wires
  * `useSceneStore` / `useUIStore` / `useProjectStore` into the host and keeps
- * the engine-specific extras the host doesn't know about: socket markers,
- * asset drag-drop, click-to-pick, and play/pause behavior ticking.
+ * the remaining engine-specific extras: asset drag-drop, click-to-pick, and
+ * play/pause behavior ticking.
  *
  * Lifecycle:
  *   - Mount effect re-runs only when the active project id changes (or goes
@@ -105,48 +106,6 @@ export function ThreeViewport() {
       }));
     });
 
-    // ── Socket markers (v0.4 C) ──────────────────────────────────
-    // Decoupled overlay group: world-positioned markers, rebuilt on
-    // scene/selection change + during drag. Shared geo/material so
-    // group.clear() just detaches (no per-marker dispose). raycast no-op so
-    // pickAt never selects a marker.
-    const socketGeo = new THREE.SphereGeometry(0.06, 8, 8);
-    const socketMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
-    const socketMatSel = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
-    const noRaycast = () => {};
-    const socketMarkers = new THREE.Group();
-    socketMarkers.name = "socketMarkers";
-    adapter.scene.add(socketMarkers);
-
-    const rebuildSocketMarkers = () => {
-      socketMarkers.clear();
-      const proj = useSceneStore.getState().project;
-      if (!proj) return;
-      const selId = useUIStore.getState().selectedNodeId;
-      const v = new THREE.Vector3();
-      for (const [id, n] of Object.entries(proj.scene.nodes)) {
-        const sockets = n.sockets;
-        if (!sockets || sockets.length === 0) continue;
-        const tobj = adapter.getRuntimeObject(id);
-        if (!tobj) continue;
-        tobj.updateWorldMatrix(true, false);
-        for (const s of sockets) {
-          const mk = new THREE.Mesh(socketGeo, id === selId ? socketMatSel : socketMat);
-          v.set(s.position[0], s.position[1], s.position[2]).applyMatrix4(
-            tobj.matrixWorld,
-          );
-          mk.position.copy(v);
-          mk.raycast = noRaycast;
-          socketMarkers.add(mk);
-        }
-      }
-    };
-    // Rebuild markers on every gizmo drag move so a dragged node's socket
-    // markers track it instead of freezing at the drag start (the host owns
-    // the gizmo's objectChange now; this seam restores the old in-component
-    // "rebuild markers on objectChange" behaviour).
-    host.onGizmoChange(rebuildSocketMarkers);
-
     // syncSelectionShell wires selection into the host (gizmo target + outline)
     // and rebuilds socket markers (which depend on the current selection for
     // marker colour). Locked nodes: host.setGizmoTarget(id, true) detaches the
@@ -159,7 +118,7 @@ export function ThreeViewport() {
       const node = id ? useSceneStore.getState().project?.scene.nodes[id] : undefined;
       host.setGizmoTarget(id, node ? isEffectivelyLocked(node) : false);
       host.setSelection(id);
-      rebuildSocketMarkers();
+      host.syncSocketMarkers();
     };
     syncSelectionShell(useUIStore.getState().selectedNodeId);
     // seedScene is async, so when the viewport mounts while a selection is
@@ -295,7 +254,7 @@ export function ThreeViewport() {
       if (next === old) return;
       if (next.metadata.id !== old.metadata.id) return; // handled by effect re-run
       void diffAndApply(adapter, old, next, host);
-      rebuildSocketMarkers();
+      host.syncSocketMarkers();
     });
 
     const unsubscribeProject = useProjectStore.subscribe((state, prev) => {
@@ -328,11 +287,6 @@ export function ThreeViewport() {
       canvas.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onAssetDrop);
       ro.disconnect();
-      adapter.scene.remove(socketMarkers);
-      socketMarkers.clear();
-      socketGeo.dispose();
-      socketMat.dispose();
-      socketMatSel.dispose();
       host.dispose();
       if (canvas.parentNode === container) {
         container.removeChild(canvas);

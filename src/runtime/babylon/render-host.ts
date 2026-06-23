@@ -208,6 +208,10 @@ export class BabylonRenderHost implements IRenderHost {
     this.snapProvider = provider;
   }
 
+  // B4b: real overlay rendering lands in the next task; the no-op keeps the
+  // IRenderHost contract satisfied so the build stays green.
+  syncSocketMarkers(): void {}
+
   /** Attach drag observers to the currently-enabled gizmo, once per gizmo
    *  instance. GizmoManager reuses (does not dispose) a gizmo across *Enabled
    *  toggles, so without the wiredGizmos guard every mode switch would stack
