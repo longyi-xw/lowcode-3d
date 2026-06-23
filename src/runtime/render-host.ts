@@ -19,6 +19,7 @@ export interface SnapNode {
  * render loop / camera / resize / dispose; B2 = picking + selection highlight;
  * B3a = gizmo + snap (setGizmoMode / setGizmoTarget / onTransformCommit /
  * setSnapProvider), defined by extracting the mature Three implementation.
+ * B4b = host-owned socket-marker overlay (syncSocketMarkers).
  * Implementations: ThreeRenderHost (full) and BabylonRenderHost (gizmo+snap
  * are no-op stubs until B3b adds the Babylon GizmoManager).
  *
