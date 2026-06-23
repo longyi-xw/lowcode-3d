@@ -205,19 +205,19 @@ describe("useEditorShortcuts", () => {
     btn.remove();
   });
 
-  describe("babylon viewport (B1 view-only)", () => {
+  describe("babylon viewport (B4c: play + focus enabled)", () => {
     beforeEach(() => useUIStore.setState({ viewportEngine: "babylon.js" }));
 
-    it("Space does not toggle play", () => {
+    it("Space toggles play (B4c: enabled)", () => {
       renderHook(() => useEditorShortcuts());
       fire(" ");
-      expect(useUIStore.getState().playState).toBe("edit");
+      expect(useUIStore.getState().playState).toBe("play");
     });
 
-    it("F does not request camera focus", () => {
+    it("F requests camera focus (B4c: enabled)", () => {
       renderHook(() => useEditorShortcuts());
       fire("f");
-      expect(useUIStore.getState().pendingFocusNodeId).toBeUndefined();
+      expect(useUIStore.getState().pendingFocusNodeId).toBe("m1");
     });
   });
 });

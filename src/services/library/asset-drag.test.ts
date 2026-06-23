@@ -36,11 +36,13 @@ describe("beginAssetDrag", () => {
     expect(useUIStore.getState().assetDragItemId).toBeNull();
   });
 
-  it("does not start a drag while the Babylon viewport is active (B1 — drop lands in B4)", () => {
-    useUIStore.setState({ viewportEngine: "babylon.js" });
-    beginAssetDrag("geo-box", 100, 100);
-    move(110, 100); // would activate in the three viewport
-    expect(useUIStore.getState().assetDragItemId).toBeNull();
-    up();
+  it("starts a drag on both engines at B4c (Babylon assetDrop enabled)", () => {
+    for (const engine of ["three.js", "babylon.js"] as const) {
+      useUIStore.setState({ viewportEngine: engine, assetDragItemId: null });
+      beginAssetDrag("geo-box", 100, 100);
+      move(110, 100); // activate the drag
+      expect(useUIStore.getState().assetDragItemId).toBe("geo-box");
+      up();
+    }
   });
 });

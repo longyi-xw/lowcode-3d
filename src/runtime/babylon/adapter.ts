@@ -6,6 +6,7 @@ import {
   MeshBuilder,
   NullEngine,
   PBRMaterial,
+  Plane,
   PointLight,
   Quaternion,
   Scene,
@@ -45,6 +46,10 @@ import {
 } from "./behaviors";
 
 const BABYLON_TARGET: RuntimeTarget = { kind: "babylon.js", version: "9.11.0" };
+
+/** Shared y=0 ground plane (normal +y) for drop raycasts — mirrors
+ *  ThreeAdapter's module-level GROUND_PLANE (avoids a per-call allocation). */
+const BABYLON_GROUND_PLANE = Plane.FromPositionAndNormal(Vector3.Zero(), Vector3.Up());
 
 interface NodeMeta {
   nodeId: string;
@@ -258,6 +263,28 @@ export class BabylonAdapter implements IRuntimeAdapter {
     if (!hit?.hit || !hit.pickedMesh) return null;
     return findNodeId(hit.pickedMesh);
   }
+
+  raycastGroundPoint(
+    screen_x: number,
+    screen_y: number,
+  ): [number, number, number] | null {
+    const camera = this.scene.activeCamera;
+    if (!camera) return null;
+    const ray = this.scene.createPickingRay(
+      screen_x,
+      screen_y,
+      null, // identity world transform (unproject from clip → world)
+      camera,
+    );
+    const t = ray.intersectsPlane(BABYLON_GROUND_PLANE);
+    // <= 0: Babylon clamps a slightly-negative (away-pointing) distance to 0
+    // instead of returning null; treat 0/negative as a miss so an upward ray
+    // never reports its own origin as the ground hit (parity with Three).
+    if (t === null || t <= 0) return null;
+    const p = ray.origin.add(ray.direction.scale(t));
+    return [p.x, p.y, p.z];
+  }
+
   syncAsset(_asset: AssetReference): Promise<void> {
     return Promise.reject(
       new Error("BabylonAdapter.syncAsset: not implemented in v1.0a"),

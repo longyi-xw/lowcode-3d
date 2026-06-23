@@ -164,6 +164,13 @@ export interface IRuntimeAdapter {
   getRuntimeObject(node_id: string): unknown;
   describeNode(node_id: string): RuntimeNodeInfo | null;
   pickAt(screen_x: number, screen_y: number): string | null;
+  /** Raycast the screen point against the y=0 ground plane; returns the world
+   *  hit [x,y,z], or null when the ray is parallel to / points away from the
+   *  plane. Used for drag-drop placement. */
+  raycastGroundPoint(
+    screen_x: number,
+    screen_y: number,
+  ): [number, number, number] | null;
 
   // ───── Export ───────────────────────────────────────────────────
   exportProject(project: SceneProject, options: ExportOptions): Promise<ExportResult>;
