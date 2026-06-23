@@ -19,6 +19,7 @@ export interface SnapNode {
  * render loop / camera / resize / dispose; B2 = picking + selection highlight;
  * B3a = gizmo + snap (setGizmoMode / setGizmoTarget / onTransformCommit /
  * setSnapProvider), defined by extracting the mature Three implementation.
+ * B4b = host-owned socket-marker overlay (syncSocketMarkers).
  * Implementations: ThreeRenderHost (full) and BabylonRenderHost (gizmo+snap
  * are no-op stubs until B3b adds the Babylon GizmoManager).
  *
@@ -50,6 +51,12 @@ export interface IRenderHost {
   /** Inject the scene snapshot provider the host pulls at drag start to cache
    *  snap targets. Keeps the host free of store imports. */
   setSnapProvider(provider: () => SnapNode[]): void;
+  /** Rebuild the host-owned socket-marker overlay from the current snap
+   *  provider (socket positions) + current selection (selected node's sockets
+   *  render in the highlight colour). Idempotent; the viewport calls it after
+   *  scene diffs and selection changes. Drag-time rebuilds are internal to the
+   *  host. (v1.0 B4b — markers were component-owned through B4a.) */
+  syncSocketMarkers(): void;
   dispose(): void;
 }
 

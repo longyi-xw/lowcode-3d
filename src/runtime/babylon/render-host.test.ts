@@ -11,6 +11,21 @@ function makeHost() {
   return { host, engine };
 }
 
+const boxNodeWithSockets = (
+  id: string,
+  pos: [number, number, number],
+  sockets: { position: [number, number, number]; tag?: string }[],
+): SceneNode =>
+  ({
+    ...boxNode(id),
+    transform: {
+      position: pos,
+      rotation: [0, 0, 0, 1] as [number, number, number, number],
+      scale: [1, 1, 1] as [number, number, number],
+    },
+    sockets,
+  }) as SceneNode;
+
 const boxNode = (id: string): SceneNode =>
   ({
     id,
@@ -279,6 +294,90 @@ describe("BabylonRenderHost", () => {
     it("setGizmoTarget before mount is a no-op (no throw)", () => {
       const { host } = makeHost();
       expect(() => host.setGizmoTarget("box", false)).not.toThrow();
+    });
+  });
+
+  describe("socket markers (v1.0 B4b)", () => {
+    function mountedWith(node: SceneNode) {
+      const { host } = makeHost();
+      host.mount(document.createElement("canvas"));
+      host.adapter.syncNode(node, "add");
+      host.setSnapProvider(() => [
+        {
+          id: node.id,
+          sockets: node.sockets ?? [],
+          visible: true,
+          type: "mesh" as const,
+        },
+      ]);
+      return host;
+    }
+
+    it("mount creates an empty socketMarkers overlay node", () => {
+      const { host } = makeHost();
+      host.mount(document.createElement("canvas"));
+      expect(host.socketMarkersForTest).not.toBeNull();
+      expect(host.socketMarkersForTest!.getChildMeshes()).toHaveLength(0);
+      host.dispose();
+    });
+
+    it("syncSocketMarkers builds one marker per socket at the node's world position", () => {
+      const host = mountedWith(
+        boxNodeWithSockets("d", [2, 0, 0], [{ position: [1, 0, 0] }]),
+      );
+      host.syncSocketMarkers();
+      const markers = host.socketMarkersForTest!.getChildMeshes();
+      expect(markers).toHaveLength(1);
+      expect(markers[0]!.position.x).toBeCloseTo(3, 5);
+      expect(markers[0]!.isPickable).toBe(false);
+      host.dispose();
+    });
+
+    it("selected node's markers use the amber material, others cyan", () => {
+      const host = mountedWith(
+        boxNodeWithSockets("d", [0, 0, 0], [{ position: [0, 1, 0] }]),
+      );
+      host.syncSocketMarkers();
+      expect(host.socketMarkersForTest!.getChildMeshes()[0]!.material?.name).toBe(
+        "socket-mat",
+      );
+      host.setSelection("d");
+      host.syncSocketMarkers();
+      expect(host.socketMarkersForTest!.getChildMeshes()[0]!.material?.name).toBe(
+        "socket-mat-sel",
+      );
+      host.dispose();
+    });
+
+    it("syncSocketMarkers clears stale markers (rebuild, not append)", () => {
+      const host = mountedWith(
+        boxNodeWithSockets("d", [0, 0, 0], [{ position: [1, 0, 0] }]),
+      );
+      host.syncSocketMarkers();
+      host.syncSocketMarkers();
+      expect(host.socketMarkersForTest!.getChildMeshes()).toHaveLength(1);
+      host.dispose();
+    });
+
+    it("nodes without sockets contribute no markers", () => {
+      const { host } = makeHost();
+      host.mount(document.createElement("canvas"));
+      host.adapter.syncNode(boxNode("plain"), "add");
+      host.setSnapProvider(() => [
+        { id: "plain", sockets: [], visible: true, type: "mesh" as const },
+      ]);
+      host.syncSocketMarkers();
+      expect(host.socketMarkersForTest!.getChildMeshes()).toHaveLength(0);
+      host.dispose();
+    });
+
+    it("dispose tears down the overlay", () => {
+      const host = mountedWith(
+        boxNodeWithSockets("d", [0, 0, 0], [{ position: [1, 0, 0] }]),
+      );
+      host.syncSocketMarkers();
+      expect(() => host.dispose()).not.toThrow();
+      expect(host.socketMarkersForTest).toBeNull();
     });
   });
 

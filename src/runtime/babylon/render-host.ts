@@ -6,10 +6,15 @@ import {
   GizmoManager,
   HighlightLayer,
   Mesh,
+  MeshBuilder,
+  StandardMaterial,
+  TransformNode,
   Vector3,
   type AbstractEngine,
   type Node as BabylonNode,
 } from "@babylonjs/core";
+
+import { SOCKET_MARKER } from "@/runtime/socket-markers";
 
 import type { IRenderHost, SnapNode } from "@/runtime/render-host";
 import type { GizmoMode } from "@/core/editor-types";
@@ -70,6 +75,10 @@ export class BabylonRenderHost implements IRenderHost {
   private lastSnappedPos: Vector3 | null = null;
   private cachedTargets: ReturnType<typeof featureSnapPoints> = [];
   private cachedSocketTargets: ReturnType<typeof socketPoints> = [];
+  private socketMarkers: TransformNode | null = null;
+  private socketMat: StandardMaterial | null = null;
+  private socketMatSel: StandardMaterial | null = null;
+  private currentSelectionId: string | null = null;
   private snapModifierDown = false;
   private readonly onSnapPointer = (e: PointerEvent) => {
     this.snapModifierDown = e.ctrlKey || e.metaKey;
@@ -91,6 +100,11 @@ export class BabylonRenderHost implements IRenderHost {
   /** Test-only surface: lets unit tests inspect the GizmoManager. */
   get gizmoManagerForTest(): GizmoManager | null {
     return this.gizmoManager;
+  }
+
+  /** Test-only surface: lets unit tests assert the socket-marker overlay. */
+  get socketMarkersForTest(): TransformNode | null {
+    return this.socketMarkers;
   }
 
   mount(canvas: HTMLCanvasElement): void {
@@ -131,6 +145,20 @@ export class BabylonRenderHost implements IRenderHost {
     gm.rotationGizmoEnabled = false;
     gm.scaleGizmoEnabled = false;
     this.gizmoManager = gm;
+
+    // Socket-marker overlay (B4b) — host-owned, mirrors ThreeRenderHost. Unlit
+    // emissive spheres so they read regardless of scene lighting; isPickable=
+    // false keeps them out of pickAt. Shared materials, named for test asserts.
+    this.socketMarkers = new TransformNode("socketMarkers", scene);
+    const mkMat = new StandardMaterial("socket-mat", scene);
+    mkMat.disableLighting = true;
+    mkMat.emissiveColor = Color3.FromHexString(SOCKET_MARKER.color);
+    this.socketMat = mkMat;
+    const mkMatSel = new StandardMaterial("socket-mat-sel", scene);
+    mkMatSel.disableLighting = true;
+    mkMatSel.emissiveColor = Color3.FromHexString(SOCKET_MARKER.colorSelected);
+    this.socketMatSel = mkMatSel;
+
     window.addEventListener("pointermove", this.onSnapPointer, true);
     window.addEventListener("pointerdown", this.onSnapPointer, true);
   }
@@ -161,6 +189,7 @@ export class BabylonRenderHost implements IRenderHost {
   }
 
   setSelection(node_id: string | null): void {
+    this.currentSelectionId = node_id;
     const layer = this.highlight;
     const adapter = this.adapterInstance;
     if (!layer || !adapter) return;
@@ -206,6 +235,44 @@ export class BabylonRenderHost implements IRenderHost {
 
   setSnapProvider(provider: () => SnapNode[]): void {
     this.snapProvider = provider;
+  }
+
+  syncSocketMarkers(): void {
+    this.rebuildSocketMarkers();
+  }
+
+  /** Rebuild the overlay from the snap provider + current selection. Disposes
+   *  prior marker meshes (Babylon meshes need explicit dispose, unlike Three's
+   *  shared-geo group.clear). Mirrors ThreeRenderHost.rebuildSocketMarkers. */
+  private rebuildSocketMarkers(): void {
+    const overlay = this.socketMarkers;
+    const adapter = this.adapterInstance;
+    const mat = this.socketMat;
+    const matSel = this.socketMatSel;
+    if (!overlay || !adapter || !mat || !matSel) return;
+    for (const child of overlay.getChildMeshes()) child.dispose();
+    const selId = this.currentSelectionId;
+    for (const n of this.snapProvider?.() ?? []) {
+      if (!n.sockets || n.sockets.length === 0) continue;
+      const node = adapter.getRuntimeObject(n.id) as BabylonNode | undefined;
+      if (!node) continue;
+      node.computeWorldMatrix(true);
+      const world = node.getWorldMatrix();
+      for (const s of n.sockets) {
+        const mk = MeshBuilder.CreateSphere(
+          "socketMarker",
+          { diameter: SOCKET_MARKER.radius * 2, segments: 8 },
+          adapter.scene,
+        );
+        mk.parent = overlay;
+        mk.isPickable = false;
+        mk.material = n.id === selId ? matSel : mat;
+        mk.position = Vector3.TransformCoordinates(
+          new Vector3(s.position[0], s.position[1], s.position[2]),
+          world,
+        );
+      }
+    }
   }
 
   /** Attach drag observers to the currently-enabled gizmo, once per gizmo
@@ -287,6 +354,7 @@ export class BabylonRenderHost implements IRenderHost {
     const finish = () => {
       last.copyFrom(node.position);
       node.computeWorldMatrix(true); // keep the world matrix in sync with our write
+      this.rebuildSocketMarkers();
     };
     if (!this.snapModifierDown) {
       node.position.copyFrom(base); // free drag: no snap, but keep base tracking
@@ -361,6 +429,13 @@ export class BabylonRenderHost implements IRenderHost {
     this.frameCb = null;
     this.dragUnsnapped = null;
     this.lastSnappedPos = null;
+    this.socketMat?.dispose();
+    this.socketMatSel?.dispose();
+    this.socketMarkers?.dispose(); // TransformNode.dispose cascades to child markers
+    this.socketMat = null;
+    this.socketMatSel = null;
+    this.socketMarkers = null;
+    this.currentSelectionId = null;
     this.highlight?.dispose();
     this.highlight = null;
     this.camera?.dispose();

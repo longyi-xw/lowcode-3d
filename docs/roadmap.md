@@ -129,7 +129,7 @@
     - [x] **B3b · Babylon gizmo + snap**：`BabylonRenderHost` 用 `GizmoManager`（`usePointerToAttachGizmos=false`，onDragStart/Drag/End 映射拖拽生命周期，WeakSet 幂等挂 observer）实现同契约 + `babylon/snap-features.ts`（OBB + `Vector3.Project`）+ `babylon/transform-util.ts`（四元数归一）；`computeSnapOffset`/`transformsEqual` 中立化（`core/snap/offset.ts`/`runtime/transform-util.ts`）两引擎共用；能力门细分 `engineCapabilities{gizmo,play,focus,assetDrop}`（gizmo 两引擎放开，play/focus/assetDrop 仍 B4）；`BabylonViewport` 接 gizmo 四方法。socket snap 已实现但 socket markers 视觉仍 B4。
   - [ ] **B4 · 视口能力剩余**（多独立子系统，拆为 B4a-B4d）：
     - [x] **B4a · Babylon 材质覆盖**：`BabylonAdapter` create+update 应用 PBR 材质覆盖（`PBRMaterial`，复用引擎中立 `resolveMaterial`，新 `babylon/material.ts`）；`RuntimeNodeInfo.material` + 两引擎 `describeNode` 读真实材质 + conformance 材质对等。观感/色彩空间/IBL/光强对齐留 B4d。
-    - [ ] **B4b · Babylon socket markers**：青色小球 overlay（让 B3b 的 socket 吸附可见可用），镜像 ThreeViewport。
+    - [x] **B4b · Babylon socket markers**：青色小球 overlay（让 B3b 的 socket 吸附可见可用），镜像 ThreeViewport；socket markers 常量模块 + Three/Babylon 跨引擎完成。
     - [x] **B4c · Babylon 视口交互剩余**：play 行为预览 + F focus + 资源拖放落点接 BabylonViewport（镜像 ThreeViewport）；BabylonRenderHost 加 `setFrameCallback`/`focusCamera`，`raycastGroundPoint` 升 `IRuntimeAdapter`（+ conformance 对等），Babylon focus 目标计算；`engineCapabilities` 翻全 true（保留 seam）。Babylon 视口至此与 Three 全对等可编辑。
     - [ ] **B4d · 渲染观感对齐**：Babylon 底色 sRGB/tone 对齐 Three OutputPass + 光强 + 材质观感（IBL/环境贴图让金属正常）。依赖 B4a。
 - **Depends on**: v0.5 行为系统全部完成（v0.5 Stage C）

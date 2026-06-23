@@ -10,6 +10,7 @@ import type { GizmoMode } from "@/core/editor-types";
 import type { Transform } from "@/core/scene/types";
 import type { IRenderHost, SnapNode } from "@/runtime/render-host";
 import { ThreeAdapter } from "@/runtime/three/adapter";
+import { SOCKET_MARKER } from "@/runtime/socket-markers";
 
 import { computeSnapOffset } from "@/core/snap/offset";
 import { featureSnapPoints, socketPoints } from "./snap-features";
@@ -43,11 +44,15 @@ export class ThreeRenderHost implements IRenderHost {
   private clock: THREE.Clock | null = null;
   private rafId = 0;
 
+  private socketMarkers: THREE.Group | null = null;
+  private socketGeo: THREE.SphereGeometry | null = null;
+  private socketMat: THREE.MeshBasicMaterial | null = null;
+  private socketMatSel: THREE.MeshBasicMaterial | null = null;
+
   private commitCb: ((id: string, prev: Transform, next: Transform) => void) | null =
     null;
   private snapProvider: (() => SnapNode[]) | null = null;
   private frameCb: ((dt: number) => void) | null = null;
-  private gizmoChangeCb: (() => void) | null = null;
 
   private gizmoMode: GizmoMode = "translate";
   private currentSelectionId: string | null = null;
@@ -182,11 +187,30 @@ export class ThreeRenderHost implements IRenderHost {
 
     gizmo.addEventListener("objectChange", () => {
       this.snapDraggedObject();
-      // Notify the shell every move so viewport-side overlays that track the
-      // dragged node (socket markers, which stay in ThreeViewport per B3a's
-      // minimal extraction) rebuild instead of freezing at the drag start.
-      this.gizmoChangeCb?.();
+      // Rebuild host-owned socket markers every move so they track the dragged node.
+      this.rebuildSocketMarkers();
     });
+
+    // Socket-marker overlay (B4b) — host-owned editor overlay alongside the
+    // OutlinePass selection highlight. Decoupled group of world-positioned
+    // markers, rebuilt on selection/scene change (syncSocketMarkers) and on
+    // every gizmo drag move (objectChange). Shared geo/material so group.clear()
+    // just detaches (no per-marker dispose); raycast is no-op'd so pickAt never
+    // hits a marker.
+    const socketGeo = new THREE.SphereGeometry(SOCKET_MARKER.radius, 8, 8);
+    const socketMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(SOCKET_MARKER.color),
+    });
+    const socketMatSel = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(SOCKET_MARKER.colorSelected),
+    });
+    const socketMarkers = new THREE.Group();
+    socketMarkers.name = "socketMarkers";
+    adapter.scene.add(socketMarkers);
+    this.socketGeo = socketGeo;
+    this.socketMat = socketMat;
+    this.socketMatSel = socketMatSel;
+    this.socketMarkers = socketMarkers;
 
     this.clock = new THREE.Clock();
   }
@@ -253,11 +277,38 @@ export class ThreeRenderHost implements IRenderHost {
     this.frameCb = cb;
   }
 
-  /** Engine-specific surface — fires on every gizmo drag move (after snap) so
-   *  the viewport can rebuild overlays that track the dragged node (socket
-   *  markers stay in the shell per B3a's minimal extraction). */
-  onGizmoChange(cb: (() => void) | null): void {
-    this.gizmoChangeCb = cb;
+  syncSocketMarkers(): void {
+    this.rebuildSocketMarkers();
+  }
+
+  /** Rebuild the socket-marker overlay from the snap provider + current
+   *  selection. Mirrors the pre-B4b ThreeViewport.rebuildSocketMarkers. */
+  private rebuildSocketMarkers(): void {
+    const group = this.socketMarkers;
+    const adapter = this.adapterInstance;
+    const geo = this.socketGeo;
+    const mat = this.socketMat;
+    const matSel = this.socketMatSel;
+    if (!group || !adapter || !geo || !mat || !matSel) return;
+    group.clear();
+    const selId = this.currentSelectionId;
+    const v = new THREE.Vector3();
+    const noRaycast = () => {};
+    for (const n of this.snapProvider?.() ?? []) {
+      if (!n.sockets || n.sockets.length === 0) continue;
+      const tobj = adapter.getRuntimeObject(n.id);
+      if (!tobj) continue;
+      tobj.updateWorldMatrix(true, false);
+      for (const s of n.sockets) {
+        const mk = new THREE.Mesh(geo, n.id === selId ? matSel : mat);
+        v.set(s.position[0], s.position[1], s.position[2]).applyMatrix4(
+          tobj.matrixWorld,
+        );
+        mk.position.copy(v);
+        mk.raycast = noRaycast;
+        group.add(mk);
+      }
+    }
   }
 
   /** Engine-specific surface — focus effect moves camera + controls (both
@@ -320,6 +371,13 @@ export class ThreeRenderHost implements IRenderHost {
     this.commitCb = null;
     this.snapProvider = null;
     this.frameCb = null;
-    this.gizmoChangeCb = null;
+    this.socketMarkers?.clear();
+    this.socketGeo?.dispose();
+    this.socketMat?.dispose();
+    this.socketMatSel?.dispose();
+    this.socketMarkers = null;
+    this.socketGeo = null;
+    this.socketMat = null;
+    this.socketMatSel = null;
   }
 }
