@@ -108,6 +108,7 @@ export function BabylonViewport({
       // runtime object may have been disposed; re-pinning ensures the gizmo
       // points at the freshly-built mesh rather than a stale reference.
       syncGizmoTarget(useUIStore.getState().selectedNodeId);
+      host.syncSocketMarkers();
     };
 
     const initial = useSceneStore.getState().project;
@@ -240,6 +241,7 @@ export function BabylonViewport({
       if (state.selectedNodeId !== prev.selectedNodeId) {
         host.setSelection(state.selectedNodeId);
         syncGizmoTarget(state.selectedNodeId);
+        host.syncSocketMarkers();
       }
       if (state.gizmoMode !== prev.gizmoMode) {
         host.setGizmoMode(state.gizmoMode);
