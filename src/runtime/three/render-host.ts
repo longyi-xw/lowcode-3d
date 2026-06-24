@@ -4,8 +4,8 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 import type { GizmoMode } from "@/core/editor-types";
 import type { Transform } from "@/core/scene/types";
@@ -44,6 +44,8 @@ export class ThreeRenderHost implements IRenderHost {
   private gizmo: TransformControls | null = null;
   private clock: THREE.Clock | null = null;
   private rafId = 0;
+
+  private envTexture: THREE.Texture | null = null;
 
   private socketMarkers: THREE.Group | null = null;
   private socketGeo: THREE.SphereGeometry | null = null;
@@ -94,7 +96,8 @@ export class ThreeRenderHost implements IRenderHost {
     // something to reflect (parallels Babylon's .env IBL). Asset-free. The PMREM
     // generator + its temporary scene are one-shot — dispose right after.
     const pmrem = new THREE.PMREMGenerator(renderer);
-    adapter.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    adapter.scene.environment = this.envTexture;
     pmrem.dispose();
 
     adapter.setBehaviorDomElement(canvas);
@@ -369,6 +372,8 @@ export class ThreeRenderHost implements IRenderHost {
     this.gizmo?.dispose();
     this.orbit?.dispose();
     this.composer?.dispose();
+    this.envTexture?.dispose();
+    this.envTexture = null;
     this.renderer?.dispose();
     this.adapterInstance?.dispose();
     this.adapterInstance = null;
