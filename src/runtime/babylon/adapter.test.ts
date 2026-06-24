@@ -372,4 +372,37 @@ describe("pickAt (v1.0 B2)", () => {
     expect(a.pickAt(400, 300)).toBeNull();
     a.dispose();
   });
+
+  it("applies node intensity and color to a Babylon light (B4d)", () => {
+    const a = new BabylonAdapter();
+    a.syncNode(
+      {
+        id: "L1",
+        name: "L1",
+        type: "light",
+        data: {
+          type: "light",
+          light_kind: "directional",
+          color: "#ff0000",
+          intensity: 1.5,
+        },
+        transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        parent_id: null,
+        children_ids: [],
+        visible: true,
+        locked: false,
+        behaviors: [],
+        user_data: {},
+      } as never,
+      "add",
+    );
+    const light = a.getRuntimeObject("L1") as unknown as {
+      intensity: number;
+      diffuse: { r: number; g: number; b: number };
+    };
+    expect(light.intensity).toBeCloseTo(1.5); // 1.5 * BABYLON_LIGHT_SCALE(1.0)
+    expect(light.diffuse.r).toBeCloseTo(1);
+    expect(light.diffuse.g).toBeCloseTo(0);
+    expect(light.diffuse.b).toBeCloseTo(0);
+  });
 });

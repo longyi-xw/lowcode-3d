@@ -1,7 +1,9 @@
 import {
   Camera,
+  Color3,
   DirectionalLight,
   HemisphericLight,
+  Light,
   Mesh,
   MeshBuilder,
   NullEngine,
@@ -134,6 +136,7 @@ export class BabylonAdapter implements IRuntimeAdapter {
       }
       applyBabylonTransform(existing, node);
       existing.setEnabled(node.visible);
+      if (node.data.type === "light") applyLightData(existing as Light, node.data);
       if (
         node.data.type === "mesh" &&
         existing instanceof Mesh &&
@@ -416,18 +419,42 @@ function createMesh(
   return mesh;
 }
 
+/** Babylon-local brightness factor applied on top of the node's intensity to
+ *  match Three's lighting. Initial 1.0; smoke-tuned after sRGB + IBL land
+ *  (B4d). Babylon PBR vs Three physical-light units may differ at equal
+ *  intensity — this is the single knob to reconcile them. */
+const BABYLON_LIGHT_SCALE = 1.0;
+
+/** Apply engine-neutral light node data (intensity + color) onto a Babylon
+ *  Light, mirroring Three's node-builders/light.ts (color + intensity on
+ *  create and update). Babylon's createLight only default-constructs, so
+ *  without this the node's intensity/color are ignored (pre-B4d gap). */
+function applyLightData(
+  light: Light,
+  data: Extract<NodeData, { type: "light" }>,
+): void {
+  light.intensity = data.intensity * BABYLON_LIGHT_SCALE;
+  light.diffuse = Color3.FromHexString(data.color);
+}
+
 function createLight(
   name: string,
   data: Extract<NodeData, { type: "light" }>,
   scene: Scene,
 ): BabylonNode {
   switch (data.light_kind) {
-    case "directional":
-      return new DirectionalLight(name, new Vector3(0, -1, 0), scene);
-    case "point":
-      return new PointLight(name, Vector3.Zero(), scene);
-    case "spot":
-      return new SpotLight(
+    case "directional": {
+      const light = new DirectionalLight(name, new Vector3(0, -1, 0), scene);
+      applyLightData(light, data);
+      return light;
+    }
+    case "point": {
+      const light = new PointLight(name, Vector3.Zero(), scene);
+      applyLightData(light, data);
+      return light;
+    }
+    case "spot": {
+      const light = new SpotLight(
         name,
         Vector3.Zero(),
         new Vector3(0, -1, 0),
@@ -435,8 +462,14 @@ function createLight(
         1,
         scene,
       );
-    case "ambient":
-      return new HemisphericLight(name, new Vector3(0, 1, 0), scene);
+      applyLightData(light, data);
+      return light;
+    }
+    case "ambient": {
+      const light = new HemisphericLight(name, new Vector3(0, 1, 0), scene);
+      applyLightData(light, data);
+      return light;
+    }
   }
 }
 
