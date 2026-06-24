@@ -328,6 +328,7 @@ export class BabylonRenderHost implements IRenderHost {
     this.wiredGizmos.add(g);
     g.onDragStartObservable.add(() => this.onGizmoDragStart());
     g.onDragEndObservable.add(() => this.onGizmoDragEnd());
+    g.onDragObservable.add(() => this.rebuildSocketMarkers());
   }
 
   private draggedNode(): BabylonNode | undefined {

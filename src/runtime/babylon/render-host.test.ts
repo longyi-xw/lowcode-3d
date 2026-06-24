@@ -379,6 +379,22 @@ describe("BabylonRenderHost", () => {
       expect(() => host.dispose()).not.toThrow();
       expect(host.socketMarkersForTest).toBeNull();
     });
+
+    it("rebuilds markers during a rotate-gizmo drag (parity with Three objectChange)", () => {
+      const host = mountedWith(
+        boxNodeWithSockets("d", [0, 0, 0], [{ position: [1, 0, 0] }]),
+      );
+      host.setGizmoMode("rotate");
+      host.setGizmoTarget("d", false);
+      host.syncSocketMarkers();
+      const rg = host.gizmoManagerForTest!.gizmos.rotationGizmo!;
+      // observers wired by wireActiveGizmo; firing onDrag must rebuild markers.
+      const before = host.socketMarkersForTest!.getChildMeshes().length;
+      rg.onDragObservable.notifyObservers({} as never);
+      expect(host.socketMarkersForTest!.getChildMeshes()).toHaveLength(before);
+      expect(rg.onDragObservable.observers.length).toBeGreaterThan(0);
+      host.dispose();
+    });
   });
 
   describe("rendering fidelity (v1.0 B4d)", () => {
