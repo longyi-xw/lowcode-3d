@@ -136,7 +136,8 @@ export class BabylonAdapter implements IRuntimeAdapter {
       }
       applyBabylonTransform(existing, node);
       existing.setEnabled(node.visible);
-      if (node.data.type === "light") applyLightData(existing as Light, node.data);
+      if (node.data.type === "light" && existing instanceof Light)
+        applyLightData(existing, node.data);
       if (
         node.data.type === "mesh" &&
         existing instanceof Mesh &&
