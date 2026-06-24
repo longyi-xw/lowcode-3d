@@ -381,6 +381,17 @@ describe("BabylonRenderHost", () => {
     });
   });
 
+  describe("rendering fidelity (v1.0 B4d)", () => {
+    it("mount enables whole-frame sRGB image processing", () => {
+      const { host } = makeHost();
+      host.mount(document.createElement("canvas"));
+      const ip = host.adapter.scene.imageProcessingConfiguration;
+      expect(ip.isEnabled).toBe(true);
+      expect(ip.applyByPostProcess).toBe(true);
+      host.dispose();
+    });
+  });
+
   describe("engine-specific surface (v1.0 B4c)", () => {
     it("focusCamera sets the ArcRotate target + radius", () => {
       const { host } = makeHost();

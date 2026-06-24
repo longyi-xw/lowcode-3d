@@ -5,6 +5,7 @@ import {
   Engine,
   GizmoManager,
   HighlightLayer,
+  ImageProcessingPostProcess,
   Mesh,
   MeshBuilder,
   StandardMaterial,
@@ -75,6 +76,7 @@ export class BabylonRenderHost implements IRenderHost {
   private lastSnappedPos: Vector3 | null = null;
   private cachedTargets: ReturnType<typeof featureSnapPoints> = [];
   private cachedSocketTargets: ReturnType<typeof socketPoints> = [];
+  private imageProcessing: ImageProcessingPostProcess | null = null;
   private socketMarkers: TransformNode | null = null;
   private socketMat: StandardMaterial | null = null;
   private socketMatSel: StandardMaterial | null = null;
@@ -131,6 +133,20 @@ export class BabylonRenderHost implements IRenderHost {
     this.highlight = new HighlightLayer("selection-highlight", scene);
     scene.activeCamera = camera;
     this.camera = camera;
+
+    // sRGB output (B4d) — match Three's OutputPass, which sRGB-encodes the whole
+    // frame (incl. the dark clearColor). applyByPostProcess=true moves image
+    // processing to a fullscreen post-process so the background gets the gamma
+    // curve too AND materials defer to it (no double-encode). NoToneMapping
+    // (Babylon default toneMappingEnabled=false) matches Three's default.
+    const ip = scene.imageProcessingConfiguration;
+    ip.isEnabled = true;
+    ip.applyByPostProcess = true;
+    this.imageProcessing = new ImageProcessingPostProcess(
+      "imageProcessing",
+      1.0,
+      camera,
+    );
 
     // GizmoManager — usePointerToAttachGizmos=false because selection is
     // driven by the editor store (setGizmoTarget), not pointer picking.
@@ -422,6 +438,8 @@ export class BabylonRenderHost implements IRenderHost {
     this.stop();
     window.removeEventListener("pointermove", this.onSnapPointer, true);
     window.removeEventListener("pointerdown", this.onSnapPointer, true);
+    this.imageProcessing?.dispose();
+    this.imageProcessing = null;
     this.gizmoManager?.dispose();
     this.gizmoManager = null;
     this.commitCb = null;
