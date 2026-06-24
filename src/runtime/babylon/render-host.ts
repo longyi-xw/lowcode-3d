@@ -2,6 +2,7 @@ import {
   ArcRotateCamera,
   Color3,
   Color4,
+  CubeTexture,
   Engine,
   GizmoManager,
   HighlightLayer,
@@ -14,6 +15,8 @@ import {
   type AbstractEngine,
   type Node as BabylonNode,
 } from "@babylonjs/core";
+
+import neutralEnvUrl from "@/assets/env/neutral.env?url";
 
 import { SOCKET_MARKER } from "@/runtime/socket-markers";
 
@@ -77,6 +80,7 @@ export class BabylonRenderHost implements IRenderHost {
   private cachedTargets: ReturnType<typeof featureSnapPoints> = [];
   private cachedSocketTargets: ReturnType<typeof socketPoints> = [];
   private imageProcessing: ImageProcessingPostProcess | null = null;
+  private envTexture: CubeTexture | null = null;
   private socketMarkers: TransformNode | null = null;
   private socketMat: StandardMaterial | null = null;
   private socketMatSel: StandardMaterial | null = null;
@@ -147,6 +151,13 @@ export class BabylonRenderHost implements IRenderHost {
       1.0,
       camera,
     );
+
+    // Neutral IBL (B4d) — both engines were env-less, so PBR metals read dark.
+    // A small neutral studio .env gives metals something to reflect; Three uses
+    // RoomEnvironment for the parallel effect. Not pixel-identical across
+    // engines (different convolution) — both just neutral.
+    this.envTexture = CubeTexture.CreateFromPrefilteredData(neutralEnvUrl, scene);
+    scene.environmentTexture = this.envTexture;
 
     // GizmoManager — usePointerToAttachGizmos=false because selection is
     // driven by the editor store (setGizmoTarget), not pointer picking.
@@ -440,6 +451,8 @@ export class BabylonRenderHost implements IRenderHost {
     window.removeEventListener("pointerdown", this.onSnapPointer, true);
     this.imageProcessing?.dispose();
     this.imageProcessing = null;
+    this.envTexture?.dispose();
+    this.envTexture = null;
     this.gizmoManager?.dispose();
     this.gizmoManager = null;
     this.commitCb = null;

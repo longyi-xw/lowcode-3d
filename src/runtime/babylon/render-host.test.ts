@@ -390,6 +390,13 @@ describe("BabylonRenderHost", () => {
       expect(ip.applyByPostProcess).toBe(true);
       host.dispose();
     });
+
+    it("mount sets a neutral IBL environment texture", () => {
+      const { host } = makeHost();
+      host.mount(document.createElement("canvas"));
+      expect(host.adapter.scene.environmentTexture).not.toBeNull();
+      host.dispose();
+    });
   });
 
   describe("engine-specific surface (v1.0 B4c)", () => {
