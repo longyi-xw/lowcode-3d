@@ -4,6 +4,7 @@ import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutlinePass } from "three/addons/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 
 import type { GizmoMode } from "@/core/editor-types";
@@ -87,6 +88,15 @@ export class ThreeRenderHost implements IRenderHost {
     renderer.setClearColor(0x101418, 1);
     renderer.shadowMap.enabled = true;
     this.renderer = renderer;
+
+    // Neutral IBL (B4d) — RoomEnvironment is a built-in procedural neutral room;
+    // PMREM convolves it into an environment map so PBR/standard metals have
+    // something to reflect (parallels Babylon's .env IBL). Asset-free. The PMREM
+    // generator + its temporary scene are one-shot — dispose right after.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    adapter.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+
     adapter.setBehaviorDomElement(canvas);
 
     // Post-processing chain so we can stack an OutlinePass for selection
