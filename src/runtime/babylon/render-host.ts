@@ -6,7 +6,6 @@ import {
   Engine,
   GizmoManager,
   HighlightLayer,
-  ImageProcessingPostProcess,
   Mesh,
   MeshBuilder,
   StandardMaterial,
@@ -79,7 +78,6 @@ export class BabylonRenderHost implements IRenderHost {
   private lastSnappedPos: Vector3 | null = null;
   private cachedTargets: ReturnType<typeof featureSnapPoints> = [];
   private cachedSocketTargets: ReturnType<typeof socketPoints> = [];
-  private imageProcessing: ImageProcessingPostProcess | null = null;
   private envTexture: CubeTexture | null = null;
   private socketMarkers: TransformNode | null = null;
   private socketMat: StandardMaterial | null = null;
@@ -138,19 +136,12 @@ export class BabylonRenderHost implements IRenderHost {
     scene.activeCamera = camera;
     this.camera = camera;
 
-    // sRGB output (B4d) — match Three's OutputPass, which sRGB-encodes the whole
-    // frame (incl. the dark clearColor). applyByPostProcess=true moves image
-    // processing to a fullscreen post-process so the background gets the gamma
-    // curve too AND materials defer to it (no double-encode). NoToneMapping
-    // (Babylon default toneMappingEnabled=false) matches Three's default.
-    const ip = scene.imageProcessingConfiguration;
-    ip.isEnabled = true;
-    ip.applyByPostProcess = true;
-    this.imageProcessing = new ImageProcessingPostProcess(
-      "imageProcessing",
-      1.0,
-      camera,
-    );
+    // sRGB output (B4d): Babylon's default per-material image processing already
+    // gamma-corrects PBR materials in-shader (verified: the mesh renders
+    // correctly). The whole-frame ImageProcessingPostProcess approach was
+    // reverted — it blacked out the main scene (incompatible with the
+    // HighlightLayer / gizmo utility-layer render path). Background sRGB parity
+    // with Three's OutputPass is a clearColor concern, tuned in smoke if needed.
 
     // Neutral IBL (B4d) — both engines were env-less, so PBR metals read dark.
     // A small neutral studio .env gives metals something to reflect; Three uses
@@ -450,8 +441,6 @@ export class BabylonRenderHost implements IRenderHost {
     this.stop();
     window.removeEventListener("pointermove", this.onSnapPointer, true);
     window.removeEventListener("pointerdown", this.onSnapPointer, true);
-    this.imageProcessing?.dispose();
-    this.imageProcessing = null;
     this.envTexture?.dispose();
     this.envTexture = null;
     this.gizmoManager?.dispose();

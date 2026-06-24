@@ -398,15 +398,6 @@ describe("BabylonRenderHost", () => {
   });
 
   describe("rendering fidelity (v1.0 B4d)", () => {
-    it("mount enables whole-frame sRGB image processing", () => {
-      const { host } = makeHost();
-      host.mount(document.createElement("canvas"));
-      const ip = host.adapter.scene.imageProcessingConfiguration;
-      expect(ip.isEnabled).toBe(true);
-      expect(ip.applyByPostProcess).toBe(true);
-      host.dispose();
-    });
-
     it("mount sets a neutral IBL environment texture", () => {
       const { host } = makeHost();
       host.mount(document.createElement("canvas"));
