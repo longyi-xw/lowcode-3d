@@ -397,15 +397,6 @@ describe("BabylonRenderHost", () => {
     });
   });
 
-  describe("rendering fidelity (v1.0 B4d)", () => {
-    it("mount sets a neutral IBL environment texture", () => {
-      const { host } = makeHost();
-      host.mount(document.createElement("canvas"));
-      expect(host.envTextureForTest).not.toBeNull();
-      host.dispose();
-    });
-  });
-
   describe("engine-specific surface (v1.0 B4c)", () => {
     it("focusCamera sets the ArcRotate target + radius", () => {
       const { host } = makeHost();

@@ -2,7 +2,6 @@ import {
   ArcRotateCamera,
   Color3,
   Color4,
-  CubeTexture,
   Engine,
   GizmoManager,
   HighlightLayer,
@@ -14,8 +13,6 @@ import {
   type AbstractEngine,
   type Node as BabylonNode,
 } from "@babylonjs/core";
-
-import neutralEnvUrl from "@/assets/env/neutral.env?url";
 
 import { SOCKET_MARKER } from "@/runtime/socket-markers";
 
@@ -35,8 +32,10 @@ export interface BabylonRenderHostOptions {
   createEngine?: (canvas: HTMLCanvasElement) => AbstractEngine;
 }
 
-/** Matches ThreeViewport's renderer.setClearColor(0x101418). */
-const CLEAR_COLOR = new Color4(0x10 / 255, 0x14 / 255, 0x18 / 255, 1);
+/** Background sRGB parity with Three (B4d): Three's OutputPass displays the
+ *  0x101418 clear color sRGB-encoded (a lighter blue-gray). Babylon writes the
+ *  clear color raw, so we pre-encode it ≈ sRGB(0x101418). Tune in smoke. */
+const CLEAR_COLOR = new Color4(0x47 / 255, 0x4f / 255, 0x56 / 255, 1);
 
 /** Matches ThreeViewport's OutlinePass visibleEdgeColor (#3b82f6). */
 const SELECTION_COLOR = Color3.FromHexString("#3b82f6");
@@ -78,7 +77,6 @@ export class BabylonRenderHost implements IRenderHost {
   private lastSnappedPos: Vector3 | null = null;
   private cachedTargets: ReturnType<typeof featureSnapPoints> = [];
   private cachedSocketTargets: ReturnType<typeof socketPoints> = [];
-  private envTexture: CubeTexture | null = null;
   private socketMarkers: TransformNode | null = null;
   private socketMat: StandardMaterial | null = null;
   private socketMatSel: StandardMaterial | null = null;
@@ -111,11 +109,6 @@ export class BabylonRenderHost implements IRenderHost {
     return this.socketMarkers;
   }
 
-  /** Test-only surface: lets unit tests assert the IBL env texture was created. */
-  get envTextureForTest(): CubeTexture | null {
-    return this.envTexture;
-  }
-
   mount(canvas: HTMLCanvasElement): void {
     const engine = this.createEngine(canvas);
     this.babylonEngine = engine;
@@ -142,25 +135,14 @@ export class BabylonRenderHost implements IRenderHost {
     this.camera = camera;
 
     // sRGB output (B4d): Babylon's default per-material image processing already
-    // gamma-corrects PBR materials in-shader (verified: the mesh renders
-    // correctly). The whole-frame ImageProcessingPostProcess approach was
-    // reverted — it blacked out the main scene (incompatible with the
-    // HighlightLayer / gizmo utility-layer render path). Background sRGB parity
-    // with Three's OutputPass is a clearColor concern, tuned in smoke if needed.
+    // gamma-corrects PBR materials in-shader. The whole-frame
+    // ImageProcessingPostProcess approach was reverted — it blacked out the main
+    // scene (incompatible with the HighlightLayer / gizmo utility-layer render
+    // path). Background sRGB parity is handled by pre-encoding CLEAR_COLOR.
 
-    // Neutral IBL (B4d) — both engines were env-less, so PBR metals read dark.
-    // A small neutral studio .env gives metals something to reflect; Three uses
-    // RoomEnvironment for the parallel effect. Not pixel-identical across
-    // engines (different convolution) — both just neutral.
-    // Assign to the scene only after the prefiltered data loads — a PBR material
-    // sampling an environmentTexture whose GPU texture isn't ready yet throws
-    // per-frame "texParameter: no texture" GL errors. onLoad-gating also makes a
-    // failed load degrade gracefully (no IBL) rather than erroring every frame.
-    const env = CubeTexture.CreateFromPrefilteredData(neutralEnvUrl, scene);
-    env.onLoadObservable.addOnce(() => {
-      scene.environmentTexture = env;
-    });
-    this.envTexture = env;
+    // Babylon .env IBL was dropped (B4d): the prefiltered .env failed to load in
+    // the Tauri/WebGL runtime (per-frame "texParameter: no texture"), and IBL is
+    // barely visible on matte content. Three keeps its RoomEnvironment IBL.
 
     // GizmoManager — usePointerToAttachGizmos=false because selection is
     // driven by the editor store (setGizmoTarget), not pointer picking.
@@ -453,8 +435,6 @@ export class BabylonRenderHost implements IRenderHost {
     this.stop();
     window.removeEventListener("pointermove", this.onSnapPointer, true);
     window.removeEventListener("pointerdown", this.onSnapPointer, true);
-    this.envTexture?.dispose();
-    this.envTexture = null;
     this.gizmoManager?.dispose();
     this.gizmoManager = null;
     this.commitCb = null;
