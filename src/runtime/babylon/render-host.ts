@@ -111,6 +111,11 @@ export class BabylonRenderHost implements IRenderHost {
     return this.socketMarkers;
   }
 
+  /** Test-only surface: lets unit tests assert the IBL env texture was created. */
+  get envTextureForTest(): CubeTexture | null {
+    return this.envTexture;
+  }
+
   mount(canvas: HTMLCanvasElement): void {
     const engine = this.createEngine(canvas);
     this.babylonEngine = engine;
@@ -147,8 +152,15 @@ export class BabylonRenderHost implements IRenderHost {
     // A small neutral studio .env gives metals something to reflect; Three uses
     // RoomEnvironment for the parallel effect. Not pixel-identical across
     // engines (different convolution) — both just neutral.
-    this.envTexture = CubeTexture.CreateFromPrefilteredData(neutralEnvUrl, scene);
-    scene.environmentTexture = this.envTexture;
+    // Assign to the scene only after the prefiltered data loads — a PBR material
+    // sampling an environmentTexture whose GPU texture isn't ready yet throws
+    // per-frame "texParameter: no texture" GL errors. onLoad-gating also makes a
+    // failed load degrade gracefully (no IBL) rather than erroring every frame.
+    const env = CubeTexture.CreateFromPrefilteredData(neutralEnvUrl, scene);
+    env.onLoadObservable.addOnce(() => {
+      scene.environmentTexture = env;
+    });
+    this.envTexture = env;
 
     // GizmoManager — usePointerToAttachGizmos=false because selection is
     // driven by the editor store (setGizmoTarget), not pointer picking.

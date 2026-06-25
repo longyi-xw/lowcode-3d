@@ -401,7 +401,7 @@ describe("BabylonRenderHost", () => {
     it("mount sets a neutral IBL environment texture", () => {
       const { host } = makeHost();
       host.mount(document.createElement("canvas"));
-      expect(host.adapter.scene.environmentTexture).not.toBeNull();
+      expect(host.envTextureForTest).not.toBeNull();
       host.dispose();
     });
   });
