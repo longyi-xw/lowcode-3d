@@ -131,7 +131,7 @@
     - [x] **B4a · Babylon 材质覆盖**：`BabylonAdapter` create+update 应用 PBR 材质覆盖（`PBRMaterial`，复用引擎中立 `resolveMaterial`，新 `babylon/material.ts`）；`RuntimeNodeInfo.material` + 两引擎 `describeNode` 读真实材质 + conformance 材质对等。观感/色彩空间/IBL/光强对齐留 B4d。
     - [x] **B4b · Babylon socket markers**：青色小球 overlay（让 B3b 的 socket 吸附可见可用），镜像 ThreeViewport；socket markers 常量模块 + Three/Babylon 跨引擎完成。
     - [x] **B4c · Babylon 视口交互剩余**：play 行为预览 + F focus + 资源拖放落点接 BabylonViewport（镜像 ThreeViewport）；BabylonRenderHost 加 `setFrameCallback`/`focusCamera`，`raycastGroundPoint` 升 `IRuntimeAdapter`（+ conformance 对等），Babylon focus 目标计算；`engineCapabilities` 翻全 true（保留 seam）。Babylon 视口至此与 Three 全对等可编辑。
-    - [ ] **B4d · 渲染观感对齐**：Babylon 底色 sRGB/tone 对齐 Three OutputPass + 光强 + 材质观感（IBL/环境贴图让金属正常）。依赖 B4a。
+    - [x] **B4d · 渲染观感对齐**：Babylon 灯光 intensity+color 应用（关闭 gap，镜像 Three）+ 底色 `CLEAR_COLOR` 预编码 sRGB 对齐 Three + socket marker 全 gizmo 模式跟随（B4b 收尾）；Three `RoomEnvironment` IBL。**smoke 教训**：Babylon 整帧 sRGB post-process（黑屏，与 HighlightLayer/utility 层不兼容）与 .env IBL（Tauri/WebGL 运行时加载失败、texParameter 错）均回退——NullEngine de-risk 验不出真实渲染/纹理加载，详见 commit。
 - **Depends on**: v0.5 行为系统全部完成（v0.5 Stage C）
 
 ### v1.x — Planned

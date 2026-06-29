@@ -32,8 +32,10 @@ export interface BabylonRenderHostOptions {
   createEngine?: (canvas: HTMLCanvasElement) => AbstractEngine;
 }
 
-/** Matches ThreeViewport's renderer.setClearColor(0x101418). */
-const CLEAR_COLOR = new Color4(0x10 / 255, 0x14 / 255, 0x18 / 255, 1);
+/** Background sRGB parity with Three (B4d): Three's OutputPass displays the
+ *  0x101418 clear color sRGB-encoded (a lighter blue-gray). Babylon writes the
+ *  clear color raw, so we pre-encode it ≈ sRGB(0x101418). Tune in smoke. */
+const CLEAR_COLOR = new Color4(0x47 / 255, 0x4f / 255, 0x56 / 255, 1);
 
 /** Matches ThreeViewport's OutlinePass visibleEdgeColor (#3b82f6). */
 const SELECTION_COLOR = Color3.FromHexString("#3b82f6");
@@ -131,6 +133,16 @@ export class BabylonRenderHost implements IRenderHost {
     this.highlight = new HighlightLayer("selection-highlight", scene);
     scene.activeCamera = camera;
     this.camera = camera;
+
+    // sRGB output (B4d): Babylon's default per-material image processing already
+    // gamma-corrects PBR materials in-shader. The whole-frame
+    // ImageProcessingPostProcess approach was reverted — it blacked out the main
+    // scene (incompatible with the HighlightLayer / gizmo utility-layer render
+    // path). Background sRGB parity is handled by pre-encoding CLEAR_COLOR.
+
+    // Babylon .env IBL was dropped (B4d): the prefiltered .env failed to load in
+    // the Tauri/WebGL runtime (per-frame "texParameter: no texture"), and IBL is
+    // barely visible on matte content. Three keeps its RoomEnvironment IBL.
 
     // GizmoManager — usePointerToAttachGizmos=false because selection is
     // driven by the editor store (setGizmoTarget), not pointer picking.
@@ -301,6 +313,7 @@ export class BabylonRenderHost implements IRenderHost {
     this.wiredGizmos.add(g);
     g.onDragStartObservable.add(() => this.onGizmoDragStart());
     g.onDragEndObservable.add(() => this.onGizmoDragEnd());
+    g.onDragObservable.add(() => this.rebuildSocketMarkers());
   }
 
   private draggedNode(): BabylonNode | undefined {
